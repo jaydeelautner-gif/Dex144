@@ -42,6 +42,7 @@ import { getEvolutionFamilyForPokemon } from '../data/pokemonEvolutionData';
 import { getItemInfoForPokemon } from '../data/pokemonItemsData';
 import { PokemonSprite } from './PokemonSprite';
 import { GameLogoBadge, PokemonHomeLogoBadge } from './GameLogoBadge';
+import { PokemonEncountersSection } from './PokemonEncountersSection';
 
 interface PokemonFullPageViewProps {
   pokemon: PokemonEntry;
@@ -707,6 +708,11 @@ export const PokemonFullPageView: React.FC<PokemonFullPageViewProps> = ({
             })}
           </div>
         )}
+      </section>
+
+      {/* Accurate Wild Encounter Data (PokéAPI bundle) */}
+      <section className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 shadow-xl">
+        <PokemonEncountersSection pokemonId={pokemon.id} ownedGames={userOwnedEncounterGames.map((g) => g.id)} />
       </section>
 
       {/* POSITIVE CONSENT MODAL FOR DELETING FROM FULL PAGE VIEW */}

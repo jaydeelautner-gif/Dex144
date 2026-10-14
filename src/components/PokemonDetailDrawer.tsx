@@ -38,6 +38,7 @@ import { getEvolutionFamilyForPokemon } from '../data/pokemonEvolutionData';
 import { getItemInfoForPokemon } from '../data/pokemonItemsData';
 import { PokemonSprite } from './PokemonSprite';
 import { GameLogoBadge, PokemonHomeLogoBadge } from './GameLogoBadge';
+import { PokemonEncountersSection } from './PokemonEncountersSection';
 
 interface PokemonDetailDrawerProps {
   pokemon: PokemonEntry | null;
@@ -548,6 +549,9 @@ export const PokemonDetailDrawer: React.FC<PokemonDetailDrawerProps> = ({
             </div>
           )}
         </div>
+
+        {/* Accurate Wild Encounter Data (PokéAPI bundle) */}
+        <PokemonEncountersSection pokemonId={pokemon.id} ownedGames={userOwnedEncounterGames.map((g) => g.id)} />
       </aside>
     </div>
   );

@@ -12,6 +12,21 @@ export default defineConfig(() => {
       VitePWA({
         registerType: 'autoUpdate',
         manifest: false, // already configured or handled manually via index.html / sw
+        workbox: {
+          // Encounter data bundle (public/data/**) is immutable per deploy:
+          // cache it on first use so offline users keep accurate encounters.
+          runtimeCaching: [
+            {
+              urlPattern: /\/data\/.+\.json$/,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'dex-data-v1',
+                expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 30 },
+                cacheableResponse: { statuses: [200] },
+              },
+            },
+          ],
+        },
       }),
     ],
     resolve: {

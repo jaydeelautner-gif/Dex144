@@ -1,0 +1,41 @@
+# Accurate Wild Encounter Data
+
+This app bundles exact wild-encounter data (location area → method, chance %,
+min/max level, per-version) for every Pokémon from [PokéAPI](https://pokeapi.co),
+generated into a static JSON file at `public/data/encounters.json`.
+
+## How it works
+
+1. **`scripts/fetchEncounters.mjs`** (Node) fetches
+   `GET /api/v2/pokemon/{1..1025}/encounters` from PokéAPI with limited
+   concurrency + retries, maps each PokéAPI `version` to the app's `GameId`
+   (see `VERSION_TO_GAME_ID`), groups identical rows across sibling versions
+   (e.g. Red/Blue/Yellow share an area), and writes a compact bundle.
+
+2. **`public/data/encounters.json`** is committed with the repo so the site
+   serves it statically — no runtime API calls, works with the PWA offline
+   cache (`dex-data-v1` in `vite.config.ts`).
+
+3. **`src/data/encountersData.ts`** lazy-loads the bundle once per session and
+   exposes `getEncountersForGame(dataset, pokemonId, gameId)`.
+
+4. **`src/components/PokemonEncountersSection.tsx`** renders, per owned game,
+   each location area with method, encounter chance, and level range. It is
+   embedded in `PokemonDetailDrawer` and `PokemonFullPageView`.
+
+## Regenerating the data
+
+```bash
+npm run fetch:encounters      # or: python3 scripts/fetch_encounters.py
+```
+
+Then commit the updated `public/data/encounters.json`.
+
+## Known limits
+
+- PokéAPI's `/encounters` endpoint does not yet include Brilliant
+  Diamond/Shining Pearl, Legends: Arceus, or Scarlet/Violet wild data, so the
+  exact-data panel simply doesn't render a row for those games — the existing
+  hand-written "Where to find" availability cards still cover them.
+- Species obtained only via evolution, gift, or transfer have no wild rows and
+  show an explanatory message instead.
