@@ -55,6 +55,8 @@ interface DexSuggestionsSectionProps {
   onNavigateToSettings: () => void;
   isGuest: boolean;
   onRequestAuth: (prompt: string) => void;
+  /** Dex numbers locked by unfinished story milestones in tracked games. */
+  lockedByProgressSet?: Set<number>;
 }
 
 export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
@@ -72,6 +74,7 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
   onNavigateToSettings,
   isGuest,
   onRequestAuth,
+  lockedByProgressSet,
 }) => {
   const [activeFilter, setActiveFilter] = useState<'all' | 'upgrades' | 'uncaught'>('all');
   const [randomSeed, setRandomSeed] = useState<number>(() => Date.now());
@@ -109,6 +112,10 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
       });
 
       if (obtainableOwned.length === 0) continue;
+
+      // Species still locked behind an uncompleted story milestone in every
+      // tracked game aren't catchable yet — exclude from suggestions.
+      if (lockedByProgressSet?.has(p.id)) continue;
 
       // Filter console-only games (excluding pogo)
       const consoleObtainable = obtainableOwned.filter((gId) => gId !== 'pogo');

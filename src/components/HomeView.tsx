@@ -20,6 +20,7 @@ import { PokeBankClosureAlertSection } from './PokeBankClosureAlertSection';
 import { GameLogoBadge } from './GameLogoBadge';
 import { type PokemonInstance } from '../data/pokemonInventoryData';
 import { DexSuggestionsSection } from './DexSuggestionsSection';
+import { MilestoneUnlocksPanel } from './MilestoneUnlocksPanel';
 // ── GAME PROGRESS TRACKING ──
 import { GameProgressTracker } from './GameProgressTracker';
 import type { ProgressState } from '../hooks/useGameProgress';
@@ -344,6 +345,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
         )}
       </section>
 
+      {/* FRESH UNLOCKS: uncaught species reachable after the latest milestone */}
+      <MilestoneUnlocksPanel
+        progress={gameProgress}
+        trackedGames={trackedGames}
+        dex={dex}
+        caughtSet={caughtSet}
+        onSelectPokemon={onSelectPokemon}
+        onNavigateToProgress={onNavigateToProgress}
+      />
+
       {/* DEX SUGGESTIONS SECTION */}
       <DexSuggestionsSection
         dex={dex}
@@ -360,6 +371,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         onNavigateToSettings={onNavigateToSettings}
         isGuest={isGuest}
         onRequestAuth={onRequestAuth}
+        lockedByProgressSet={lockedByProgressSet}
       />
 
       {/* QUICK HUB NAVIGATION CARDS */}
