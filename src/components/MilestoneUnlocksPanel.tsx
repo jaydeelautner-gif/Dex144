@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Trophy, Sparkles, Check } from 'lucide-react';
+import { Trophy, Sparkles, Check, X } from 'lucide-react';
 import type { GameId, PokemonEntry } from '../data/pokemonData';
 import {
   GAME_META,
@@ -276,11 +276,27 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       {row.chosenStarter ? (
-                        <button
-                          type="button"
+                        <div
+                          role="button"
+                          tabIndex={0}
                           onClick={() => onSelectPokemon(row.chosenStarter!)}
-                          className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/40 hover:border-emerald-400 flex flex-col items-center gap-1 transition-colors cursor-pointer"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') onSelectPokemon(row.chosenStarter!);
+                          }}
+                          className="relative p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/40 hover:border-emerald-400 flex flex-col items-center gap-1 transition-colors cursor-pointer"
                         >
+                          <button
+                            type="button"
+                            aria-label="Unselect starter"
+                            title="Unselect this starter and show all three choices again"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onClearStarter(row.group);
+                            }}
+                            className="absolute -top-1.5 -right-1.5 p-1 rounded-full bg-slate-900 border border-slate-600 text-slate-300 hover:text-rose-300 hover:border-rose-500/60 shadow-md transition-colors cursor-pointer"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
                           <PokemonSprite id={row.chosenStarter.id} name={row.chosenStarter.name} size="sm" />
                           <span className="text-[10px] text-emerald-200 truncate w-full text-center">
                             #{String(row.chosenStarter.id).padStart(3, '0')} {row.chosenStarter.name}
@@ -290,7 +306,7 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
                               <Check className="w-3 h-3" /> Caught
                             </span>
                           )}
-                        </button>
+                        </div>
                       ) : (
                         row.starterOptions.map((s) => {
                           const alreadyCaught = caughtSet.has(s.id);
