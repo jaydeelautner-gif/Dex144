@@ -68,6 +68,50 @@ export function getOwnedTrackableGames(ownedGames: GameId[]): GameId[] {
   return TRACKABLE_GAMES.filter((g) => owned.has(g));
 }
 
+/** Canonical game ids that belong to each trackable group. */
+export const GROUP_MEMBER_GAMES: Record<string, GameId[]> = {
+  rb: ['red', 'blue', 'yellow'],
+  frlg: ['firered', 'leafgreen'],
+  gs: ['gold', 'silver', 'crystal'],
+  hgss: ['heartgold', 'soulsilver'],
+  rse: ['ruby', 'sapphire', 'emerald'],
+  oras: ['omegaruby', 'alphasapphire'],
+  dppt: ['diamond', 'pearl', 'platinum'],
+  bdsp: ['bd', 'sp'],
+  colo: ['colo'],
+  xd: ['xd'],
+  bw: ['black', 'white'],
+  b2w2: ['black2', 'white2'],
+  xy: ['x', 'y'],
+  sm: ['sun', 'moon'],
+  usum: ['ultrasun', 'ultramoon'],
+  lgpe: ['lgp', 'lge'],
+  swsh: ['sword', 'shield'],
+  pla: ['pla'],
+  sv: ['scarlet', 'violet'],
+};
+
+/** The three starter Pokémon (national dex numbers) offered in each group's games. */
+export const STARTER_TRIOS: Record<string, number[]> = {
+  rb: [1, 4, 7],
+  frlg: [1, 4, 7],
+  gs: [152, 155, 158],
+  hgss: [152, 155, 158],
+  rse: [252, 255, 258],
+  oras: [252, 255, 258],
+  dppt: [387, 390, 393],
+  bdsp: [387, 390, 393],
+  bw: [495, 498, 501],
+  b2w2: [495, 498, 501],
+  xy: [650, 653, 656],
+  sm: [722, 725, 728],
+  usum: [722, 725, 728],
+  lgpe: [1, 4, 7],
+  swsh: [810, 813, 816],
+  pla: [155, 501, 724],
+  sv: [907, 910, 913],
+};
+
 export const GAME_META: Record<string, { name: string; short: string; accent: string }> = {
   rb:   { name: 'Red / Blue / Yellow',           short: 'RBY',    accent: '#e0463f' },
   frlg: { name: 'FireRed / LeafGreen',          short: 'FRLG',   accent: '#e0783f' },

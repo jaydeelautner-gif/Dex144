@@ -22,9 +22,7 @@ import { type PokemonInstance } from '../data/pokemonInventoryData';
 import { DexSuggestionsSection } from './DexSuggestionsSection';
 import { MilestoneUnlocksPanel } from './MilestoneUnlocksPanel';
 // ── GAME PROGRESS TRACKING ──
-import { GameProgressTracker } from './GameProgressTracker';
 import type { ProgressState } from '../hooks/useGameProgress';
-import { GAME_META, getOwnedTrackableGames, milestonesFor } from '../data/milestones';
 // ── END GAME PROGRESS TRACKING ──
 
 interface HomeViewProps {
@@ -52,6 +50,8 @@ interface HomeViewProps {
   lockedByProgressSet: Set<number>;
   gameProgress: ProgressState;
   trackedGames: Set<GameId>;
+  starterChoices: Record<string, number>;
+  onChooseStarter: (gameGroup: string, dexId: number) => void;
   onToggleMilestone: (gameId: GameId, milestoneId: string) => void;
   onToggleTracking: (gameId: GameId) => void;
   onResetGameProgress: (gameId: GameId) => void;
@@ -85,6 +85,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
   lockedByProgressSet,
   gameProgress,
   trackedGames,
+  starterChoices,
+  onChooseStarter,
   onToggleMilestone,
   onToggleTracking,
   onResetGameProgress,
@@ -94,8 +96,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
 }) => {
   const [pokeIdInput, setPokeIdInput] = useState('');
   const [lookupError, setLookupError] = useState<string | null>(null);
-  // ── GAME PROGRESS TRACKING: collapsible inline panel ──
-  const [isProgressPanelOpen, setIsProgressPanelOpen] = useState(true);
 
   const totalSpecies = dex.length;
   const caughtCount = caughtSet.size;
@@ -105,22 +105,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
     (acc, gId) => acc + (gameCatches[gId]?.length || 0),
     0
   );
-
-  // ── GAME PROGRESS TRACKING: summary stats for the inline card ──
-  const trackableOwnedGames = getOwnedTrackableGames(ownedGames);
-  const totalTrackedMilestones = [...trackedGames].reduce(
-    (acc, gId) => acc + milestonesFor(gId).length,
-    0
-  );
-  const completedTrackedMilestones = [...trackedGames].reduce(
-    (acc, gId) => acc + (gameProgress[gId]?.length ?? 0),
-    0
-  );
-  const overallProgressPct =
-    totalTrackedMilestones > 0
-      ? Math.round((completedTrackedMilestones / totalTrackedMilestones) * 100)
-      : 0;
-  const lockedCount = lockedByProgressSet.size;
 
   const handleLookupSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -260,97 +244,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </section>
 
-      {/* ── GAME PROGRESS TRACKING: Inline collapsible tracker ── */}
-      <section className="bg-[#0F1522] border border-purple-500/30 rounded-2xl shadow-xl overflow-hidden">
-        <button
-          type="button"
-          onClick={() => setIsProgressPanelOpen((v) => !v)}
-          className="w-full flex items-center justify-between gap-3 px-5 py-4 hover:bg-slate-900/40 transition-colors cursor-pointer text-left"
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="p-2 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-300 shrink-0">
-              <Trophy className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="text-sm font-bold text-slate-100">
-                  Game Progress Tracking
-                </h3>
-                {trackedGames.size > 0 && (
-                  <span className="px-2 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/40 text-purple-300 text-[10px] font-mono-tabular font-bold">
-                    {overallProgressPct}% tracked
-                  </span>
-                )}
-                {lockedCount > 0 && (
-                  <span className="px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 text-[10px] font-mono-tabular font-bold">
-                    🔒 {lockedCount} locked
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-slate-400 mt-0.5">
-                {trackedGames.size === 0
-                  ? 'Check off your badges to hide encounters you can\'t reach yet.'
-                  : `Tracking ${trackedGames.size} game${trackedGames.size === 1 ? '' : 's'}: ${[...trackedGames]
-                      .map((g) => GAME_META[g]?.short ?? g.toUpperCase())
-                      .join(', ')}`}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <span
-              onClick={(e) => {
-                e.stopPropagation();
-                onNavigateToProgress();
-              }}
-              className="hidden sm:inline text-[11px] text-amber-400 hover:text-amber-300 font-semibold cursor-pointer"
-            >
-              Open full view →
-            </span>
-            {isProgressPanelOpen ? (
-              <ChevronUp className="w-4 h-4 text-slate-400" />
-            ) : (
-              <ChevronDown className="w-4 h-4 text-slate-400" />
-            )}
-          </div>
-        </button>
-
-        {isProgressPanelOpen && (
-          <div className="px-5 pb-5 pt-1 border-t border-slate-800/80">
-            {trackableOwnedGames.length === 0 ? (
-              <div className="py-6 flex flex-col items-center gap-3 text-center">
-                <p className="text-xs text-slate-400 max-w-md">
-                  You haven't marked any trackable games as owned yet. Add one in Settings
-                  to start tracking gym badges, titans, and star bases.
-                </p>
-                <button
-                  type="button"
-                  onClick={onNavigateToSettings}
-                  className="px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs cursor-pointer"
-                >
-                  Configure Owned Games
-                </button>
-              </div>
-            ) : (
-              <GameProgressTracker
-                progress={gameProgress}
-                trackedGames={trackedGames}
-                ownedGames={ownedGames}
-                onToggle={onToggleMilestone}
-                onToggleTracking={onToggleTracking}
-                onReset={onResetGameProgress}
-                onCompleteAll={onCompleteAllMilestones}
-              />
-            )}
-          </div>
-        )}
-      </section>
-
-      {/* FRESH UNLOCKS: uncaught species reachable after the latest milestone */}
+      {/* FRESH CATCHES: starting species + fresh milestone unlocks */}
       <MilestoneUnlocksPanel
         progress={gameProgress}
         trackedGames={trackedGames}
+        ownedGames={ownedGames}
         dex={dex}
         caughtSet={caughtSet}
+        starterChoices={starterChoices}
+        onChooseStarter={onChooseStarter}
         onSelectPokemon={onSelectPokemon}
         onNavigateToProgress={onNavigateToProgress}
       />

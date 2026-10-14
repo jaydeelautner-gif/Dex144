@@ -4,6 +4,7 @@ import { TRACKABLE_GAMES } from '../data/milestones';
 
 const LS_PROGRESS_KEY = 'homedex_v4_game_progress';
 const LS_TRACKED_GAMES_KEY = 'homedex_v4_tracked_games';
+const LS_STARTER_CHOICES_KEY = 'homedex_v4_starter_choices';
 
 export type ProgressState = Record<string, string[]>;
 
@@ -38,8 +39,25 @@ function loadTrackedGames(): GameId[] {
   }
 }
 
+function loadStarterChoices(): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(LS_STARTER_CHOICES_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return {};
+    return Object.fromEntries(
+      Object.entries(parsed).filter(([, v]) => typeof v === 'number')
+    ) as Record<string, number>;
+  } catch {
+    return {};
+  }
+}
+
 export function useGameProgress() {
   const [progress, setProgress] = useState<ProgressState>(() => loadProgress());
+  const [starterChoices, setStarterChoices] = useState<Record<string, number>>(
+    () => loadStarterChoices()
+  );
   const [trackedGames, setTrackedGames] = useState<Set<GameId>>(
     () => new Set(loadTrackedGames())
   );
@@ -55,6 +73,12 @@ export function useGameProgress() {
       localStorage.setItem(LS_TRACKED_GAMES_KEY, JSON.stringify([...trackedGames]));
     } catch { /* ignore */ }
   }, [trackedGames]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_STARTER_CHOICES_KEY, JSON.stringify(starterChoices));
+    } catch { /* ignore */ }
+  }, [starterChoices]);
 
   const toggleMilestone = useCallback((gameId: GameId, milestoneId: string) => {
     setProgress((prev) => {
@@ -72,6 +96,10 @@ export function useGameProgress() {
 
   const completeAll = useCallback((gameId: GameId, milestoneIds: string[]) => {
     setProgress((prev) => ({ ...prev, [gameId]: [...milestoneIds] }));
+  }, []);
+
+  const chooseStarter = useCallback((gameGroup: string, dexId: number) => {
+    setStarterChoices((prev) => ({ ...prev, [gameGroup]: dexId }));
   }, []);
 
   const toggleTracking = useCallback((gameId: GameId) => {
@@ -94,10 +122,12 @@ export function useGameProgress() {
   return {
     progress,
     trackedGames,
+    starterChoices,
     mergedCompletedSet,
     toggleMilestone,
     toggleTracking,
     resetGame,
     completeAll,
+    chooseStarter,
   };
 }

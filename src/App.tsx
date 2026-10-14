@@ -465,6 +465,8 @@ export function App() {
   const {
     progress: gameProgress,
     trackedGames,
+    starterChoices,
+    chooseStarter,
     mergedCompletedSet,
     toggleMilestone,
     toggleTracking,
@@ -2051,6 +2053,8 @@ export function App() {
                 lockedByProgressSet={lockedByProgressSet}
                 gameProgress={gameProgress}
                 trackedGames={trackedGames}
+                starterChoices={starterChoices}
+                onChooseStarter={chooseStarter}
                 onToggleMilestone={toggleMilestone}
                 onToggleTracking={toggleTracking}
                 onResetGameProgress={resetGameProgress}
