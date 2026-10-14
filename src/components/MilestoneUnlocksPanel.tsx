@@ -108,7 +108,10 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
           accent: meta?.accent ?? '#f59e0b',
           lastMilestoneLabel: null,
           starterOptions,
-          chosenStarter: chosen && !caughtSet.has(chosen.id) ? chosen : null,
+          // Keep the chosen card visible even if the species is already
+          // caught — otherwise the whole row would vanish after choosing
+          // an already-registered starter (looks like the pick failed).
+          chosenStarter: chosen,
           startingSpecies,
           startingSpeciesOverflow,
           freshSpecies,
@@ -215,7 +218,9 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
                     <div className="flex items-center gap-2 text-[11px] font-semibold text-amber-300">
                       <Sparkles className="w-3.5 h-3.5" />
                       {row.chosenStarter
-                        ? 'Your starter — catch it to complete the choice!'
+                        ? caughtSet.has(row.chosenStarter.id)
+                          ? 'Your starter — already caught ✓'
+                          : 'Your starter — catch it to complete the choice!'
                         : 'Choose your starter (pick one of three)'}
                     </div>
                     <div className="grid grid-cols-3 gap-2">
@@ -229,6 +234,11 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
                           <span className="text-[10px] text-emerald-200 truncate w-full text-center">
                             #{String(row.chosenStarter.id).padStart(3, '0')} {row.chosenStarter.name}
                           </span>
+                          {caughtSet.has(row.chosenStarter.id) && (
+                            <span className="text-[9px] font-bold text-emerald-400 flex items-center gap-1">
+                              <Check className="w-3 h-3" /> Caught
+                            </span>
+                          )}
                         </button>
                       ) : (
                         row.starterOptions.map((s) => {
