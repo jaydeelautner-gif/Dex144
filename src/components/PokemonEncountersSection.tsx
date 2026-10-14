@@ -5,6 +5,7 @@ import {
   useEncounterDataset,
   getEncountersForGame,
   prettyEncounterMethod,
+  prettyEncounterCondition,
   type EncounterArea,
 } from '../data/encountersData';
 import { GameLogoBadge } from './GameLogoBadge';
@@ -77,24 +78,43 @@ export const PokemonEncountersSection: React.FC<PokemonEncountersSectionProps> =
                 <strong className="capitalize">{area.area.replace(/-area$/, '').replace(/-/g, ' ')}</strong>
               </div>
               <div className="flex flex-col gap-0.5 pl-5">
-                {area.details.map((d, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center gap-2 text-[11px] text-slate-300 font-mono-tabular"
-                  >
-                    <span className="text-slate-100 min-w-24">{prettyEncounterMethod(d.method)}</span>
-                    <span className="text-emerald-300 font-bold w-12">{d.chance}%</span>
-                    <span className="text-slate-400">
-                      Lv. {d.minLevel}
-                      {d.maxLevel !== d.minLevel ? `–${d.maxLevel}` : ''}
-                    </span>
-                    <span className="text-[10px] text-slate-500 truncate">
-                      {d.versions
-                        .map((v) => v.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()))
-                        .join(' / ')}
-                    </span>
-                  </div>
-                ))}
+                {area.details.map((d, i) => {
+                  const chips = d.conditions
+                    .map(prettyEncounterCondition)
+                    .filter((c): c is string => !!c);
+                  return (
+                    <div
+                      key={i}
+                      className="flex flex-col gap-0.5"
+                    >
+                      <div className="flex items-center gap-2 text-[11px] text-slate-300 font-mono-tabular">
+                        <span className="text-slate-100 min-w-24">{prettyEncounterMethod(d.method)}</span>
+                        <span className="text-emerald-300 font-bold w-12">{d.chance}%</span>
+                        <span className="text-slate-400">
+                          Lv. {d.minLevel}
+                          {d.maxLevel !== d.minLevel ? `–${d.maxLevel}` : ''}
+                        </span>
+                        <span className="text-[10px] text-slate-500 truncate">
+                          {d.versions
+                            .map((v) => v.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()))
+                            .join(' / ')}
+                        </span>
+                      </div>
+                      {chips.length > 0 && (
+                        <div className="flex items-center flex-wrap gap-1 pl-0.5">
+                          {chips.map((chip) => (
+                            <span
+                              key={chip}
+                              className="px-1.5 py-0.5 rounded bg-sky-400/10 border border-sky-400/30 text-sky-300 text-[9px] font-bold"
+                            >
+                              {chip}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ))}

@@ -14,6 +14,8 @@ interface RawEncounterDetail {
   c: number;
   l: [number, number];
   v: string[];
+  /** Optional encounter condition values (weather, time of day, swarms…). */
+  cd?: string[];
 }
 /** Per game: location-area name → detail rows. */
 export type RawGameEncounters = Record<string, RawEncounterDetail[]>;
@@ -28,6 +30,7 @@ export interface EncounterDetail {
   minLevel: number;
   maxLevel: number;
   versions: string[];
+  conditions: string[];
 }
 export interface EncounterArea {
   area: string;
@@ -71,9 +74,66 @@ export function getEncountersForGame(
       minLevel: d.l[0],
       maxLevel: d.l[1],
       versions: d.v,
+      conditions: d.cd ?? [],
     })),
   }));
   return areas.length > 0 ? areas : null;
+}
+
+/**
+ * Encounter-condition families the UI surfaces (weather, time of day,
+ * seasons, swarms, radar, honey trees, headbutt trees, contests, radio
+ * channels, weekdays, Max Raid den rarity). Everything else (backlot slots,
+ * item requirements, trade specifics, story flags…) stays stored but hidden.
+ * Returns null for condition names that should not be displayed.
+ */
+export function prettyEncounterCondition(name: string): string | null {
+  if (name.startsWith('weather-')) {
+    const map: Record<string, string> = {
+      'weather-normal': 'Any weather',
+      'weather-fog': 'Fog',
+      'weather-raining': 'Rain',
+      'weather-thunderstorm': 'Thunderstorm',
+      'weather-intense-sun': 'Intense sun',
+      'weather-overcast': 'Overcast',
+      'weather-snowing': 'Snowing',
+      'weather-snowstorm': 'Snowstorm',
+      'weather-sandstorm': 'Sandstorm',
+    };
+    return (
+      map[name] ||
+      name
+        .replace('weather-', '')
+        .split('-')
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ')
+    );
+  }
+  const exact: Record<string, string> = {
+    'time-day': 'Daytime',
+    'time-morning': 'Morning',
+    'time-night': 'Night',
+    'season-spring': 'Spring',
+    'season-summer': 'Summer',
+    'season-autumn': 'Autumn',
+    'season-winter': 'Winter',
+    'swarm-yes': 'Swarm',
+    'radar-on': 'Poké Radar',
+    'bug-catching-contest-yes': 'Bug-Catching Contest',
+    'radio-hoenn': 'Hoenn Sound radio',
+    'radio-sinnoh': 'Sinnoh Sound radio',
+  };
+  if (exact[name]) return exact[name];
+  const prefix = (p: string, fmt: (rest: string) => string): string | null =>
+    name.startsWith(p) ? fmt(name.slice(p.length)) : null;
+  return (
+    prefix('honey-tree-group-', (r) => `Honey tree (group ${r.toUpperCase()})`) ||
+    prefix('headbutt-tree-', (r) => `Headbutt tree (${r})`) ||
+    prefix('weekday-', (r) => `${r.charAt(0).toUpperCase() + r.slice(1)}s only`) ||
+    prefix('max-den-rarity-', (r) => `Max Den (${r})`) ||
+    prefix('max-den-rating-', (r) => `Max Den ${r.replace('-star', '★')}`) ||
+    null
+  );
 }
 
 export function prettyEncounterMethod(method: string): string {

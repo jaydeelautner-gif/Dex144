@@ -59,3 +59,14 @@ the encounter bundle with `npm run generate:gates`.
 Groups without PokéAPI encounter coverage (SV, BDSP, PLA, Colosseum, XD, USUM)
 have no generated gates; their grids in Fresh Catches are also not filtered
 for evolution-only species.
+
+## Encounter conditions (weather etc.)
+
+The bundle now includes PokéAPI's `condition_values` per encounter row under
+the compact key `cd` (only when non-empty). The UI surfaces the gameplay-
+relevant families as chips on each encounter row: weather (rain, fog,
+thunderstorm, snow, sandstorm, intense sun, overcast), time of day (GSC/HGSS),
+seasons (BW), swarms, Poké Radar, honey tree groups, headbutt trees,
+Bug-Catching Contest, radio channels, weekdays, and Max Den rarity/rating.
+Noisier conditions (story-progress flags, Trophy Garden backlots, item and
+trade requirements, etc.) are stored but intentionally not displayed.

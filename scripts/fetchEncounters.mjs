@@ -66,8 +66,11 @@ function normalize(raw) {
       for (const ed of vd.encounter_details) {
         if (!result[gameId]) result[gameId] = {};
         if (!result[gameId][area]) result[gameId][area] = [];
-        // group identical (method, chance, level) rows across sibling versions
-        const key = `${ed.method.name}|${ed.chance}|${ed.min_level}-${ed.max_level}`;
+        const conditions = (ed.condition_values ?? [])
+          .map((cv) => cv.name)
+          .sort();
+        // group identical (method, chance, level, conditions) rows across sibling versions
+        const key = `${ed.method.name}|${ed.chance}|${ed.min_level}-${ed.max_level}|${conditions.join(',')}`;
         let slot = result[gameId][area].find((d) => d.k === key);
         if (!slot) {
           slot = {
@@ -77,6 +80,7 @@ function normalize(raw) {
             l: [ed.min_level, ed.max_level],
             v: [],
           };
+          if (conditions.length > 0) slot.cd = conditions;
           result[gameId][area].push(slot);
         }
         if (!slot.v.includes(vd.version.name)) slot.v.push(vd.version.name);

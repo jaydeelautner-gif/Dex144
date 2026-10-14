@@ -40,10 +40,13 @@ def normalize(raw):
             if not gid: continue
             result.setdefault(gid, {}).setdefault(area, [])
             for ed in vd['encounter_details']:
-                key = (ed['method']['name'], ed['chance'], ed['min_level'], ed['max_level'])
-                slot = next((d for d in result[gid][area] if (d['m'], d['c'], d['l'][0], d['l'][1]) == key), None)
+                conditions = sorted(cv['name'] for cv in (ed.get('condition_values') or []))
+                key = (ed['method']['name'], ed['chance'], ed['min_level'], ed['max_level'], tuple(conditions))
+                slot = next((d for d in result[gid][area] if (d['m'], d['c'], d['l'][0], d['l'][1], d.get('cd', [])) == key), None)
                 if not slot:
                     slot = {'m': key[0], 'c': key[1], 'l': [key[2], key[3]], 'v': []}
+                    if conditions:
+                        slot['cd'] = conditions
                     result[gid][area].append(slot)
                 if vd['version']['name'] not in slot['v']: slot['v'].append(vd['version']['name'])
     return result
