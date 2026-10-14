@@ -25,6 +25,8 @@ import {
   GENERATIONS,
   GAMES,
   ALL_GAME_IDS,
+  LEGACY_GROUP_TO_MEMBER_GAMES,
+  normalizeToCanonicalGames,
   createEmptyGameCatchesMap,
   getGameRunningTotalStats,
   type PokemonEntry,
@@ -150,7 +152,13 @@ const LS_INVENTORY_KEY = 'homedex_v4_inventory';
 const LS_TALLY_GAMES_KEY = 'homedex_v4_tally_games';
 const LS_FRIENDS_KEY = 'homedex_v4_friends';
 
-const DEFAULT_OWNED_GAMES: GameId[] = ['sv', 'swsh', 'pla', 'bdsp', 'lgpe', 'pogo'];
+// FIX: canonical per-version ids only. Previously stored legacy grouped
+// aliases ('sv', 'swsh', …), which don't match the canonical ids used by the
+// Settings grid, generation groups, and picker filters — so the owned-games
+// setting silently failed to apply in several views.
+const DEFAULT_OWNED_GAMES: GameId[] = [
+  'scarlet', 'violet', 'sword', 'shield', 'pla', 'bd', 'sp', 'lgp', 'lge', 'pogo',
+];
 const DEFAULT_OWNED_DLCS: DlcId[] = [];
 
 function loadNumberArrayFromStorage(key: string, fallback: number[]): number[] {
@@ -198,6 +206,28 @@ function loadGameCatchesFromStorage(): GameCatchesMap {
 }
 
 const LS_RESCUE_BIN_KEY = 'homedex_v4_rescue_bin';
+
+/**
+ * Migrate legacy grouped catch keys ('sv', 'swsh', …) onto canonical member
+ * game keys so per-game catch totals appear in every canonical-driven view
+ * (generation groups, per-version filters, running totals). Entries are
+ * union-merged into the canonical members (deduped by dex number), so data
+ * registered under either key survives the migration without double-counting.
+ */
+function migrateLegacyGameCatches(catches: GameCatchesMap): GameCatchesMap {
+  const migrated: GameCatchesMap = { ...catches };
+  for (const [legacyId, members] of Object.entries(LEGACY_GROUP_TO_MEMBER_GAMES)) {
+    const legacyCatches = catches[legacyId];
+    if (!legacyCatches || legacyCatches.length === 0) continue;
+    for (const member of members as GameId[]) {
+      const existing = migrated[member] ?? [];
+      const merged = [...existing, ...legacyCatches.filter((n) => !existing.includes(n))];
+      migrated[member] = merged;
+    }
+    migrated[legacyId] = [];
+  }
+  return migrated;
+}
 
 function loadRescueBinFromStorage(): RescueBinItem[] {
   try {
@@ -413,13 +443,19 @@ export function App() {
     loadStringArrayFromStorage<string>(LS_BOX_GAMES_KEY, [])
   );
   const [ownedGames, setOwnedGames] = useState<GameId[]>(() =>
-    loadStringArrayFromStorage<GameId>(LS_OWNED_GAMES_KEY, DEFAULT_OWNED_GAMES)
+    // normalizeToCanonicalGames migrates save data that stored legacy grouped
+    // aliases ('sv' → scarlet+violet, …) onto canonical ids.
+    normalizeToCanonicalGames(
+      loadStringArrayFromStorage<GameId>(LS_OWNED_GAMES_KEY, DEFAULT_OWNED_GAMES)
+    )
   );
   const [tallyGames, setTallyGames] = useState<GameId[]>(() =>
-    loadStringArrayFromStorage<GameId>(LS_TALLY_GAMES_KEY, DEFAULT_OWNED_GAMES)
+    normalizeToCanonicalGames(
+      loadStringArrayFromStorage<GameId>(LS_TALLY_GAMES_KEY, DEFAULT_OWNED_GAMES)
+    )
   );
   const [gameCatches, setGameCatches] = useState<GameCatchesMap>(() =>
-    loadGameCatchesFromStorage()
+    migrateLegacyGameCatches(loadGameCatchesFromStorage())
   );
   const [ownedDlcs, setOwnedDlcs] = useState<DlcId[]>(() =>
     loadStringArrayFromStorage<DlcId>(LS_DLCS_KEY, DEFAULT_OWNED_DLCS)
@@ -724,8 +760,8 @@ export function App() {
           setCaughtVariants(remoteProfile.caughtVariants);
           setBoxSelectedVariants(remoteProfile.boxSelectedVariants);
           setBoxSelectedGames(remoteProfile.boxSelectedGames);
-          setOwnedGames(remoteProfile.ownedGames);
-          setGameCatches(remoteProfile.gameCatches);
+          setOwnedGames(normalizeToCanonicalGames(remoteProfile.ownedGames ?? []));
+          setGameCatches(migrateLegacyGameCatches(remoteProfile.gameCatches ?? {}));
           setOwnedDlcs(remoteProfile.ownedDlcs as DlcId[]);
           setIsPublic(Boolean(remoteProfile.isPublic));
           if (remoteProfile.trainerName && remoteProfile.trainerName !== 'Guest') {
@@ -1246,7 +1282,9 @@ export function App() {
 
   const handleToggleOwnedGame = useCallback((gameId: GameId) => {
     setOwnedGames((prev) =>
-      prev.includes(gameId) ? prev.filter((item) => item !== gameId) : [...prev, gameId]
+      normalizeToCanonicalGames(
+        prev.includes(gameId) ? prev.filter((item) => item !== gameId) : [...prev, gameId]
+      )
     );
   }, []);
 
@@ -1258,9 +1296,9 @@ export function App() {
 
   const handleToggleTallyGame = useCallback((gameId: GameId) => {
     setTallyGames((prev) => {
-      const next = prev.includes(gameId)
-        ? prev.filter((item) => item !== gameId)
-        : [...prev, gameId];
+      const next = normalizeToCanonicalGames(
+        prev.includes(gameId) ? prev.filter((item) => item !== gameId) : [...prev, gameId]
+      );
       try {
         localStorage.setItem(LS_TALLY_GAMES_KEY, JSON.stringify(next));
       } catch {
@@ -1271,7 +1309,7 @@ export function App() {
   }, []);
 
   const handleSetAllTallyGames = useCallback((games: GameId[]) => {
-    setTallyGames(games);
+    setTallyGames(normalizeToCanonicalGames(games));
     try {
       localStorage.setItem(LS_TALLY_GAMES_KEY, JSON.stringify(games));
     } catch {
@@ -1654,7 +1692,7 @@ export function App() {
   const caughtPct = ((caughtCount / totalCount) * 100).toFixed(1);
 
   const selectedGameStats = useMemo(() => {
-    const gId: GameId = selectedGame === 'all' ? 'sv' : selectedGame;
+    const gId: GameId = selectedGame === 'all' ? 'scarlet' : selectedGame;
     return getGameRunningTotalStats(dex, gId, ownedDlcs, gameCatches[gId] || []);
   }, [dex, selectedGame, ownedDlcs, gameCatches]);
 
@@ -1761,7 +1799,7 @@ export function App() {
               boxSelectedGamesMap={parseBoxSelectedGames(
                 sharedProfileData.boxSelectedGames || []
               )}
-              ownedGames={sharedProfileData.ownedGames || DEFAULT_OWNED_GAMES}
+              ownedGames={normalizeToCanonicalGames(sharedProfileData.ownedGames || DEFAULT_OWNED_GAMES)}
               ownedDlcs={(sharedProfileData.ownedDlcs as DlcId[]) || []}
               gameCatches={sharedProfileData.gameCatches || createEmptyGameCatchesMap()}
               shareUrl={window.location.href}
@@ -2608,7 +2646,7 @@ export function App() {
                 onRescuePokepet={handleRescuePokepet}
                 onRescueAll={handleRescueAll}
                 onToggleOwnedGame={handleToggleOwnedGame}
-                onSetAllOwnedGames={(games) => setOwnedGames(games)}
+                onSetAllOwnedGames={(games) => setOwnedGames(normalizeToCanonicalGames(games))}
                 onToggleOwnedDlc={handleToggleOwnedDlc}
                 onSetAllOwnedDlcs={(dlcs) => setOwnedDlcs(dlcs)}
                 tallyGames={tallyGames}
@@ -2811,7 +2849,7 @@ export function App() {
               boxSelectedGamesMap={parseBoxSelectedGames(
                 friendProfiles[activeFriendUid].boxSelectedGames || []
               )}
-              ownedGames={friendProfiles[activeFriendUid].ownedGames || DEFAULT_OWNED_GAMES}
+              ownedGames={normalizeToCanonicalGames(friendProfiles[activeFriendUid].ownedGames || DEFAULT_OWNED_GAMES)}
               ownedDlcs={(friendProfiles[activeFriendUid].ownedDlcs as DlcId[]) || []}
               gameCatches={
                 friendProfiles[activeFriendUid].gameCatches || createEmptyGameCatchesMap()

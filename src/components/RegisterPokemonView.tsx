@@ -17,7 +17,7 @@ import {
   Lock,
 } from 'lucide-react';
 import type { PokemonEntry, GameId } from '../data/pokemonData';
-import { GAMES } from '../data/pokemonData';
+import { GAMES, USER_SELECTABLE_GAMES } from '../data/pokemonData';
 import {
   getVariationsForPokemon,
   type RegionalVariation,
@@ -910,7 +910,7 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
 
                   {isTraded && (
                     <optgroup label="Other Main Series Games (via Trade)">
-                      {GAMES.filter((g) => !ownedGames.includes(g.id)).map((g) => (
+                      {GAMES.filter((g) => !ownedGames.includes(g.id) && USER_SELECTABLE_GAMES.includes(g.id)).map((g) => (
                         <option key={g.id} value={g.id}>
                           {g.shortTitle} ({g.generationLabel})
                         </option>

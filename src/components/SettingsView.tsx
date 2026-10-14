@@ -137,7 +137,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [isResetConsentModalOpen, setIsResetConsentModalOpen] = useState(false);
   const [hasPositiveConsent, setHasPositiveConsent] = useState(false);
 
-  const switchGameIds: GameId[] = ['lgpe', 'swsh', 'bdsp', 'pla', 'sv'];
+  // Canonical per-version ids — legacy grouped aliases ('sv', 'swsh', …)
+  // don't match the generation-group grid and would silently not apply.
+  const switchGameIds: GameId[] = [
+    'lgp', 'lge', 'sword', 'shield', 'bd', 'sp', 'pla', 'scarlet', 'violet',
+  ];
   const allDlcIds: DlcId[] = [
     'sv-teal-mask',
     'sv-indigo-disk',

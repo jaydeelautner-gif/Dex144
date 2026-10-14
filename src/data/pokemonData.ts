@@ -113,6 +113,52 @@ export const ALL_GAME_IDS: GameId[] = [...ALL_CANONICAL_GAME_IDS];
 // that exist only for backwards-compatibility with older save data.
 export const USER_SELECTABLE_GAMES: GameId[] = [...ALL_CANONICAL_GAME_IDS];
 
+/**
+ * Legacy grouped/alias game ids → their canonical member game ids.
+ * Used to migrate old save data (owned games, tally games, catch maps) that
+ * stored things under grouped aliases like 'sv' or 'swsh' onto the canonical
+ * per-version ids every picker and generation group uses today.
+ */
+export const LEGACY_GROUP_TO_MEMBER_GAMES: Partial<Record<GameId, GameId[]>> = {
+  rb: ['red', 'blue', 'yellow'],
+  frlg: ['firered', 'leafgreen'],
+  frlg_switch: ['firered', 'leafgreen'],
+  gs: ['gold', 'silver', 'crystal'],
+  rse: ['ruby', 'sapphire', 'emerald'],
+  dppt: ['diamond', 'pearl', 'platinum'],
+  hgss: ['heartgold', 'soulsilver'],
+  bw: ['black', 'white'],
+  b2w2: ['black2', 'white2'],
+  xy: ['x', 'y'],
+  oras: ['omegaruby', 'alphasapphire'],
+  sm: ['sun', 'moon'],
+  usum: ['ultrasun', 'ultramoon'],
+  lgpe: ['lgp', 'lge'],
+  swsh: ['sword', 'shield'],
+  bdsp: ['bd', 'sp'],
+  sv: ['scarlet', 'violet'],
+};
+
+/**
+ * Normalize a list of game ids onto canonical ids only: legacy grouped
+ * aliases are expanded to their canonical members, duplicates are removed
+ * (first occurrence wins), and unknown ids are dropped.
+ */
+export function normalizeToCanonicalGames(games: readonly GameId[]): GameId[] {
+  const seen = new Set<string>();
+  const out: GameId[] = [];
+  for (const id of games) {
+    const expanded = LEGACY_GROUP_TO_MEMBER_GAMES[id] ?? [id];
+    for (const gid of expanded) {
+      if (!(ALL_CANONICAL_GAME_IDS as string[]).includes(gid)) continue;
+      if (seen.has(gid)) continue;
+      seen.add(gid);
+      out.push(gid);
+    }
+  }
+  return out;
+}
+
 export type DlcId =
   | 'sv-teal-mask'
   | 'sv-indigo-disk'
