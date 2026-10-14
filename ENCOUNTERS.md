@@ -39,3 +39,23 @@ Then commit the updated `public/data/encounters.json`.
   hand-written "Where to find" availability cards still cover them.
 - Species obtained only via evolution, gift, or transfer have no wild rows and
   show an explanatory message instead.
+
+## Milestone gates (badge → wild catchability)
+
+`src/data/milestoneGates.tsx` now merges two sources:
+
+- **Curated gates** (`CURATED_MILESTONE_GATES`) — hand-written entries for
+  modern-game obtainability (SwSh DLC, PLA ranks, SV DLC, etc.).
+- **Generated gates** (`src/data/milestoneGates.generated.ts`) — auto-derived
+  from the PokéAPI wild-encounter bundle by `scripts/generateMilestoneGates.mjs`.
+  Each location-area in every covered game is mapped to the badge / story
+  milestone after which it is reachable (per-group progression zone tables in
+  the generator), and each species is gated at the earliest area it appears in.
+
+Merge rule: per species, curated ids win for their game prefix; generated ids
+fill the prefixes the curated entry doesn't cover. Regenerate after refreshing
+the encounter bundle with `npm run generate:gates`.
+
+Groups without PokéAPI encounter coverage (SV, BDSP, PLA, Colosseum, XD, USUM)
+have no generated gates; their grids in Fresh Catches are also not filtered
+for evolution-only species.

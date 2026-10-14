@@ -44,7 +44,10 @@
  *     reached early since HMs don't exist, but badges remain the practical
  *     progression marker.
  */
-export const MILESTONE_GATES: Record<number, string[]> = {
+/** Hand-curated gates (was MILESTONE_GATES). Wins over generated gates per game prefix. */
+import { GENERATED_MILESTONE_GATES } from './milestoneGates.generated';
+
+export const CURATED_MILESTONE_GATES: Record<number, string[]> = {
   // ═══════════════════════════════════════════════════════════════════════
   // GEN 1 — KANTO (#0001–#0151)
   // ═══════════════════════════════════════════════════════════════════════
@@ -232,6 +235,28 @@ export const MILESTONE_GATES: Record<number, string[]> = {
   // ── Legends: Arceus (non-Kanto suggestions) ──
   // (Electrode #101 already gated above with a broader gate list)
 };
+
+/**
+ * Final gate table = curated gates merged with the auto-generated ones
+ * (milestoneGates.generated.ts, built from the PokéAPI wild-encounter
+ * bundle by scripts/generateMilestoneGates.mjs).
+ *
+ * Merge rule: per species, curated milestone ids win for their game prefix;
+ * generated ids fill in game prefixes the curated entry doesn't cover.
+ */
+export const MILESTONE_GATES: Record<number, string[]> = (() => {
+  const merged: Record<number, string[]> = {};
+  for (const [dexStr, msIds] of Object.entries(GENERATED_MILESTONE_GATES)) {
+    merged[Number(dexStr)] = [...msIds];
+  }
+  for (const [dexStr, msIds] of Object.entries(CURATED_MILESTONE_GATES)) {
+    const dexNum = Number(dexStr);
+    const existing = merged[dexNum] ?? [];
+    const coveredPrefixes = new Set(existing.map((id) => id.split('-')[0]));
+    merged[dexNum] = [...existing, ...msIds.filter((id) => !coveredPrefixes.has(id.split('-')[0]))];
+  }
+  return merged;
+})();
 
 // ═══════════════════════════════════════════════════════════════════════
 // DERIVED LOOKUPS
