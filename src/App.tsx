@@ -3,7 +3,6 @@ import {
   Search,
   Check,
   Sparkles,
-  Box,
   LayoutGrid,
   List,
   LogIn,
@@ -16,10 +15,10 @@ import {
   Plus,
   Home,
   PlusCircle,
-  Layers,
   Settings,
   RefreshCw,
   Trophy,
+  UserCircle,
 } from 'lucide-react';
 import {
   buildInitialNationalDex,
@@ -64,7 +63,6 @@ import { RegisterPokemonView } from './components/RegisterPokemonView';
 import { InventoryView } from './components/InventoryView';
 import { PokepetTrainerCardModal } from './components/PokepetTrainerCardModal';
 import { GameLogoBadge } from './components/GameLogoBadge';
-import { PWAInstallButton } from './components/PWAInstallButton';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { AuthModal } from './components/AuthModal';
 import { DeviceAccessModal } from './components/DeviceAccessModal';
@@ -112,11 +110,9 @@ type MainWorkspaceTab =
   | 'home'
   | 'register'
   | 'pokedex'
-  | 'boxes'
-  | 'inventory'
+  | 'profile'
   | 'progress'    // ── GAME PROGRESS TRACKING ──
   | 'public_stats'
-  | 'friends'
   | 'settings';
 
 type StatusFilter =
@@ -291,6 +287,12 @@ export function App() {
 
   // Navigation State
   const [activeTab, setActiveTab] = useState<MainWorkspaceTab>('home');
+  const [profileSubTab, setProfileSubTab] = useState<'boxes' | 'inventory' | 'friends'>('boxes');
+  const navigateToProfile = (sub: 'boxes' | 'inventory' | 'friends') => {
+    setProfileSubTab(sub);
+    setFullPagePokemon(null);
+    setActiveTab('profile');
+  };
   const [registerTargetPokemonId, setRegisterTargetPokemonId] = useState<number | undefined>(undefined);
   const [selectedGame, setSelectedGame] = useState<GameId | 'all'>('all');
   const [selectedGen, setSelectedGen] = useState<number | 'all'>('all');
@@ -1809,11 +1811,9 @@ export function App() {
               { id: 'home', label: 'Home' },
               { id: 'register', label: 'Register' },
               { id: 'pokedex', label: 'Pokédex' },
-              { id: 'boxes', label: 'Boxes' },
-              { id: 'inventory', label: `Inventory (${inventory.length})` },
+              { id: 'profile', label: displayTrainerName || 'Profile' },
               { id: 'progress', label: 'Progress' },  // ── GAME PROGRESS TRACKING ──
               { id: 'public_stats', label: 'Living Dex' },
-              { id: 'friends', label: `Friends${incomingRequests.length > 0 ? ` (${incomingRequests.length})` : ''}` },
               { id: 'settings', label: 'Settings' },
             ] as const
           ).map((tab) => (
@@ -1824,21 +1824,19 @@ export function App() {
                 setFullPagePokemon(null);
                 setActiveTab(tab.id);
               }}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                 activeTab === tab.id && !fullPagePokemon
                   ? 'bg-amber-400 text-slate-950 font-bold shadow-md'
                   : 'text-slate-300 hover:text-white'
               }`}
             >
-              {tab.label}
+              {tab.id === 'profile' ? <span className="max-w-[11rem] truncate">{tab.label}</span> : tab.label}
             </button>
           ))}
         </nav>
 
         {/* Right Controls */}
         <div className="flex items-center gap-2.5 shrink-0">
-          <PWAInstallButton />
-
           {/* Refresh button — drains offline queue, then reloads */}
           <button
             type="button"
@@ -1930,7 +1928,7 @@ export function App() {
             onJumpToBox={(boxNum) => {
               setFullPagePokemon(null);
               setActiveBox(boxNum);
-              setActiveTab('boxes');
+              navigateToProfile('boxes');
             }}
             inventory={inventory}
             onDeleteInstance={handleDeleteInstance}
@@ -2045,8 +2043,8 @@ export function App() {
                   setActiveTab('register');
                 }}
                 onNavigateToTracker={() => setActiveTab('pokedex')}
-                onNavigateToLivingDex={() => setActiveTab('boxes')}
-                onNavigateToInventory={() => setActiveTab('inventory')}
+                onNavigateToLivingDex={() => navigateToProfile('boxes')}
+                onNavigateToInventory={() => navigateToProfile('inventory')}
                 onNavigateToSettings={() => setActiveTab('settings')}
                 onLookupPokeId={handleLookupPokeId}
                 // ── GAME PROGRESS TRACKING ──
@@ -2071,7 +2069,7 @@ export function App() {
                 initialPokemonId={registerTargetPokemonId}
                 onSaveNewInstance={handleSaveNewInstance}
                 onOpenPokemonPage={(p) => setFullPagePokemon(p)}
-                onNavigateToInventory={() => setActiveTab('inventory')}
+                onNavigateToInventory={() => navigateToProfile('inventory')}
               />
             )}
 
@@ -2452,41 +2450,88 @@ export function App() {
             )}
 
             {/* TAB 3: LIVING BOXES */}
-            {activeTab === 'boxes' && (
-              <LivingBoxesView
-                dex={dex}
-                activeBox={activeBox}
-                onChangeBox={setActiveBox}
-                selectedGame={selectedGame}
-                caughtSet={caughtSet}
-                shinySet={shinySet}
-                livingSet={livingSet}
-                caughtVariantsSet={caughtVariantsSet}
-                boxSelectedVariantsMap={boxSelectedVariantsMap}
-                boxSelectedGamesMap={boxSelectedGamesMap}
-                onSelectBoxVariant={handleSelectBoxVariant}
-                onSelectPokemon={(p) => setSelectedPokemon(p)}
-                inventory={inventory}
-                onNavigateToRegister={(pId) => {
-                  setRegisterTargetPokemonId(pId);
-                  setActiveTab('register');
-                }}
-              />
-            )}
+            {/* TAB: PROFILE — Boxes / Inventory / Friends */}
+            {activeTab === 'profile' && (
+              <div className="flex flex-col gap-4">
+                {/* Profile sub-navigation */}
+                <div className="flex items-center gap-1 p-1 bg-[#0F1522] border border-slate-800/80 rounded-xl w-fit max-w-full overflow-x-auto">
+                  {(
+                    [
+                      { id: 'boxes', label: 'Boxes' },
+                      { id: 'inventory', label: `Inventory (${inventory.length})` },
+                      { id: 'friends', label: `Friends${incomingRequests.length > 0 ? ` (${incomingRequests.length})` : ''}` },
+                    ] as const
+                  ).map((sub) => (
+                    <button
+                      key={sub.id}
+                      type="button"
+                      onClick={() => setProfileSubTab(sub.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                        profileSubTab === sub.id
+                          ? 'bg-amber-400 text-slate-950 font-bold shadow-md'
+                          : 'text-slate-300 hover:text-white'
+                      }`}
+                    >
+                      {sub.label}
+                    </button>
+                  ))}
+                </div>
 
-            {/* TAB 4: INVENTORY */}
-            {activeTab === 'inventory' && (
-              <InventoryView
-                dex={dex}
-                inventory={inventory}
-                rescueBinCount={rescueBin.length}
-                onUpdateInstance={handleUpdateInstance}
-                onDeleteInstance={handleDeleteInstance}
-                onOpenPokemonPage={(p) => setFullPagePokemon(p)}
-                onOpenTrainerCardForPokeId={(inst) => setActiveTrainerCardInstance(inst)}
-                onNavigateToRegister={() => setActiveTab('register')}
-                onNavigateToSettings={() => setActiveTab('settings')}
-              />
+                {profileSubTab === 'boxes' && (
+                  <LivingBoxesView
+                    dex={dex}
+                    activeBox={activeBox}
+                    onChangeBox={setActiveBox}
+                    selectedGame={selectedGame}
+                    caughtSet={caughtSet}
+                    shinySet={shinySet}
+                    livingSet={livingSet}
+                    caughtVariantsSet={caughtVariantsSet}
+                    boxSelectedVariantsMap={boxSelectedVariantsMap}
+                    boxSelectedGamesMap={boxSelectedGamesMap}
+                    onSelectBoxVariant={handleSelectBoxVariant}
+                    onSelectPokemon={(p) => setSelectedPokemon(p)}
+                    inventory={inventory}
+                    onNavigateToRegister={(pId) => {
+                      setRegisterTargetPokemonId(pId);
+                      setActiveTab('register');
+                    }}
+                  />
+                )}
+
+                {profileSubTab === 'inventory' && (
+                  <InventoryView
+                    dex={dex}
+                    inventory={inventory}
+                    rescueBinCount={rescueBin.length}
+                    onUpdateInstance={handleUpdateInstance}
+                    onDeleteInstance={handleDeleteInstance}
+                    onOpenPokemonPage={(p) => setFullPagePokemon(p)}
+                    onOpenTrainerCardForPokeId={(inst) => setActiveTrainerCardInstance(inst)}
+                    onNavigateToRegister={() => setActiveTab('register')}
+                    onNavigateToSettings={() => setActiveTab('settings')}
+                  />
+                )}
+
+                {profileSubTab === 'friends' && (
+                  <FriendsView
+                    dex={dex}
+                    user={user}
+                    myFriendCode={myFriendCode}
+                    myFriends={myFriends}
+                    incomingRequests={incomingRequests}
+                    friendProfiles={friendProfiles}
+                    friendsLoading={friendsLoading}
+                    isGuest={!user}
+                    onRequestAuth={() => handleOpenAuth()}
+                    onAddFriendByCode={handleAddFriendByCode}
+                    onAcceptRequest={handleAcceptRequest}
+                    onDeclineRequest={handleDeclineRequest}
+                    onRemoveFriend={handleRemoveFriend}
+                    onOpenFriendProfile={(uid) => setActiveFriendUid(uid)}
+                  />
+                )}
+              </div>
             )}
 
             {/* ── GAME PROGRESS TRACKING TAB ── */}
@@ -2521,26 +2566,6 @@ export function App() {
                 isOwnPreview={true}
                 inventory={inventory}
                 onExitPublicView={() => setActiveTab('pokedex')}
-              />
-            )}
-
-            {/* TAB: FRIENDS */}
-            {activeTab === 'friends' && (
-              <FriendsView
-                dex={dex}
-                user={user}
-                myFriendCode={myFriendCode}
-                myFriends={myFriends}
-                incomingRequests={incomingRequests}
-                friendProfiles={friendProfiles}
-                friendsLoading={friendsLoading}
-                isGuest={!user}
-                onRequestAuth={() => handleOpenAuth()}
-                onAddFriendByCode={handleAddFriendByCode}
-                onAcceptRequest={handleAcceptRequest}
-                onDeclineRequest={handleDeclineRequest}
-                onRemoveFriend={handleRemoveFriend}
-                onOpenFriendProfile={(uid) => setActiveFriendUid(uid)}
               />
             )}
 
@@ -2646,18 +2671,15 @@ export function App() {
 
         <button
           type="button"
-          onClick={() => {
-            setFullPagePokemon(null);
-            setActiveTab('boxes');
-          }}
+          onClick={() => navigateToProfile('boxes')}
           className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors cursor-pointer ${
-            activeTab === 'boxes' && !fullPagePokemon
+            activeTab === 'profile' && !fullPagePokemon
               ? 'text-amber-400 font-bold'
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          <Box className="w-4 h-4" />
-          <span>Boxes</span>
+          <UserCircle className="w-4 h-4" />
+          <span>Profile</span>
         </button>
 
         {/* ── GAME PROGRESS TRACKING MOBILE TAB ── */}
@@ -2677,27 +2699,6 @@ export function App() {
           <span>Progress</span>
         </button>
         {/* ── END GAME PROGRESS TRACKING MOBILE TAB ── */}
-
-        <button
-          type="button"
-          onClick={() => {
-            setFullPagePokemon(null);
-            setActiveTab('inventory');
-          }}
-          className={`relative flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors cursor-pointer ${
-            activeTab === 'inventory' && !fullPagePokemon
-              ? 'text-amber-400 font-bold'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Layers className="w-4 h-4" />
-          <span>Inventory</span>
-          {inventory.length > 0 && (
-            <span className="absolute -top-0.5 right-1 px-1 rounded-full bg-amber-500 text-slate-950 font-bold text-[8px] leading-tight">
-              {inventory.length}
-            </span>
-          )}
-        </button>
 
         <button
           type="button"
