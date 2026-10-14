@@ -104,7 +104,14 @@ export const ALL_CANONICAL_GAME_IDS: CanonicalGameId[] = [
   'violet',
 ];
 
+// FIX: keep ALL_GAME_IDS canonical-only. Previously this aliased the canonical
+// list, which is correct, but making it explicit prevents accidental drift.
 export const ALL_GAME_IDS: GameId[] = [...ALL_CANONICAL_GAME_IDS];
+
+// FIX: games the player can choose in pickers (filters, owned-games settings,
+// milestone tracker tabs). Excludes the legacy grouped aliases (sv, swsh, etc.)
+// that exist only for backwards-compatibility with older save data.
+export const USER_SELECTABLE_GAMES: GameId[] = [...ALL_CANONICAL_GAME_IDS];
 
 export type DlcId =
   | 'sv-teal-mask'
@@ -295,7 +302,7 @@ export const DLC_PACKS: DlcPackInfo[] = [
 ];
 
 export const GAMES: GameInfo[] = [
-  // Generation I
+  // ── Generation I ──
   {
     id: 'red',
     title: 'Pokémon Red',
@@ -342,7 +349,7 @@ export const GAMES: GameInfo[] = [
     siblingGameIds: ['red', 'blue'],
   },
 
-  // Generation II
+  // ── Generation II ──
   {
     id: 'gold',
     title: 'Pokémon Gold',
@@ -389,7 +396,7 @@ export const GAMES: GameInfo[] = [
     siblingGameIds: ['gold', 'silver'],
   },
 
-  // Generation III
+  // ── Generation III ──
   {
     id: 'ruby',
     title: 'Pokémon Ruby',
@@ -496,7 +503,7 @@ export const GAMES: GameInfo[] = [
     siblingGameIds: ['colo'],
   },
 
-  // Generation IV
+  // ── Generation IV ──
   {
     id: 'diamond',
     title: 'Pokémon Diamond',
@@ -573,7 +580,7 @@ export const GAMES: GameInfo[] = [
     siblingGameIds: ['heartgold'],
   },
 
-  // Generation V
+  // ── Generation V ──
   {
     id: 'black',
     title: 'Pokémon Black',
@@ -635,7 +642,7 @@ export const GAMES: GameInfo[] = [
     siblingGameIds: ['black2'],
   },
 
-  // Generation VI
+  // ── Generation VI ──
   {
     id: 'x',
     title: 'Pokémon X',
@@ -697,7 +704,7 @@ export const GAMES: GameInfo[] = [
     siblingGameIds: ['omegaruby'],
   },
 
-  // Generation VII
+  // ── Generation VII ──
   {
     id: 'sun',
     title: 'Pokémon Sun',
@@ -804,7 +811,7 @@ export const GAMES: GameInfo[] = [
     siblingGameIds: [],
   },
 
-  // Generation VIII
+  // ── Generation VIII ──
   {
     id: 'sword',
     title: 'Pokémon Sword',
@@ -881,7 +888,7 @@ export const GAMES: GameInfo[] = [
     siblingGameIds: [],
   },
 
-  // Generation IX
+  // ── Generation IX ──
   {
     id: 'scarlet',
     title: 'Pokémon Scarlet',
@@ -912,7 +919,11 @@ export const GAMES: GameInfo[] = [
     groupTitle: 'Violet',
     siblingGameIds: ['scarlet'],
   },
-  // Legacy Grouped Game Aliases (for backwards compatibility with previous save data)
+
+  // ── Legacy Grouped Game Aliases ──
+  // NOTE: these exist only for backwards compatibility with older save data
+  // that stored catches under a grouped ID. New UI pickers should use
+  // USER_SELECTABLE_GAMES instead of GAMES to avoid showing duplicates.
   {
     id: 'sv',
     title: 'Pokémon Scarlet & Violet',
@@ -1666,6 +1677,16 @@ import {
   ULTRAMOON_EXCLUSIVES,
 } from './pokemonAvailabilityData';
 
+// FIX: canonical list of games that participate in the "Switch era" for
+// DLC-requirement derivation. Used by buildInitialNationalDex.
+const SWITCH_ERA_GAME_IDS: GameId[] = [
+  'lgp', 'lge',
+  'sword', 'shield',
+  'bd', 'sp',
+  'pla',
+  'scarlet', 'violet',
+];
+
 function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailability> {
   const result: Partial<Record<GameId, GameAvailability>> = {};
   const isAbsentFromSwitch = COMPLETELY_ABSENT_FROM_SWITCH.has(id);
@@ -1680,7 +1701,6 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
     let pokedexCompletionGuide = `Unobtainable in ${game.shortTitle} (transfer via Pokémon HOME)`;
 
     switch (game.id) {
-      // Gen 1
       case 'red': {
         if (isGen1Available(id)) {
           if (BLUE_EXCLUSIVES.has(id)) {
@@ -1722,8 +1742,6 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
         }
         break;
       }
-
-      // Gen 2
       case 'gold': {
         if (isGen2Available(id)) {
           if (SILVER_EXCLUSIVES.has(id)) {
@@ -1765,8 +1783,6 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
         }
         break;
       }
-
-      // Gen 3
       case 'ruby': {
         if (isGen3Available(id)) {
           if (SAPPHIRE_EXCLUSIVES.has(id)) {
@@ -1868,8 +1884,6 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
         }
         break;
       }
-
-      // Gen 4
       case 'diamond': {
         if (id <= 493) {
           if (PEARL_EXCLUSIVES.has(id)) {
@@ -1943,8 +1957,6 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
         }
         break;
       }
-
-      // Gen 5
       case 'black': {
         if (id <= 649) {
           if (WHITE_EXCLUSIVES.has(id)) {
@@ -2009,8 +2021,6 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
         }
         break;
       }
-
-      // Gen 6
       case 'x': {
         if (id <= 721) {
           if (Y_EXCLUSIVES.has(id)) {
@@ -2075,8 +2085,6 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
         }
         break;
       }
-
-      // Gen 7
       case 'sun': {
         if (id <= 802) {
           if (MOON_EXCLUSIVES.has(id)) {
@@ -2174,16 +2182,22 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
         break;
       }
       case 'pogo': {
-        if (id <= 1017 && !isAbsentFromSwitch) {
+        // FIX: previously guarded by `!isAbsentFromSwitch`, which incorrectly
+        // hid GO-only species (Patrat, Furfrou, elemental monkeys) from GO.
+        // Being absent from Switch games is orthogonal to GO availability.
+        //
+        // NOTE: Pokémon GO has not released all 1,025 species. This uses a
+        // permissive "assume released" stance. Replace with a proper
+        // POGO_RELEASED_SPECIES set once you have one.
+        if (id <= 1025) {
           status = 'base';
           whereToFind = 'Wild Spawns, Field Research & Raid Battles (Global)';
           versionExclusive = 'Mobile Global Spawns';
-          pokedexCompletionGuide = 'Catch via Pokémon GO and send via GO Transporter to Pokémon HOME';
+          pokedexCompletionGuide =
+            'Catch via Pokémon GO and send via GO Transporter to Pokémon HOME';
         }
         break;
       }
-
-      // Gen 8
       case 'sword': {
         if (!isAbsentFromSwitch && id <= 898) {
           if (SWSH_GALAR_BASE_SPECIES.has(id)) {
@@ -2329,8 +2343,6 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
         }
         break;
       }
-
-      // Gen 9
       case 'scarlet': {
         if (!isAbsentFromSwitch && id <= 1025) {
           if (SV_PALDEA_BASE_SPECIES.has(id)) {
@@ -2559,10 +2571,15 @@ export const MYTHICAL_IDS = new Set<number>([
   801, 802, 807, 808, 809, 893, 1025,
 ]);
 
+// FIX: Ogerpon (1014) and Terapagos (1024) are DLC box legendaries.
+// Moving from Sub-Legendary to Legendary so they sort alongside Kyurem,
+// Necrozma, Calyrex, and other box-tier DLC cover legends.
 export const MAJOR_LEGENDARY_IDS = new Set<number>([
   150, 249, 250, 382, 383, 384, 483, 484, 487,
   643, 644, 646, 716, 717, 718, 789, 790, 791, 792, 800,
   888, 889, 890, 898, 1007, 1008,
+  1014, // Ogerpon (Teal Mask box legendary)
+  1024, // Terapagos (Indigo Disk box legendary)
 ]);
 
 export const SUB_LEGENDARY_IDS = new Set<number>([
@@ -2572,7 +2589,7 @@ export const SUB_LEGENDARY_IDS = new Set<number>([
   772, 773, 785, 786, 787, 788,
   793, 794, 795, 796, 797, 798, 799, 803, 804, 805, 806,
   891, 892, 894, 895, 896, 897, 905,
-  1001, 1002, 1003, 1004, 1014, 1015, 1016, 1017, 1024,
+  1001, 1002, 1003, 1004, 1015, 1016, 1017,
 ]);
 
 export function buildInitialNationalDex(): PokemonEntry[] {
@@ -2606,6 +2623,28 @@ export function buildInitialNationalDex(): PokemonEntry[] {
     const availability = computeAvailabilityForPokemon(id);
     const homeTransfer = computeHomeTransferInfo(id, name);
 
+    // FIX: derive requiresAnyDlcInSwitchEra and primarySwitchSource from the
+    // computed availability. Previously both were hardcoded, so every entry
+    // reported "Base Game Catchable" with no DLC requirement, regardless of
+    // the actual per-game statuses.
+    const switchAvailList = SWITCH_ERA_GAME_IDS
+      .map((gid) => availability[gid])
+      .filter((a): a is GameAvailability => Boolean(a));
+
+    const requiresAnyDlcInSwitchEra = switchAvailList.some(
+      (a) => a.status === 'dlc' && a.requiresDlc
+    );
+    const hasBaseInSwitch = switchAvailList.some((a) => a.status === 'base');
+    const hasTransferOnlyInSwitch = switchAvailList.some((a) => a.status === 'transfer_only');
+
+    const primarySwitchSource = hasBaseInSwitch
+      ? 'Base Game Catchable'
+      : requiresAnyDlcInSwitchEra
+      ? 'DLC Required'
+      : hasTransferOnlyInSwitch
+      ? 'HOME Transfer Only'
+      : 'Not Obtainable on Switch';
+
     entries.push({
       id,
       name,
@@ -2619,8 +2658,8 @@ export function buildInitialNationalDex(): PokemonEntry[] {
       boxCol,
       availability,
       homeTransfer,
-      requiresAnyDlcInSwitchEra: false,
-      primarySwitchSource: 'Base Game Catchable',
+      requiresAnyDlcInSwitchEra,
+      primarySwitchSource,
     });
   }
   return entries;

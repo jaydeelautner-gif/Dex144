@@ -164,6 +164,15 @@ export interface SerializedPokemonInstance {
   updatedAt: number;
 }
 
+/**
+ * `inventory` and `rescueBin` are optional local-cache-only fields.
+ * They are NOT stored on the Firestore parent document — they live in subcollections:
+ *   userDexProfiles/{uid}/inventory/{pokeId}
+ *   userDexProfiles/{uid}/rescueBin/{rescueId}
+ *
+ * `friendCode` and `friends` are stored on the parent document and are used
+ * by the mutual friends system.
+ */
 export interface UserDexProfileData {
   ownerId: string;
   trainerName: string;
@@ -178,24 +187,26 @@ export interface UserDexProfileData {
   ownedGames: GameId[];
   ownedDlcs: string[];
   gameCatches: GameCatchesMap;
+  /** Local cache only — not stored in the Firestore parent document. */
   inventory?: SerializedPokemonInstance[];
+  /** Local cache only — not stored in the Firestore parent document. */
   rescueBin?: RescueBinItem[];
   caughtCount: number;
   shinyCount: number;
+  /** Unique short code (e.g. "DX-4K7P2M") that other trainers can use to add this user. */
+  friendCode?: string;
+  /** Array of UIDs this user has mutually friended. */
+  friends?: string[];
   createdAt?: unknown;
   updatedAt?: unknown;
 }
 
-/**
- * Deeply removes all undefined properties from objects and arrays so Firestore never rejects writes.
- */
 export function removeUndefinedProperties<T>(val: T): T {
   if (val === null || val === undefined) return val;
   if (Array.isArray(val)) {
     return val.map((item) => removeUndefinedProperties(item)) as unknown as T;
   }
   if (typeof val === 'object') {
-    // Preserve Date and FieldValue objects like serverTimestamp
     if (val instanceof Date || ('toMillis' in (val as any)) || ('_methodName' in (val as any))) {
       return val;
     }
@@ -300,7 +311,6 @@ export function sanitizeRescueBin(raw: unknown): RescueBinItem[] {
     const deletedAt = typeof rec.deletedAt === 'number' ? rec.deletedAt : now;
     const expiresAt = typeof rec.expiresAt === 'number' ? rec.expiresAt : deletedAt + RESCUE_BIN_RETENTION_MS;
 
-    // 30-day automatic deletion check: if past expiration, automatically pruned
     if (expiresAt <= now) continue;
 
     const instList = sanitizeInventory([rec.instance]);
@@ -439,12 +449,12 @@ export function sanitizeGameFilter(filter: string): string {
   return trimmed.length >= 1 ? trimmed : 'all';
 }
 
-// Track active session and listeners for both Firebase Auth and offline cached auth
+// -------------------- AUTH STATE --------------------
+
 const authListeners = new Set<(user: User | null) => void>();
 let currentSessionUser: User | null = null;
 let isInitialAuthResolved = false;
 
-// Check if we already have an active offline user session from earlier
 const savedUid = getActiveOfflineUid();
 if (savedUid) {
   const cachedAcc = getCachedAccountByUid(savedUid);
@@ -453,13 +463,11 @@ if (savedUid) {
   }
 }
 
-// Hook into Firebase Auth
 firebaseOnAuthStateChanged(auth, (fbUser) => {
   isInitialAuthResolved = true;
   if (fbUser) {
     currentSessionUser = fbUser;
     setActiveOfflineUid(fbUser.uid);
-    // Cache account details if displayName exists
     const existing = getCachedAccountByUid(fbUser.uid);
     if (existing && fbUser.displayName && fbUser.displayName !== existing.displayName) {
       existing.displayName = fbUser.displayName;
@@ -473,7 +481,6 @@ firebaseOnAuthStateChanged(auth, (fbUser) => {
       }
     });
   } else {
-    // If device is currently offline and we have a cached session, preserve it
     const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
     const activeUid = getActiveOfflineUid();
     if (isOffline && activeUid) {
@@ -490,9 +497,6 @@ firebaseOnAuthStateChanged(auth, (fbUser) => {
   }
 });
 
-/**
- * Universal auth state subscriber supporting both online Firebase accounts and offline cached users.
- */
 export function onAuthStateChanged(
   _auth: unknown,
   callback: (user: User | null) => void
@@ -531,9 +535,6 @@ export async function signInWithGoogle(): Promise<User> {
   return result.user;
 }
 
-/**
- * Creates an account with email & password online and caches credentials locally for future offline login.
- */
 export async function signUpWithEmail(
   email: string,
   pass: string,
@@ -554,10 +555,9 @@ export async function signUpWithEmail(
   try {
     await updateProfile(user, { displayName: name });
   } catch {
-    // ignore non-critical display name update error
+    // ignore
   }
 
-  // Cache credentials locally for future offline login on this device/iPad
   try {
     const salt = generateSalt();
     const passwordHash = await hashPasswordWithSalt(pass, salt);
@@ -579,17 +579,11 @@ export async function signUpWithEmail(
   return user;
 }
 
-/**
- * Signs in with email and password.
- * When online, authenticates via Firebase and updates cached credentials.
- * When offline, authenticates locally through cached account credentials.
- */
 export async function signInWithEmail(email: string, pass: string): Promise<User> {
   const cleanEmail = email.trim().toLowerCase();
   const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
 
   if (isOffline) {
-    // Authenticate locally through cached data
     const verifyResult = await verifyCachedCredentials(cleanEmail, pass);
     if (!verifyResult.success || !verifyResult.account) {
       throw new Error(
@@ -604,12 +598,10 @@ export async function signInWithEmail(email: string, pass: string): Promise<User
     return offlineUser;
   }
 
-  // Attempt online Firebase sign-in
   try {
     const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, pass);
     const user = userCredential.user;
 
-    // Save/update cached credentials for future offline login
     try {
       const salt = generateSalt();
       const passwordHash = await hashPasswordWithSalt(pass, salt);
@@ -632,7 +624,6 @@ export async function signInWithEmail(email: string, pass: string): Promise<User
   } catch (onlineError: any) {
     const code = onlineError?.code || '';
     const msg = (onlineError?.message || '').toLowerCase();
-    // If the network failed or client is offline, fall back to cached credentials
     if (
       code === 'auth/network-request-failed' ||
       code === 'auth/internal-error' ||
@@ -657,9 +648,6 @@ export async function signInWithEmail(email: string, pass: string): Promise<User
   }
 }
 
-/**
- * Signs out the current user session (clears active session while preserving cached offline credentials).
- */
 export async function signOutUser(): Promise<void> {
   clearActiveOfflineUid();
   currentSessionUser = null;
@@ -667,9 +655,11 @@ export async function signOutUser(): Promise<void> {
   try {
     await firebaseSignOut(auth);
   } catch {
-    // ignore offline sign-out error
+    // ignore
   }
 }
+
+// -------------------- PROFILE PARSING --------------------
 
 function parseProfileSnapshotData(uid: string, raw: Record<string, unknown>): UserDexProfileData {
   return {
@@ -694,14 +684,19 @@ function parseProfileSnapshotData(uid: string, raw: Record<string, unknown>): Us
       : ALL_GAME_IDS,
     ownedDlcs: sanitizeOwnedDlcs(Array.isArray(raw.ownedDlcs) ? raw.ownedDlcs : []),
     gameCatches: sanitizeGameCatchesMap(raw.gameCatches),
-    inventory: sanitizeInventory(raw.inventory),
-    rescueBin: sanitizeRescueBin(raw.rescueBin),
+    // NEW: friend fields
+    friendCode: raw.friendCode ? String(raw.friendCode).slice(0, 16) : undefined,
+    friends: Array.isArray(raw.friends)
+      ? raw.friends.filter((x): x is string => typeof x === 'string').slice(0, 500)
+      : [],
     caughtCount: Number(raw.caughtCount || 0),
     shinyCount: Number(raw.shinyCount || 0),
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
   };
 }
+
+// -------------------- PUBLIC PROFILE FETCH --------------------
 
 export async function fetchPublicDexProfile(
   uid: string
@@ -712,27 +707,61 @@ export async function fetchPublicDexProfile(
   const docRef = doc(db, 'userDexProfiles', uid);
   const snap = await getDoc(docRef);
   if (!snap.exists()) return null;
-  return parseProfileSnapshotData(uid, snap.data() as Record<string, unknown>);
+
+  const raw = snap.data() as Record<string, unknown>;
+  const profile = parseProfileSnapshotData(uid, raw);
+
+  let inventory: SerializedPokemonInstance[] = [];
+  let rescueBin: RescueBinItem[] = [];
+
+  try {
+    const invSnap = await getDocs(collection(db, 'userDexProfiles', uid, 'inventory'));
+    inventory = invSnap.docs
+      .map((d) => sanitizeInventory([d.data()])[0])
+      .filter((x): x is SerializedPokemonInstance => Boolean(x));
+  } catch (err) {
+    console.warn('Could not fetch inventory subcollection:', err);
+  }
+
+  try {
+    const binSnap = await getDocs(collection(db, 'userDexProfiles', uid, 'rescueBin'));
+    rescueBin = sanitizeRescueBin(binSnap.docs.map((d) => d.data()));
+  } catch (err) {
+    console.warn('Could not fetch rescueBin subcollection:', err);
+  }
+
+  if (inventory.length === 0 && Array.isArray(raw.inventory) && raw.inventory.length > 0) {
+    inventory = sanitizeInventory(raw.inventory);
+  }
+  if (rescueBin.length === 0 && Array.isArray(raw.rescueBin) && raw.rescueBin.length > 0) {
+    rescueBin = sanitizeRescueBin(raw.rescueBin);
+  }
+
+  profile.inventory = inventory;
+  profile.rescueBin = rescueBin;
+  return profile;
 }
 
-/**
- * Subscribes to user profile changes. Emits locally cached data immediately,
- * and falls back gracefully when offline.
- */
+// -------------------- SUBSCRIPTIONS --------------------
+
 export function subscribeToUserDexProfile(
   uid: string,
   onData: (profile: UserDexProfileData | null) => void,
   onError?: (err: Error) => void
 ): Unsubscribe {
-  // 1. Immediately emit locally cached profile if available
   const localCached = getLocallyCachedProfile(uid);
   if (localCached) {
     onData(localCached);
   }
 
-  // 2. If device is currently offline, don't initiate remote onSnapshot
-  if (typeof navigator !== 'undefined' && !navigator.onLine) {
-    return () => {};
+  const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+
+  if (isOffline) {
+    const handleOnline = () => {
+      subscribeToUserDexProfile(uid, onData, onError);
+    };
+    window.addEventListener('online', handleOnline, { once: true });
+    return () => window.removeEventListener('online', handleOnline);
   }
 
   const path = `userDexProfiles/${uid}`;
@@ -743,6 +772,11 @@ export function subscribeToUserDexProfile(
     (snapshot) => {
       if (snapshot.exists()) {
         const parsed = parseProfileSnapshotData(uid, snapshot.data() as Record<string, unknown>);
+        const localNow = getLocallyCachedProfile(uid);
+        if (localNow) {
+          parsed.inventory = localNow.inventory;
+          parsed.rescueBin = localNow.rescueBin;
+        }
         saveLocallyCachedProfile(uid, parsed);
         onData(parsed);
       } else {
@@ -765,6 +799,51 @@ export function subscribeToUserDexProfile(
   );
 }
 
+export function subscribeToUserInventory(
+  uid: string,
+  onData: (items: SerializedPokemonInstance[]) => void,
+  onError?: (err: Error) => void
+): Unsubscribe {
+  return onSnapshot(
+    collection(db, 'userDexProfiles', uid, 'inventory'),
+    (snap) => {
+      const items: SerializedPokemonInstance[] = [];
+      for (const d of snap.docs) {
+        const clean = sanitizeInventory([d.data()]);
+        if (clean[0]) items.push(clean[0]);
+      }
+      onData(items);
+    },
+    (err) => {
+      console.warn('Inventory subcollection error:', err);
+      if (onError) onError(err instanceof Error ? err : new Error(String(err)));
+    }
+  );
+}
+
+export function subscribeToUserRescueBin(
+  uid: string,
+  onData: (items: RescueBinItem[]) => void,
+  onError?: (err: Error) => void
+): Unsubscribe {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return () => {};
+  }
+  return onSnapshot(
+    collection(db, 'userDexProfiles', uid, 'rescueBin'),
+    (snap) => {
+      const items = sanitizeRescueBin(snap.docs.map((d) => d.data()));
+      onData(items);
+    },
+    (err) => {
+      console.warn('Rescue bin subcollection error:', err);
+      if (onError) onError(err instanceof Error ? err : new Error(String(err)));
+    }
+  );
+}
+
+// -------------------- OFFLINE QUEUE --------------------
+
 function enqueueOfflineActionHelper(action: any) {
   try {
     const raw = localStorage.getItem('homedex_offline_sync_queue');
@@ -782,14 +861,127 @@ function enqueueOfflineActionHelper(action: any) {
       updatedQueue = [...queue, item];
     }
     localStorage.setItem('homedex_offline_sync_queue', JSON.stringify(updatedQueue));
+    try {
+      window.dispatchEvent(new Event('homedex-sync-queue-changed'));
+    } catch {
+      // ignore
+    }
   } catch (err) {
     console.warn('Failed to enqueue offline action:', err);
   }
 }
 
-/**
- * Saves user profile to local cache always, and syncs to Firestore or queues for offline sync.
- */
+export async function drainOfflineSyncQueue(): Promise<{ processed: number; failed: number }> {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return { processed: 0, failed: 0 };
+  }
+
+  let queue: any[] = [];
+  try {
+    const raw = localStorage.getItem('homedex_offline_sync_queue');
+    queue = raw ? JSON.parse(raw) : [];
+  } catch {
+    return { processed: 0, failed: 0 };
+  }
+
+  if (!Array.isArray(queue) || queue.length === 0) {
+    return { processed: 0, failed: 0 };
+  }
+
+  const remaining: any[] = [];
+  let processed = 0;
+  let failed = 0;
+
+  for (const action of queue) {
+    try {
+      switch (action.type) {
+        case 'SYNC_USER_PROFILE': {
+          const uid = action.payload.uid;
+          const meta = action.payload.metadata || action.payload.profileData;
+          if (uid && meta) {
+            await writeProfileMetadataToFirestore(uid, meta);
+          }
+          break;
+        }
+        case 'REGISTER_POKEPET':
+          await savePokepetToUniversalDatabase(
+            action.payload.instance,
+            action.payload.ownerId,
+            action.payload.trainerName
+          );
+          break;
+        case 'DELETE_POKEPET':
+          await deletePokepetFromUniversalDatabase(action.payload.pokeId);
+          break;
+        case 'SAVE_POKEPET_SUBCOLLECTION':
+          await writePokepetToSubcollection(action.payload.uid, action.payload.item);
+          break;
+        case 'DELETE_POKEPET_SUBCOLLECTION':
+          await writeDeletePokepetFromSubcollection(action.payload.uid, action.payload.pokeId);
+          break;
+        case 'SAVE_RESCUE_SUBCOLLECTION':
+          await writeRescueItemToSubcollection(action.payload.uid, action.payload.item);
+          break;
+        case 'DELETE_RESCUE_SUBCOLLECTION':
+          await writeDeleteRescueItemFromSubcollection(action.payload.uid, action.payload.rescueId);
+          break;
+        default:
+          console.warn('Unknown offline action type:', action.type);
+      }
+      processed++;
+    } catch (err) {
+      console.warn('Failed to drain action:', action.type, err);
+      failed++;
+      remaining.push(action);
+    }
+  }
+
+  try {
+    localStorage.setItem('homedex_offline_sync_queue', JSON.stringify(remaining));
+  } catch {
+    // ignore
+  }
+
+  try {
+    window.dispatchEvent(new Event('homedex-sync-queue-changed'));
+  } catch {
+    // ignore
+  }
+
+  return { processed, failed };
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => {
+    drainOfflineSyncQueue().catch(() => {});
+  });
+}
+
+// -------------------- PROFILE SAVE --------------------
+
+async function writeProfileMetadataToFirestore(
+  uid: string,
+  metadata: Record<string, unknown>
+): Promise<void> {
+  const cleanMetadata = removeUndefinedProperties(metadata);
+  const docRef = doc(db, 'userDexProfiles', uid);
+  const snap = await getDoc(docRef);
+
+  if (!snap.exists()) {
+    await setDoc(docRef, {
+      ...cleanMetadata,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  } else {
+    const { ownerId: _ignoredOwner, ...updateFields } = cleanMetadata;
+    await updateDoc(docRef, {
+      ...updateFields,
+      updatedAt: serverTimestamp(),
+    });
+  }
+}
+
 export async function saveUserDexProfile(
   uid: string,
   payload: {
@@ -848,79 +1040,194 @@ export async function saveUserDexProfile(
     shinyCount: shinyIds.length,
     updatedAt: Date.now(),
   };
-
-  // Always save locally first for instant access
   saveLocallyCachedProfile(uid, fullProfile);
 
-  // If offline, enqueue offline sync action
+  const metadata = {
+    ownerId: uid,
+    trainerName,
+    activeGameFilter,
+    isPublic,
+    caughtIds,
+    shinyIds,
+    livingIds,
+    caughtVariants,
+    boxSelectedVariants,
+    boxSelectedGames,
+    ownedGames,
+    ownedDlcs,
+    gameCatches,
+    caughtCount: caughtIds.length,
+    shinyCount: shinyIds.length,
+  };
+
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
     enqueueOfflineActionHelper({
       type: 'SYNC_USER_PROFILE',
-      payload: { uid, profileData: fullProfile },
+      payload: { uid, metadata },
     });
     return;
   }
 
-  const path = `userDexProfiles/${uid}`;
-  const docRef = doc(db, 'userDexProfiles', uid);
-
   try {
-    const snap = await getDoc(docRef);
-    const profilePayload = removeUndefinedProperties({
-      ownerId: uid,
-      trainerName,
-      activeGameFilter,
-      isPublic,
-      caughtIds,
-      shinyIds,
-      livingIds,
-      caughtVariants,
-      boxSelectedVariants,
-      boxSelectedGames,
-      ownedGames,
-      ownedDlcs,
-      gameCatches,
-      inventory,
-      rescueBin,
-      caughtCount: caughtIds.length,
-      shinyCount: shinyIds.length,
-    });
-
-    if (!snap.exists()) {
-      await setDoc(docRef, {
-        ...profilePayload,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-    } else {
-      const { ownerId: _ignoredOwner, ...updateFields } = profilePayload;
-      await updateDoc(docRef, {
-        ...updateFields,
-        updatedAt: serverTimestamp(),
-      });
-    }
+    await writeProfileMetadataToFirestore(uid, metadata);
   } catch (error) {
-    // If saving remotely fails due to network error, queue offline sync
+    console.warn('Firestore metadata save failed, queued for retry:', error);
     enqueueOfflineActionHelper({
       type: 'SYNC_USER_PROFILE',
-      payload: { uid, profileData: fullProfile },
+      payload: { uid, metadata },
     });
   }
 }
 
-/**
- * Queries all registered Pokepets created by or owned by the given UID
- * from the universal registeredPokepets collection across all devices.
- */
+// -------------------- SUBCOLLECTION WRITE HELPERS --------------------
+
+async function writePokepetToSubcollection(
+  uid: string,
+  item: SerializedPokemonInstance
+): Promise<void> {
+  const clean = sanitizeInventory([item])[0];
+  if (!clean) throw new Error('Invalid pokepet instance.');
+  const docRef = doc(db, 'userDexProfiles', uid, 'inventory', clean.pokeId);
+  await setDoc(
+    docRef,
+    removeUndefinedProperties({ ...clean, ownerId: uid, updatedAt: Date.now() }),
+    { merge: true }
+  );
+}
+
+async function writeDeletePokepetFromSubcollection(uid: string, pokeId: string): Promise<void> {
+  await deleteDoc(doc(db, 'userDexProfiles', uid, 'inventory', pokeId));
+}
+
+async function writeRescueItemToSubcollection(uid: string, item: RescueBinItem): Promise<void> {
+  const clean = sanitizeRescueBin([item]);
+  if (!clean[0]) throw new Error('Invalid rescue item.');
+  const docRef = doc(db, 'userDexProfiles', uid, 'rescueBin', clean[0].rescueId);
+  await setDoc(docRef, removeUndefinedProperties(clean[0]), { merge: true });
+}
+
+async function writeDeleteRescueItemFromSubcollection(uid: string, rescueId: string): Promise<void> {
+  await deleteDoc(doc(db, 'userDexProfiles', uid, 'rescueBin', rescueId));
+}
+
+export async function savePokepetToUserCollection(
+  uid: string,
+  item: SerializedPokemonInstance
+): Promise<void> {
+  if (!uid || !OWNER_ID_REGEX.test(uid)) throw new Error('Invalid UID.');
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    enqueueOfflineActionHelper({
+      type: 'SAVE_POKEPET_SUBCOLLECTION',
+      payload: { uid, item },
+    });
+    return;
+  }
+  try {
+    await writePokepetToSubcollection(uid, item);
+  } catch (err) {
+    console.error('savePokepetToUserCollection FAILED', err);
+    enqueueOfflineActionHelper({
+      type: 'SAVE_POKEPET_SUBCOLLECTION',
+      payload: { uid, item },
+    });
+    throw err;
+  }
+}
+
+export async function deletePokepetFromUserCollection(uid: string, pokeId: string): Promise<void> {
+  if (!uid || !OWNER_ID_REGEX.test(uid)) return;
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    enqueueOfflineActionHelper({
+      type: 'DELETE_POKEPET_SUBCOLLECTION',
+      payload: { uid, pokeId },
+    });
+    return;
+  }
+  try {
+    await writeDeletePokepetFromSubcollection(uid, pokeId);
+  } catch (err) {
+    enqueueOfflineActionHelper({
+      type: 'DELETE_POKEPET_SUBCOLLECTION',
+      payload: { uid, pokeId },
+    });
+  }
+}
+
+export async function saveRescueItemToUserCollection(uid: string, item: RescueBinItem): Promise<void> {
+  if (!uid || !OWNER_ID_REGEX.test(uid)) throw new Error('Invalid UID.');
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    enqueueOfflineActionHelper({
+      type: 'SAVE_RESCUE_SUBCOLLECTION',
+      payload: { uid, item },
+    });
+    return;
+  }
+  try {
+    await writeRescueItemToSubcollection(uid, item);
+  } catch (err) {
+    enqueueOfflineActionHelper({
+      type: 'SAVE_RESCUE_SUBCOLLECTION',
+      payload: { uid, item },
+    });
+    throw err;
+  }
+}
+
+export async function deleteRescueItemFromUserCollection(uid: string, rescueId: string): Promise<void> {
+  if (!uid || !OWNER_ID_REGEX.test(uid)) return;
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    enqueueOfflineActionHelper({
+      type: 'DELETE_RESCUE_SUBCOLLECTION',
+      payload: { uid, rescueId },
+    });
+    return;
+  }
+  try {
+    await writeDeleteRescueItemFromSubcollection(uid, rescueId);
+  } catch (err) {
+    enqueueOfflineActionHelper({
+      type: 'DELETE_RESCUE_SUBCOLLECTION',
+      payload: { uid, rescueId },
+    });
+  }
+}
+
+export async function migrateLegacyInventoryToSubcollection(
+  uid: string
+): Promise<{ migrated: number }> {
+  if (!uid || !OWNER_ID_REGEX.test(uid)) return { migrated: 0 };
+  const docRef = doc(db, 'userDexProfiles', uid);
+  const snap = await getDoc(docRef);
+  if (!snap.exists()) return { migrated: 0 };
+
+  const raw = snap.data() as Record<string, unknown>;
+  const legacyInventory = Array.isArray(raw.inventory) ? sanitizeInventory(raw.inventory) : [];
+  const legacyRescueBin = Array.isArray(raw.rescueBin) ? sanitizeRescueBin(raw.rescueBin) : [];
+
+  let migrated = 0;
+  for (const item of legacyInventory) {
+    await writePokepetToSubcollection(uid, item);
+    migrated++;
+  }
+  for (const item of legacyRescueBin) {
+    await writeRescueItemToSubcollection(uid, item);
+    migrated++;
+  }
+
+  if (legacyInventory.length > 0 || legacyRescueBin.length > 0) {
+    await updateDoc(docRef, { inventory: [], rescueBin: [] });
+  }
+  return { migrated };
+}
+
+// -------------------- UNIVERSAL REGISTERED POKEPETS --------------------
+
 export async function getUserRegisteredPokepets(uid: string): Promise<SerializedPokemonInstance[]> {
   if (!uid || uid.length > MAX_OWNER_ID_LENGTH) return [];
   if (typeof navigator !== 'undefined' && !navigator.onLine) return [];
 
   try {
-    const q = query(
-      collection(db, 'registeredPokepets'),
-      where('ownerId', '==', uid)
-    );
+    const q = query(collection(db, 'registeredPokepets'), where('ownerId', '==', uid));
     const snap = await getDocs(q);
     const results: SerializedPokemonInstance[] = [];
     snap.forEach((docSnap) => {
@@ -963,16 +1270,12 @@ export async function getUserRegisteredPokepets(uid: string): Promise<Serialized
   }
 }
 
-
 export async function ensureSignedInUser(): Promise<User> {
   if (auth.currentUser) return auth.currentUser;
   const anonCredential = await signInAnonymously(auth);
   return anonCredential.user;
 }
 
-/**
- * Checks if a 12-digit POKEID is already registered across the entire database.
- */
 export async function checkIsPokeIdTakenInDatabase(pokeId: string): Promise<boolean> {
   const cleanId = pokeId.trim().toUpperCase();
   if (!cleanId.startsWith('ID') || cleanId.length !== 12) return false;
@@ -984,10 +1287,6 @@ export async function checkIsPokeIdTakenInDatabase(pokeId: string): Promise<bool
   }
 }
 
-/**
- * Generates an automatically unique, non-sequential 12-digit POKEID site-wide.
- * Checks Firestore registeredPokepets to ensure no collisions across all users.
- */
 export async function generateUniqueSiteWidePokeId(existingLocalIds?: Set<string>): Promise<string> {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let attempts = 0;
@@ -1006,20 +1305,15 @@ export async function generateUniqueSiteWidePokeId(existingLocalIds?: Set<string
       return candidate;
     }
   }
-  // Fallback timestamp mix
   return `ID${Date.now().toString(36).toUpperCase().padStart(10, 'X').slice(-10)}`;
 }
 
-/**
- * Saves a registered Pokepet into the central universal registeredPokepets collection.
- */
 export async function savePokepetToUniversalDatabase(
   item: SerializedPokemonInstance,
   ownerId: string,
   trainerName: string
 ): Promise<void> {
   const cleanPokeId = item.pokeId.trim().toUpperCase();
-  const path = `registeredPokepets/${cleanPokeId}`;
   const docRef = doc(db, 'registeredPokepets', cleanPokeId);
 
   const payload = {
@@ -1045,7 +1339,6 @@ export async function savePokepetToUniversalDatabase(
     updatedAt: serverTimestamp(),
   };
 
-  // If offline, enqueue offline sync immediately
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
     enqueueOfflineActionHelper({
       type: 'REGISTER_POKEPET',
@@ -1057,7 +1350,6 @@ export async function savePokepetToUniversalDatabase(
   try {
     await setDoc(docRef, payload);
   } catch (error) {
-    // Fail-soft: enqueue offline action so it syncs once connection is restored
     enqueueOfflineActionHelper({
       type: 'REGISTER_POKEPET',
       payload: { instance: item, ownerId, trainerName },
@@ -1065,17 +1357,12 @@ export async function savePokepetToUniversalDatabase(
   }
 }
 
-/**
- * Updates a registered Pokepet in the universal database.
- * Notice: pokeId and pokemonId (species) CANNOT be edited.
- */
 export async function updatePokepetInUniversalDatabase(
   item: SerializedPokemonInstance,
   ownerId: string,
   trainerName: string
 ): Promise<void> {
   const cleanPokeId = item.pokeId.trim().toUpperCase();
-  const path = `registeredPokepets/${cleanPokeId}`;
   const docRef = doc(db, 'registeredPokepets', cleanPokeId);
 
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
@@ -1089,7 +1376,6 @@ export async function updatePokepetInUniversalDatabase(
   try {
     const snap = await getDoc(docRef);
     if (!snap.exists()) {
-      // If it doesn't exist remotely yet, create it
       await savePokepetToUniversalDatabase(item, ownerId, trainerName);
       return;
     }
@@ -1120,12 +1406,8 @@ export async function updatePokepetInUniversalDatabase(
   }
 }
 
-/**
- * Deletes a registered Pokepet from the universal database.
- */
 export async function deletePokepetFromUniversalDatabase(pokeId: string): Promise<void> {
   const cleanPokeId = pokeId.trim().toUpperCase();
-  const path = `registeredPokepets/${cleanPokeId}`;
   const docRef = doc(db, 'registeredPokepets', cleanPokeId);
 
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
@@ -1153,11 +1435,6 @@ export interface PokepetSearchResult {
   error?: string;
 }
 
-/**
- * Searches for any Pokepet matching a 12-digit POKEID.
- * Checks local inventory, universal registeredPokepets database, and cached profiles.
- * If not found / not created, returns an explicit error.
- */
 export async function searchPokepetByPokeId(
   pokeId: string,
   localInventory: SerializedPokemonInstance[],
@@ -1171,7 +1448,6 @@ export async function searchPokepetByPokeId(
     };
   }
 
-  // 1. Check local inventory first
   const localMatch = localInventory.find((inv) => inv.pokeId.toUpperCase() === cleanId);
   if (localMatch) {
     return {
@@ -1181,7 +1457,6 @@ export async function searchPokepetByPokeId(
     };
   }
 
-  // 2. Query universal Firestore registeredPokepets database
   try {
     const snap = await getDoc(doc(db, 'registeredPokepets', cleanId));
     if (snap.exists()) {
@@ -1219,7 +1494,6 @@ export async function searchPokepetByPokeId(
     console.warn('Error reading from registeredPokepets:', err);
   }
 
-  // 3. Check public profiles cache stored in localStorage
   try {
     const rawPublic = localStorage.getItem('homedex_cached_public_profiles');
     if (rawPublic) {
@@ -1245,14 +1519,12 @@ export async function searchPokepetByPokeId(
     // ignore
   }
 
-  // 4. If not found in any database, return error
   return {
     success: false,
     error: `POKEID "${cleanId}" does not exist in the database. No pet Pokémon has been registered with this POKEID.`,
   };
 }
 
-// Backwards-compatible alias for any callers
 export async function searchSpecimenByPokeId(
   pokeId: string,
   localInventory: SerializedPokemonInstance[],
@@ -1268,3 +1540,215 @@ export async function searchSpecimenByPokeId(
   return null;
 }
 
+// -------------------- FRIENDS SYSTEM --------------------
+
+const FRIEND_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no I, L, O, 0, 1
+
+export function generateFriendCode(): string {
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += FRIEND_CODE_ALPHABET.charAt(
+      Math.floor(Math.random() * FRIEND_CODE_ALPHABET.length)
+    );
+  }
+  return `DX-${code}`;
+}
+
+export async function reserveFriendCode(code: string, uid: string): Promise<boolean> {
+  const clean = code.trim().toUpperCase();
+  const codeRef = doc(db, 'friendCodes', clean);
+  try {
+    const existing = await getDoc(codeRef);
+    if (existing.exists()) return false;
+    await setDoc(codeRef, { uid, createdAt: Date.now() });
+    return true;
+  } catch (err) {
+    console.warn('reserveFriendCode failed:', err);
+    return false;
+  }
+}
+
+export async function generateAndReserveFriendCode(uid: string): Promise<string | null> {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const code = generateFriendCode();
+    const ok = await reserveFriendCode(code, uid);
+    if (ok) return code;
+  }
+  return null;
+}
+
+export async function lookupFriendCode(code: string): Promise<string | null> {
+  const clean = code.trim().toUpperCase();
+  if (!clean) return null;
+  try {
+    const snap = await getDoc(doc(db, 'friendCodes', clean));
+    if (!snap.exists()) return null;
+    const uid = String(snap.data().uid || '');
+    return uid || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function updateUserFriendCode(uid: string, friendCode: string): Promise<void> {
+  await updateDoc(doc(db, 'userDexProfiles', uid), {
+    friendCode: friendCode.slice(0, 16),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function updateUserFriends(uid: string, friends: string[]): Promise<void> {
+  const unique = Array.from(
+    new Set(friends.filter((f) => typeof f === 'string' && f.length > 0))
+  ).slice(0, 500);
+  await updateDoc(doc(db, 'userDexProfiles', uid), {
+    friends: unique,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export interface FriendRequest {
+  requestId: string;
+  fromUid: string;
+  toUid: string;
+  fromTrainerName: string;
+  fromFriendCode: string;
+  status: 'pending' | 'accepted' | 'declined';
+  createdAt: number;
+  updatedAt: number;
+}
+
+function requestIdFor(fromUid: string, toUid: string): string {
+  return `${fromUid}__${toUid}`;
+}
+
+export async function sendFriendRequest(
+  fromUid: string,
+  fromTrainerName: string,
+  fromFriendCode: string,
+  toUid: string
+): Promise<void> {
+  const id = requestIdFor(fromUid, toUid);
+  const ref = doc(db, 'friendRequests', id);
+  await setDoc(
+    ref,
+    {
+      fromUid,
+      toUid,
+      fromTrainerName: sanitizeTrainerName(fromTrainerName),
+      fromFriendCode: String(fromFriendCode || '').slice(0, 16),
+      status: 'pending',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    },
+    { merge: true }
+  );
+}
+
+export async function acceptFriendRequest(requestId: string): Promise<void> {
+  await updateDoc(doc(db, 'friendRequests', requestId), {
+    status: 'accepted',
+    updatedAt: Date.now(),
+  });
+}
+
+export async function declineFriendRequest(requestId: string): Promise<void> {
+  await deleteDoc(doc(db, 'friendRequests', requestId));
+}
+
+function mapFriendRequestDoc(d: any): FriendRequest {
+  const data = d.data() || {};
+  return {
+    requestId: d.id,
+    fromUid: String(data.fromUid || ''),
+    toUid: String(data.toUid || ''),
+    fromTrainerName: String(data.fromTrainerName || 'Trainer'),
+    fromFriendCode: String(data.fromFriendCode || ''),
+    status: (data.status || 'pending') as FriendRequest['status'],
+    createdAt: Number(data.createdAt || 0),
+    updatedAt: Number(data.updatedAt || 0),
+  };
+}
+
+export function subscribeToIncomingFriendRequests(
+  uid: string,
+  onData: (requests: FriendRequest[]) => void
+): Unsubscribe {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    onData([]);
+    return () => {};
+  }
+  const q = query(
+    collection(db, 'friendRequests'),
+    where('toUid', '==', uid),
+    where('status', '==', 'pending')
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      const out: FriendRequest[] = [];
+      snap.forEach((d) => out.push(mapFriendRequestDoc(d)));
+      out.sort((a, b) => b.createdAt - a.createdAt);
+      onData(out);
+    },
+    (err) => {
+      console.warn('Incoming friend requests error:', err);
+      onData([]);
+    }
+  );
+}
+
+export function subscribeToOutgoingAcceptedRequests(
+  uid: string,
+  onData: (requests: FriendRequest[]) => void
+): Unsubscribe {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return () => {};
+  }
+  const q = query(
+    collection(db, 'friendRequests'),
+    where('fromUid', '==', uid),
+    where('status', '==', 'accepted')
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      const out: FriendRequest[] = [];
+      snap.forEach((d) => out.push(mapFriendRequestDoc(d)));
+      onData(out);
+    },
+    (err) => {
+      console.warn('Outgoing friend requests error:', err);
+      onData([]);
+    }
+  );
+}
+
+export async function fetchFriendProfiles(
+  uids: string[]
+): Promise<Record<string, UserDexProfileData>> {
+  const map: Record<string, UserDexProfileData> = {};
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return map;
+  await Promise.all(
+    uids.map(async (uid) => {
+      try {
+        const profile = await fetchPublicDexProfile(uid);
+        if (profile) map[uid] = profile;
+      } catch (err) {
+        console.warn('Could not fetch friend profile:', uid, err);
+      }
+    })
+  );
+  return map;
+}
+
+export async function deleteFriendRequestByPair(
+  fromUid: string,
+  toUid: string
+): Promise<void> {
+  try {
+    await deleteDoc(doc(db, 'friendRequests', requestIdFor(fromUid, toUid)));
+  } catch {
+    // ignore
+  }
+}

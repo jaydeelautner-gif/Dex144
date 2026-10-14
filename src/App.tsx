@@ -13,14 +13,13 @@ import {
   MapPin,
   Maximize2,
   Globe,
-  User as UserIcon,
-  Sun,
-  Moon,
   Plus,
   Home,
   PlusCircle,
   Layers,
   Settings,
+  RefreshCw,
+  Trophy,
 } from 'lucide-react';
 import {
   buildInitialNationalDex,
@@ -47,6 +46,11 @@ import {
   pruneExpiredRescueBin,
   RESCUE_BIN_RETENTION_MS,
 } from './data/pokemonInventoryData';
+// ── GAME PROGRESS TRACKING ──
+import { useGameProgress } from './hooks/useGameProgress';
+import { getLockedDexNumbers } from './data/milestoneGates';
+import { GameProgressTracker } from './components/GameProgressTracker';
+// ── END GAME PROGRESS TRACKING ──
 import { getActiveOfflineUid } from './utils/offlineAuth';
 import { PokemonSprite } from './components/PokemonSprite';
 import { PokemonDetailDrawer } from './components/PokemonDetailDrawer';
@@ -64,6 +68,7 @@ import { PWAInstallButton } from './components/PWAInstallButton';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { AuthModal } from './components/AuthModal';
 import { DeviceAccessModal } from './components/DeviceAccessModal';
+import { FriendsView } from './components/FriendsView';
 
 import {
   auth,
@@ -71,15 +76,36 @@ import {
   signInWithGoogle,
   signOutUser,
   subscribeToUserDexProfile,
+  subscribeToUserInventory,
+  subscribeToUserRescueBin,
   saveUserDexProfile,
+  savePokepetToUserCollection,
+  deletePokepetFromUserCollection,
+  saveRescueItemToUserCollection,
+  deleteRescueItemFromUserCollection,
+  drainOfflineSyncQueue,
+  migrateLegacyInventoryToSubcollection,
   fetchPublicDexProfile,
   searchPokepetByPokeId,
   savePokepetToUniversalDatabase,
   updatePokepetInUniversalDatabase,
   deletePokepetFromUniversalDatabase,
+  // Friends system
+  generateAndReserveFriendCode,
+  lookupFriendCode,
+  updateUserFriendCode,
+  updateUserFriends,
+  sendFriendRequest,
+  acceptFriendRequest,
+  declineFriendRequest,
+  subscribeToIncomingFriendRequests,
+  subscribeToOutgoingAcceptedRequests,
+  fetchFriendProfiles,
+  deleteFriendRequestByPair,
   type User,
   type UserDexProfileData,
   type SerializedPokemonInstance,
+  type FriendRequest,
 } from './firebase';
 
 type MainWorkspaceTab =
@@ -88,7 +114,9 @@ type MainWorkspaceTab =
   | 'pokedex'
   | 'boxes'
   | 'inventory'
+  | 'progress'    // ── GAME PROGRESS TRACKING ──
   | 'public_stats'
+  | 'friends'
   | 'settings';
 
 type StatusFilter =
@@ -109,6 +137,8 @@ type AvailabilityFilter =
   | 'requires_dlc'
   | 'version_exclusive';
 
+type SyncStatus = 'synced' | 'syncing' | 'pending' | 'offline';
+
 const LS_CAUGHT_KEY = 'homedex_v4_caught';
 const LS_SHINY_KEY = 'homedex_v4_shiny';
 const LS_LIVING_KEY = 'homedex_v4_living';
@@ -122,6 +152,7 @@ const LS_TRAINER_KEY = 'homedex_v4_trainer_name';
 const LS_PUBLIC_KEY = 'homedex_v4_is_public';
 const LS_INVENTORY_KEY = 'homedex_v4_inventory';
 const LS_TALLY_GAMES_KEY = 'homedex_v4_tally_games';
+const LS_FRIENDS_KEY = 'homedex_v4_friends';
 
 const DEFAULT_OWNED_GAMES: GameId[] = ['sv', 'swsh', 'pla', 'bdsp', 'lgpe', 'pogo'];
 const DEFAULT_OWNED_DLCS: DlcId[] = [];
@@ -280,6 +311,25 @@ export function App() {
   const [authActionPrompt, setAuthActionPrompt] = useState<string | undefined>(undefined);
   const [isDeviceModalOpen, setIsDeviceModalOpen] = useState<boolean>(false);
 
+  // Refresh button state
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+
+  // ── Friends system state ──
+  const [myFriendCode, setMyFriendCode] = useState<string | undefined>(undefined);
+  const [myFriends, setMyFriends] = useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem(LS_FRIENDS_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed.filter((x: unknown) => typeof x === 'string') : [];
+    } catch {
+      return [];
+    }
+  });
+  const [incomingRequests, setIncomingRequests] = useState<FriendRequest[]>([]);
+  const [friendProfiles, setFriendProfiles] = useState<Record<string, UserDexProfileData>>({});
+  const [friendsLoading, setFriendsLoading] = useState<boolean>(false);
+  const [activeFriendUid, setActiveFriendUid] = useState<string | null>(null);
+
   // Toast feedback state
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
@@ -289,6 +339,15 @@ export function App() {
       return () => clearTimeout(timer);
     }
   }, [toast]);
+
+  // Persist myFriends to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_FRIENDS_KEY, JSON.stringify(myFriends));
+    } catch {
+      // ignore
+    }
+  }, [myFriends]);
 
   // User Specimen Inventory State
   const [inventory, setInventory] = useState<PokemonInstance[]>(() =>
@@ -321,8 +380,7 @@ export function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // User Progress State - strictly synchronized with registered PokePets in inventory:
-  // "pokemon should not be allowed to classed as caught on any box view if the user has no PokePets registered with that species."
+  // User Progress State
   const [caughtIds, setCaughtIds] = useState<number[]>(() => {
     const initialInv = loadInventoryFromStorage();
     return Array.from(new Set(initialInv.map((item) => item.pokemonId))).sort((a, b) => a - b);
@@ -373,7 +431,6 @@ export function App() {
       return 'Guest';
     }
   });
-  const [isEditingName, setIsEditingName] = useState<boolean>(false);
   const [isPublic, setIsPublic] = useState<boolean>(() => {
     try {
       return localStorage.getItem(LS_PUBLIC_KEY) === 'true';
@@ -402,28 +459,58 @@ export function App() {
     });
   }, []);
 
-  // Theme State
-  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    try {
-      const saved = localStorage.getItem('homedex_theme');
-      return saved === 'light' ? 'light' : 'dark';
-    } catch {
-      return 'dark';
+  // ── GAME PROGRESS TRACKING ──
+  const {
+    progress: gameProgress,
+    trackedGames,
+    mergedCompletedSet,
+    toggleMilestone,
+    toggleTracking,
+    resetGame: resetGameProgress,
+    completeAll: completeAllMilestones,
+  } = useGameProgress();
+
+  // Dex numbers currently locked because the user hasn't reached the milestone yet.
+  // Only applies when at least one game is being tracked.
+  const lockedByProgressSet = useMemo(() => {
+    if (trackedGames.size === 0) return new Set<number>();
+    // Merge gates from every tracked game so a Pokemon obtainable in an unlocked
+    // game doesn't get hidden just because it's still locked in another.
+    const merged = new Set<number>();
+    const unlockedAcrossTracked = new Set<number>();
+
+    for (const gId of trackedGames) {
+      const lockedForGame = getLockedDexNumbers(mergedCompletedSet, gId);
+      // Pokemon NOT in lockedForGame for this game are considered reachable here.
+      for (const p of dex) {
+        if (!lockedForGame.has(p.id)) {
+          // Available in this game — mark as unlocked overall
+          unlockedAcrossTracked.add(p.id);
+        }
+      }
+      lockedForGame.forEach((id) => merged.add(id));
     }
-  });
+
+    // A Pokemon is only "locked" if it is locked in every tracked game.
+    const finalLocked = new Set<number>();
+    merged.forEach((id) => {
+      if (!unlockedAcrossTracked.has(id)) finalLocked.add(id);
+    });
+    return finalLocked;
+  }, [mergedCompletedSet, trackedGames, dex]);
+  // ── END GAME PROGRESS TRACKING ──
+
+  // Theme State — locked to dark mode
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
   useEffect(() => {
-    if (theme === 'light') {
-      document.documentElement.classList.add('light');
-    } else {
-      document.documentElement.classList.remove('light');
-    }
+    document.documentElement.classList.remove('light');
     try {
-      localStorage.setItem('homedex_theme', theme);
+      localStorage.setItem('homedex_theme', 'dark');
     } catch {
       // ignore
     }
-  }, [theme]);
+  }, []);
 
   // Firebase Auth State
   const [user, setUser] = useState<User | null>(null);
@@ -432,20 +519,69 @@ export function App() {
   const [authErrorMsg, setAuthErrorMsg] = useState<string | null>(null);
   const isApplyingRemoteRef = useRef<boolean>(false);
 
-  // Sync caughtIds, livingIds, shinyIds, and box selections from inventory:
-  // "pokemon should not be allowed to classed as caught on any box view if the user has no PokePets registered with that species."
-  // Having 0 means not caught and any inventory of that pokemon above 1 is classed as caught.
-  // If the last pokemon in the inventory is deleted then the pokemon is no longer marked as caught.
-  // HOME gifts: They’re the only pokemon that can be counted as caught in the dex without an origin game.
-  // It still counts on the overall count even if it is the only instance.
+  // Live sync status indicator state
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('synced');
+  const [pendingWrites, setPendingWrites] = useState<number>(0);
+
+  // Keep the sync indicator in step with auth, network, and the offline queue
+  useEffect(() => {
+    const update = () => {
+      if (!authReady) {
+        setSyncStatus('syncing');
+        return;
+      }
+      if (!user) {
+        setSyncStatus('offline');
+        return;
+      }
+      const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+      if (!isOnline) {
+        setSyncStatus('offline');
+        return;
+      }
+
+      let queueLen = 0;
+      try {
+        const raw = localStorage.getItem('homedex_offline_sync_queue');
+        const parsed = raw ? JSON.parse(raw) : [];
+        if (Array.isArray(parsed)) queueLen = parsed.length;
+      } catch {
+        queueLen = 0;
+      }
+      setPendingWrites(queueLen);
+
+      if (queueLen > 0) {
+        setSyncStatus('pending');
+        return;
+      }
+      if (isApplyingRemoteRef.current) {
+        setSyncStatus('syncing');
+        return;
+      }
+      setSyncStatus('synced');
+    };
+
+    update();
+    const interval = setInterval(update, 2500);
+    window.addEventListener('online', update);
+    window.addEventListener('offline', update);
+    window.addEventListener('homedex-sync-queue-changed', update);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('online', update);
+      window.removeEventListener('offline', update);
+      window.removeEventListener('homedex-sync-queue-changed', update);
+    };
+  }, [user, authReady]);
+
+  // Sync caughtIds, livingIds, shinyIds, and box selections from inventory
   useEffect(() => {
     const speciesInInventory = new Set(inventory.map((item) => item.pokemonId));
 
-    // 1. Caught IDs strictly restricted to species with at least 1 registered PokePet
     const uniqueIdsInInventory = Array.from(speciesInInventory).sort((a, b) => a - b);
     setCaughtIds(uniqueIdsInInventory);
 
-    // 2. Living IDs strictly restricted to species with registered PokePets stored in HOME & assigned to living box
     const uniqueLivingInInventory = Array.from(
       new Set(
         inventory
@@ -455,7 +591,6 @@ export function App() {
     ).sort((a, b) => a - b);
     setLivingIds(uniqueLivingInInventory);
 
-    // 3. Shiny IDs strictly restricted to species with at least one shiny registered PokePet
     const uniqueShinyInInventory = Array.from(
       new Set(
         inventory
@@ -465,7 +600,6 @@ export function App() {
     ).sort((a, b) => a - b);
     setShinyIds(uniqueShinyInInventory);
 
-    // 4. Box selected variants: clean up any that don't belong to species in inventory
     setBoxSelectedVariants((prev) => {
       const map = parseBoxSelectedVariants(prev);
       let changed = false;
@@ -478,7 +612,6 @@ export function App() {
       return changed ? serializeBoxSelectedVariants(map) : prev;
     });
 
-    // 5. Box selected games: clean up any that don't belong to species in inventory
     setBoxSelectedGames((prev) => {
       const map = parseBoxSelectedGames(prev);
       let changed = false;
@@ -548,94 +681,24 @@ export function App() {
     return () => unsub();
   }, []);
 
-  // Subscribe to Firestore userDexProfiles/{uid}
+  // Drain offline sync queue once auth is ready and user is signed in
+  useEffect(() => {
+    if (!authReady || !user) return;
+    drainOfflineSyncQueue().catch(() => {});
+  }, [authReady, user?.uid]);
+
+  // Subscribe to Firestore: metadata + inventory subcollection + rescueBin subcollection
   useEffect(() => {
     if (!user) return;
     let isInitialFetch = true;
-    const unsub = subscribeToUserDexProfile(
+
+    const unsubProfile = subscribeToUserDexProfile(
       user.uid,
       (remoteProfile) => {
         if (remoteProfile) {
           isApplyingRemoteRef.current = true;
-          const mappedRemoteInventory: PokemonInstance[] = (remoteProfile.inventory || []).map((inv) => ({
-            pokeId: inv.pokeId,
-            pokemonId: inv.pokemonId,
-            nickname: inv.nickname || '',
-            level: inv.level,
-            gender: inv.gender as 'male' | 'female' | 'genderless',
-            variantId: inv.variantId,
-            variantName: inv.variantName,
-            isShiny: inv.isShiny,
-            gameId: inv.gameId as GameId | undefined,
-            isHomeGift: inv.isHomeGift,
-            isTraded: inv.isTraded,
-            storedInHome: inv.storedInHome,
-            isInLivingBox: inv.isInLivingBox,
-            livingBoxNumber: inv.livingBoxNumber,
-            livingBoxSlot: inv.livingBoxSlot,
-            notes: inv.notes,
-            ownerId: inv.ownerId || user.uid,
-            ownerEmail: inv.ownerEmail || user.email || undefined,
-            trainerName: inv.trainerName || remoteProfile.trainerName || user.displayName || 'Trainer',
-            isRescued: Boolean(inv.isRescued),
-            rescuedAt: inv.rescuedAt,
-            createdAt: inv.createdAt,
-            updatedAt: inv.updatedAt,
-          }));
 
-          // Multi-Device sync & Offline iPad sync merge:
-          // If a user registered pokepets on this device while offline or before login,
-          // merge them into the profile so they are preserved and uploaded to cloud!
-          const remotePokeIdSet = new Set(mappedRemoteInventory.map((i) => i.pokeId));
-          const currentLocalInventory = loadInventoryFromStorage();
-          const unsyncedFromLocal = currentLocalInventory.filter(
-            (localItem) => !remotePokeIdSet.has(localItem.pokeId)
-          );
-
-          let finalInventory = mappedRemoteInventory;
-          if (unsyncedFromLocal.length > 0) {
-            const taggedUnsynced = unsyncedFromLocal.map((loc) => ({
-              ...loc,
-              ownerId: user.uid,
-              ownerEmail: user.email || undefined,
-              trainerName: user.displayName || trainerName || 'Trainer',
-            }));
-            finalInventory = [...mappedRemoteInventory, ...taggedUnsynced];
-
-            // Upload unsynced to central universal database
-            taggedUnsynced.forEach((item) => {
-              savePokepetToUniversalDatabase(item, user.uid, item.trainerName || 'Trainer').catch(() => {});
-            });
-          }
-
-          setInventory(finalInventory);
-
-          // Sync rescueBin
-          if (remoteProfile.rescueBin && Array.isArray(remoteProfile.rescueBin)) {
-            setRescueBin(pruneExpiredRescueBin(remoteProfile.rescueBin));
-          }
-
-          // Filter remote progress strictly by registered species in finalInventory:
-          const finalSpeciesSet = new Set(finalInventory.map((item) => item.pokemonId));
-          setCaughtIds(Array.from(finalSpeciesSet).sort((a, b) => a - b));
-          setShinyIds(
-            Array.from(
-              new Set(
-                finalInventory
-                  .filter((item) => item.isShiny)
-                  .map((item) => item.pokemonId)
-              )
-            ).sort((a, b) => a - b)
-          );
-          setLivingIds(
-            Array.from(
-              new Set(
-                finalInventory
-                  .filter((item) => item.isInLivingBox && item.storedInHome)
-                  .map((item) => item.pokemonId)
-              )
-            ).sort((a, b) => a - b)
-          );
+          // Metadata-only sync — inventory comes from its own subscription below
           setCaughtVariants(remoteProfile.caughtVariants);
           setBoxSelectedVariants(remoteProfile.boxSelectedVariants);
           setBoxSelectedGames(remoteProfile.boxSelectedGames);
@@ -646,11 +709,22 @@ export function App() {
           if (remoteProfile.trainerName && remoteProfile.trainerName !== 'Guest') {
             setTrainerName(remoteProfile.trainerName);
           }
+          // Friend code + friends from the profile doc
+          if (remoteProfile.friendCode) {
+            setMyFriendCode(remoteProfile.friendCode);
+          }
+          if (Array.isArray(remoteProfile.friends)) {
+            setMyFriends((prev) => {
+              const merged = Array.from(new Set([...remoteProfile.friends!, ...prev]));
+              return merged;
+            });
+          }
           setCloudLoaded(true);
           setTimeout(() => {
             isApplyingRemoteRef.current = false;
           }, 50);
         } else if (isInitialFetch) {
+          // First sign-in for this user: create a metadata-only profile
           const effectiveName = user.displayName || 'Guest';
           setTrainerName(effectiveName);
           setCloudLoaded(true);
@@ -658,17 +732,15 @@ export function App() {
             trainerName: effectiveName,
             activeGameFilter: selectedGame,
             isPublic,
-            caughtIds,
-            shinyIds,
-            livingIds,
-            caughtVariants,
-            boxSelectedVariants,
-            boxSelectedGames,
+            caughtIds: [],
+            shinyIds: [],
+            livingIds: [],
+            caughtVariants: [],
+            boxSelectedVariants: [],
+            boxSelectedGames: [],
             ownedGames,
             ownedDlcs,
             gameCatches,
-            inventory: inventory as SerializedPokemonInstance[],
-            rescueBin,
           }).catch(() => {});
         }
         isInitialFetch = false;
@@ -677,10 +749,133 @@ export function App() {
         setCloudLoaded(true);
       }
     );
-    return () => unsub();
+
+    const unsubInventory = subscribeToUserInventory(user.uid, (items) => {
+      const mapped: PokemonInstance[] = items.map((inv) => ({
+        pokeId: inv.pokeId,
+        pokemonId: inv.pokemonId,
+        nickname: inv.nickname || '',
+        level: inv.level,
+        gender: inv.gender as 'male' | 'female' | 'genderless',
+        variantId: inv.variantId,
+        variantName: inv.variantName,
+        isShiny: inv.isShiny,
+        gameId: inv.gameId as GameId | undefined,
+        isHomeGift: inv.isHomeGift,
+        isTraded: inv.isTraded,
+        storedInHome: inv.storedInHome,
+        isInLivingBox: inv.isInLivingBox,
+        livingBoxNumber: inv.livingBoxNumber,
+        livingBoxSlot: inv.livingBoxSlot,
+        notes: inv.notes,
+        ownerId: inv.ownerId || user.uid,
+        ownerEmail: inv.ownerEmail || user.email || undefined,
+        trainerName: inv.trainerName || 'Trainer',
+        isRescued: Boolean(inv.isRescued),
+        rescuedAt: inv.rescuedAt,
+        createdAt: inv.createdAt,
+        updatedAt: inv.updatedAt,
+      }));
+      setInventory(mapped);
+    });
+
+    const unsubRescueBin = subscribeToUserRescueBin(user.uid, (items) => {
+      setRescueBin(items);
+    });
+
+    return () => {
+      unsubProfile();
+      unsubInventory();
+      unsubRescueBin();
+    };
   }, [user]);
 
-  // Persist to localStorage & Firestore
+  // ── Friend code generation (one-time per user) ──
+  useEffect(() => {
+    if (!user?.uid || !cloudLoaded) return;
+    if (myFriendCode) return;
+    let cancelled = false;
+    (async () => {
+      const code = await generateAndReserveFriendCode(user.uid);
+      if (!code || cancelled) return;
+      try {
+        await updateUserFriendCode(user.uid, code);
+        if (!cancelled) setMyFriendCode(code);
+      } catch (err) {
+        console.warn('Failed to save friend code to profile:', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.uid, cloudLoaded, myFriendCode]);
+
+  // ── Subscribe to incoming pending friend requests ──
+  useEffect(() => {
+    if (!user?.uid) {
+      setIncomingRequests([]);
+      return;
+    }
+    return subscribeToIncomingFriendRequests(user.uid, setIncomingRequests);
+  }, [user?.uid]);
+
+  // ── Watch accepted outgoing requests ──
+  useEffect(() => {
+    if (!user?.uid) return;
+    return subscribeToOutgoingAcceptedRequests(user.uid, (accepted) => {
+      if (accepted.length === 0) return;
+      setMyFriends((prev) => {
+        const next = [...prev];
+        let changed = false;
+        for (const req of accepted) {
+          if (req.toUid && !next.includes(req.toUid)) {
+            next.push(req.toUid);
+            changed = true;
+          }
+        }
+        if (!changed) return prev;
+        updateUserFriends(user.uid, next).catch(() => {});
+        return next;
+      });
+    });
+  }, [user?.uid]);
+
+  // ── Fetch friend profiles whenever the list changes ──
+  useEffect(() => {
+    if (myFriends.length === 0) {
+      setFriendProfiles({});
+      return;
+    }
+    let cancelled = false;
+    setFriendsLoading(true);
+    fetchFriendProfiles(myFriends)
+      .then((map) => {
+        if (!cancelled) setFriendProfiles(map);
+      })
+      .finally(() => {
+        if (!cancelled) setFriendsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [myFriends]);
+
+  // One-time migration of legacy inline inventory/rescueBin arrays to subcollections
+  useEffect(() => {
+    if (!user?.uid || !cloudLoaded) return;
+    migrateLegacyInventoryToSubcollection(user.uid)
+      .then(({ migrated }) => {
+        if (migrated > 0) {
+          setToast({
+            message: `Migrated ${migrated} Poképet${migrated === 1 ? '' : 's'} to cloud storage.`,
+            type: 'success',
+          });
+        }
+      })
+      .catch(() => {});
+  }, [user?.uid, cloudLoaded]);
+
+  // Persist to localStorage & Firestore (metadata only now)
   useEffect(() => {
     try {
       localStorage.setItem(LS_CAUGHT_KEY, JSON.stringify(caughtIds));
@@ -744,7 +939,7 @@ export function App() {
     setCurrentPage(1);
   }, [selectedGame, selectedGen, statusFilter, availFilter, searchQuery]);
 
-  // Add a newly registered pokepet instance to the database
+  // Add a newly registered pokepet instance
   const handleSaveNewInstance = useCallback((newInstance: PokemonInstance) => {
     const ownerId =
       user?.uid ||
@@ -764,24 +959,26 @@ export function App() {
 
     setInventory((prev) => [taggedInstance, ...prev]);
 
-    // Save to central universal database
     savePokepetToUniversalDatabase(taggedInstance, ownerId, effectiveTrainerName).catch((err) => {
       console.warn('Failed to save pokepet to universal database:', err);
     });
 
-    // 1. Variant caught
+    if (user?.uid) {
+      savePokepetToUserCollection(user.uid, taggedInstance as SerializedPokemonInstance).catch((err) =>
+        console.warn('Failed to save pokepet to user subcollection:', err)
+      );
+    }
+
     setCaughtVariants((prev) =>
       prev.includes(newInstance.variantId) ? prev : [...prev, newInstance.variantId]
     );
 
-    // 2. Shiny caught
     if (newInstance.isShiny) {
       setShinyIds((prev) =>
         prev.includes(newInstance.pokemonId) ? prev : [...prev, newInstance.pokemonId]
       );
     }
 
-    // 3. Stored in HOME / Living Box assignment
     if (newInstance.storedInHome && newInstance.isInLivingBox) {
       setLivingIds((prev) =>
         prev.includes(newInstance.pokemonId) ? prev : [...prev, newInstance.pokemonId]
@@ -800,7 +997,6 @@ export function App() {
       }
     }
 
-    // 4. Per-game catch map (only if origin game is present, not for HOME gifts)
     if (newInstance.gameId) {
       setGameCatches((prev) => {
         const list = prev[newInstance.gameId!] || [];
@@ -824,6 +1020,12 @@ export function App() {
       console.warn('Failed to update pokepet in universal database:', err);
     });
 
+    if (user?.uid) {
+      savePokepetToUserCollection(user.uid, updatedInstance as SerializedPokemonInstance).catch((err) =>
+        console.warn('Failed to update user subcollection:', err)
+      );
+    }
+
     if (updatedInstance.storedInHome && updatedInstance.isInLivingBox) {
       setLivingIds((prev) =>
         prev.includes(updatedInstance.pokemonId) ? prev : [...prev, updatedInstance.pokemonId]
@@ -843,10 +1045,8 @@ export function App() {
     }
   }, [user, trainerName]);
 
-  // Delete instance:
-  // "PokePets, their POKEID and all it’s data that a user choses deleted go into a bin, which is kept for 30 days and then automatically deleted."
+  // Delete instance → moves to 30-Day Rescue Bin
   const handleDeleteInstance = useCallback((pokeId: string) => {
-    // Delete from universal database (marked inactive)
     deletePokepetFromUniversalDatabase(pokeId).catch((err) => {
       console.warn('Failed to delete pokepet from universal database:', err);
     });
@@ -855,7 +1055,6 @@ export function App() {
       const target = prev.find((item) => item.pokeId === pokeId);
       if (!target) return prev;
 
-      // Transfer to 30-Day Rescue Bin
       const now = Date.now();
       const rescueItem: RescueBinItem = {
         rescueId: target.pokeId,
@@ -877,10 +1076,14 @@ export function App() {
         return nextBin;
       });
 
+      if (user?.uid) {
+        deletePokepetFromUserCollection(user.uid, pokeId).catch(() => {});
+        saveRescueItemToUserCollection(user.uid, rescueItem).catch(() => {});
+      }
+
       const next = prev.filter((item) => item.pokeId !== pokeId);
       const remainingOfThisSpecies = next.filter((item) => item.pokemonId === target.pokemonId);
 
-      // If no instances remain, remove from living and shiny
       if (remainingOfThisSpecies.length === 0) {
         setLivingIds((lPrev) => lPrev.filter((id) => id !== target.pokemonId));
         setShinyIds((sPrev) => sPrev.filter((id) => id !== target.pokemonId));
@@ -907,8 +1110,7 @@ export function App() {
     });
   }, [user, trainerName]);
 
-  // Rescue a single pokepet from the 30-day bin:
-  // "Users can rescue pokemon in the new rescue section in the settings menu. These should then be fully restored to the user and no longer eligible to be deleted."
+  // Rescue a single pokepet from the 30-day bin
   const handleRescuePokepet = useCallback((rescueId: string) => {
     setRescueBin((binPrev) => {
       const targetItem = binPrev.find((b) => b.rescueId === rescueId);
@@ -921,13 +1123,11 @@ export function App() {
         updatedAt: Date.now(),
       };
 
-      // Restore to active inventory
       setInventory((invPrev) => {
         if (invPrev.some((i) => i.pokeId === restored.pokeId)) return invPrev;
         return [restored, ...invPrev];
       });
 
-      // Mark species caught
       setCaughtIds((cPrev) => (cPrev.includes(restored.pokemonId) ? cPrev : [...cPrev, restored.pokemonId]));
       if (restored.isShiny) {
         setShinyIds((sPrev) => (sPrev.includes(restored.pokemonId) ? sPrev : [...sPrev, restored.pokemonId]));
@@ -939,12 +1139,16 @@ export function App() {
         });
       }
 
-      // Re-save to central database
       savePokepetToUniversalDatabase(
         restored,
         user?.uid || restored.ownerId || 'restored_trainer',
         restored.trainerName || 'Trainer'
       ).catch(() => {});
+
+      if (user?.uid) {
+        savePokepetToUserCollection(user.uid, restored as SerializedPokemonInstance).catch(() => {});
+        deleteRescueItemFromUserCollection(user.uid, rescueId).catch(() => {});
+      }
 
       const nextBin = binPrev.filter((b) => b.rescueId !== rescueId);
       try {
@@ -963,55 +1167,60 @@ export function App() {
 
   // Rescue all pokepets from the 30-day bin
   const handleRescueAll = useCallback(() => {
-    setRescueBin((binPrev) => {
-      if (binPrev.length === 0) return binPrev;
+    const binPrev = rescueBin;
+    if (binPrev.length === 0) return;
 
-      const now = Date.now();
-      const restoredList: PokemonInstance[] = binPrev.map((b) => ({
-        ...b.instance,
-        isRescued: true,
-        rescuedAt: now,
-        updatedAt: now,
-      }));
+    const now = Date.now();
+    const restoredList: PokemonInstance[] = binPrev.map((b) => ({
+      ...b.instance,
+      isRescued: true,
+      rescuedAt: now,
+      updatedAt: now,
+    }));
 
-      // Add all to inventory without duplicate pokeIds
-      setInventory((invPrev) => {
-        const existingIds = new Set(invPrev.map((i) => i.pokeId));
-        const novel = restoredList.filter((r) => !existingIds.has(r.pokeId));
-        return [...novel, ...invPrev];
-      });
-
-      // Mark caught and shiny
-      const restoredSpeciesIds = restoredList.map((r) => r.pokemonId);
-      const restoredShinyIds = restoredList.filter((r) => r.isShiny).map((r) => r.pokemonId);
-
-      setCaughtIds((cPrev) => Array.from(new Set([...cPrev, ...restoredSpeciesIds])));
-      if (restoredShinyIds.length > 0) {
-        setShinyIds((sPrev) => Array.from(new Set([...sPrev, ...restoredShinyIds])));
-      }
-
-      // Re-save to central database
-      restoredList.forEach((r) => {
-        savePokepetToUniversalDatabase(
-          r,
-          user?.uid || r.ownerId || 'restored_trainer',
-          r.trainerName || 'Trainer'
-        ).catch(() => {});
-      });
-
-      try {
-        localStorage.removeItem(LS_RESCUE_BIN_KEY);
-      } catch {
-        // ignore
-      }
-      return [];
+    setInventory((invPrev) => {
+      const existingIds = new Set(invPrev.map((i) => i.pokeId));
+      const novel = restoredList.filter((r) => !existingIds.has(r.pokeId));
+      return [...novel, ...invPrev];
     });
+
+    const restoredSpeciesIds = restoredList.map((r) => r.pokemonId);
+    const restoredShinyIds = restoredList.filter((r) => r.isShiny).map((r) => r.pokemonId);
+
+    setCaughtIds((cPrev) => Array.from(new Set([...cPrev, ...restoredSpeciesIds])));
+    if (restoredShinyIds.length > 0) {
+      setShinyIds((sPrev) => Array.from(new Set([...sPrev, ...restoredShinyIds])));
+    }
+
+    restoredList.forEach((r) => {
+      savePokepetToUniversalDatabase(
+        r,
+        user?.uid || r.ownerId || 'restored_trainer',
+        r.trainerName || 'Trainer'
+      ).catch(() => {});
+      if (user?.uid) {
+        savePokepetToUserCollection(user.uid, r as SerializedPokemonInstance).catch(() => {});
+      }
+    });
+
+    if (user?.uid) {
+      binPrev.forEach((b) => {
+        deleteRescueItemFromUserCollection(user.uid, b.rescueId).catch(() => {});
+      });
+    }
+
+    try {
+      localStorage.removeItem(LS_RESCUE_BIN_KEY);
+    } catch {
+      // ignore
+    }
+    setRescueBin([]);
 
     setToast({
       message: 'All Pokémon have been rescued and restored!',
       type: 'success',
     });
-  }, [user]);
+  }, [user, rescueBin]);
 
   const handleToggleOwnedGame = useCallback((gameId: GameId) => {
     setOwnedGames((prev) =>
@@ -1057,14 +1266,12 @@ export function App() {
         return errorMsg;
       }
 
-      // 1. Search local user inventory
       const localMatch = inventory.find((inv) => inv.pokeId.toUpperCase() === cleanId);
       if (localMatch) {
         setActiveTrainerCardInstance(localMatch);
         return null;
       }
 
-      // 2. Search shared profile data
       if (sharedProfileData?.inventory) {
         const profileMatch = sharedProfileData.inventory.find(
           (inv) => inv.pokeId.toUpperCase() === cleanId
@@ -1078,7 +1285,6 @@ export function App() {
         }
       }
 
-      // 3. Search central Firestore database of registered pokepets
       try {
         const result = await searchPokepetByPokeId(
           cleanId,
@@ -1113,7 +1319,6 @@ export function App() {
   }, []);
 
   const handleResetAllProgress = useCallback(() => {
-    // If there were active PokéPets in inventory, safeguard them in the 30-Day Rescue Bin
     if (inventory.length > 0) {
       const now = Date.now();
       const newBinItems: RescueBinItem[] = inventory.map((item) => ({
@@ -1137,6 +1342,15 @@ export function App() {
         }
         return merged;
       });
+
+      if (user?.uid) {
+        inventory.forEach((item) => {
+          deletePokepetFromUserCollection(user.uid, item.pokeId).catch(() => {});
+        });
+        newBinItems.forEach((r) => {
+          saveRescueItemToUserCollection(user.uid, r).catch(() => {});
+        });
+      }
     }
 
     setInventory([]);
@@ -1207,6 +1421,98 @@ export function App() {
   const handleSignOut = async () => {
     await signOutUser();
     setTrainerName('Guest');
+    setMyFriendCode(undefined);
+    setIncomingRequests([]);
+    // Keep myFriends in localStorage so the list persists if they sign back in
+  };
+
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      await drainOfflineSyncQueue();
+    } catch {
+      // ignore — reload anyway
+    }
+    setTimeout(() => {
+      window.location.reload();
+    }, 300);
+  };
+
+  // ── Friend handlers ──
+
+  const handleAddFriendByCode = async (code: string) => {
+    if (!user?.uid) return;
+    const clean = code.trim().toUpperCase();
+    if (!clean) return;
+
+    try {
+      const toUid = await lookupFriendCode(clean);
+      if (!toUid) {
+        setToast({ message: 'No user found with that friend code.', type: 'error' });
+        return;
+      }
+      if (toUid === user.uid) {
+        setToast({ message: "That's your own friend code!", type: 'info' });
+        return;
+      }
+      if (myFriends.includes(toUid)) {
+        setToast({ message: 'You are already friends with that trainer.', type: 'info' });
+        return;
+      }
+      await sendFriendRequest(
+        user.uid,
+        displayTrainerName,
+        myFriendCode || '',
+        toUid
+      );
+      setToast({ message: 'Friend request sent!', type: 'success' });
+    } catch (err) {
+      console.warn('Failed to send friend request:', err);
+      setToast({ message: 'Could not send the request. Try again.', type: 'error' });
+    }
+  };
+
+  const handleAcceptRequest = async (req: FriendRequest) => {
+    if (!user?.uid) return;
+    try {
+      const next = myFriends.includes(req.fromUid)
+        ? myFriends
+        : [...myFriends, req.fromUid];
+      await updateUserFriends(user.uid, next);
+      setMyFriends(next);
+      await acceptFriendRequest(req.requestId);
+      setToast({ message: `You're now friends with ${req.fromTrainerName}.`, type: 'success' });
+    } catch (err) {
+      console.warn('Failed to accept request:', err);
+      setToast({ message: 'Could not accept the request. Try again.', type: 'error' });
+    }
+  };
+
+  const handleDeclineRequest = async (requestId: string) => {
+    try {
+      await declineFriendRequest(requestId);
+    } catch (err) {
+      console.warn('Failed to decline request:', err);
+      setToast({ message: 'Could not decline the request.', type: 'error' });
+    }
+  };
+
+  const handleRemoveFriend = async (friendUid: string) => {
+    if (!user?.uid) return;
+    const next = myFriends.filter((f) => f !== friendUid);
+    const prev = myFriends;
+    setMyFriends(next);
+    try {
+      await updateUserFriends(user.uid, next);
+      await deleteFriendRequestByPair(user.uid, friendUid);
+      await deleteFriendRequestByPair(friendUid, user.uid);
+      setToast({ message: 'Friend removed.', type: 'info' });
+    } catch (err) {
+      console.warn('Failed to remove friend:', err);
+      setMyFriends(prev);
+      setToast({ message: 'Could not remove friend.', type: 'error' });
+    }
   };
 
   // Availability tooltip summary for owned games
@@ -1493,19 +1799,21 @@ export function App() {
           </button>
         </div>
 
-        {/* Primary Workspace Navigation Tabs (Desktop / Laptop / Tablet Landscape) */}
+        {/* Primary Workspace Navigation Tabs */}
         <nav
           aria-label="Primary Workspace"
-          className="hidden md:flex items-center gap-1 p-1 bg-[#0F1522] border border-slate-800/80 rounded-xl overflow-x-auto"
+          className="hidden md:flex items-center gap-0.5 p-1 bg-[#0F1522] border border-slate-800/80 rounded-xl overflow-x-auto"
         >
           {(
             [
               { id: 'home', label: 'Home' },
-              { id: 'register', label: 'Register Pokémon' },
-              { id: 'pokedex', label: 'Pokédex Tracker' },
-              { id: 'boxes', label: 'Living Boxes (35)' },
+              { id: 'register', label: 'Register' },
+              { id: 'pokedex', label: 'Pokédex' },
+              { id: 'boxes', label: 'Boxes' },
               { id: 'inventory', label: `Inventory (${inventory.length})` },
-              { id: 'public_stats', label: 'Public Living Dex' },
+              { id: 'progress', label: 'Progress' },  // ── GAME PROGRESS TRACKING ──
+              { id: 'public_stats', label: 'Living Dex' },
+              { id: 'friends', label: `Friends${incomingRequests.length > 0 ? ` (${incomingRequests.length})` : ''}` },
               { id: 'settings', label: 'Settings' },
             ] as const
           ).map((tab) => (
@@ -1531,50 +1839,17 @@ export function App() {
         <div className="flex items-center gap-2.5 shrink-0">
           <PWAInstallButton />
 
+          {/* Refresh button — drains offline queue, then reloads */}
           <button
             type="button"
-            onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
-            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            className="p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-amber-300 transition-colors cursor-pointer"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            title="Refresh app and sync pending changes"
+            aria-label="Refresh app and sync pending changes"
+            className="p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-amber-300 disabled:opacity-60 disabled:cursor-not-allowed transition-colors cursor-pointer"
           >
-            {theme === 'dark' ? (
-              <Sun className="w-4 h-4 text-amber-400" />
-            ) : (
-              <Moon className="w-4 h-4 text-slate-600" />
-            )}
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-amber-400' : ''}`} />
           </button>
-
-          <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#0F1522] border border-slate-800">
-            <UserIcon className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-            {isEditingName ? (
-              <input
-                type="text"
-                value={trainerName}
-                onChange={(e) => setTrainerName(e.target.value)}
-                onBlur={() => {
-                  if (!trainerName.trim()) setTrainerName('Guest');
-                  setIsEditingName(false);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    if (!trainerName.trim()) setTrainerName('Guest');
-                    setIsEditingName(false);
-                  }
-                }}
-                autoFocus
-                className="w-28 bg-slate-900 border border-amber-400/60 rounded px-1.5 py-0.5 text-xs text-slate-100 focus:outline-none"
-              />
-            ) : (
-              <button
-                type="button"
-                onClick={() => setIsEditingName(true)}
-                title="Click to edit Trainer Name"
-                className="text-xs font-medium text-slate-200 hover:text-amber-300 transition-colors cursor-pointer"
-              >
-                {displayTrainerName}
-              </button>
-            )}
-          </div>
 
           {authErrorMsg && (
             <span className="hidden lg:inline text-xs text-rose-400 font-mono-tabular">
@@ -1585,8 +1860,24 @@ export function App() {
           {authReady && user ? (
             <div className="flex items-center gap-2">
               <div className="hidden sm:flex flex-col items-end leading-tight">
-                <span className="text-[11px] font-mono font-semibold text-emerald-400">
-                  {(user as any).isOffline ? 'Offline Auth' : 'Synced'}
+                <span
+                  className={`text-[11px] font-mono font-semibold ${
+                    syncStatus === 'synced'
+                      ? 'text-emerald-400'
+                      : syncStatus === 'syncing'
+                      ? 'text-sky-400'
+                      : syncStatus === 'pending'
+                      ? 'text-amber-400'
+                      : 'text-rose-400'
+                  }`}
+                >
+                  {syncStatus === 'synced'
+                    ? 'Synced'
+                    : syncStatus === 'syncing'
+                    ? 'Syncing...'
+                    : syncStatus === 'pending'
+                    ? `Pending (${pendingWrites})`
+                    : 'Offline'}
                 </span>
                 <span className="text-[10px] text-slate-400 font-mono truncate max-w-[120px]">
                   {user.email || user.displayName || 'Trainer'}
@@ -1616,7 +1907,6 @@ export function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-[1440px] w-full mx-auto px-3 sm:px-6 py-4 sm:py-6 flex flex-col gap-6 pb-24 md:pb-8">
-        {/* Full-Screen Pokémon Page View */}
         {fullPagePokemon ? (
           <PokemonFullPageView
             pokemon={fullPagePokemon}
@@ -1759,10 +2049,20 @@ export function App() {
                 onNavigateToInventory={() => setActiveTab('inventory')}
                 onNavigateToSettings={() => setActiveTab('settings')}
                 onLookupPokeId={handleLookupPokeId}
+                // ── GAME PROGRESS TRACKING ──
+                lockedByProgressSet={lockedByProgressSet}
+                gameProgress={gameProgress}
+                trackedGames={trackedGames}
+                onToggleMilestone={toggleMilestone}
+                onToggleTracking={toggleTracking}
+                onResetGameProgress={resetGameProgress}
+                onCompleteAllMilestones={completeAllMilestones}
+                onNavigateToProgress={() => setActiveTab('progress')}
+                // ── END GAME PROGRESS TRACKING ──
               />
             )}
 
-            {/* TAB 1: REGISTER POKÉMON (Exclusive Gateway for Inputting Pokémon!) */}
+            {/* TAB 1: REGISTER POKÉMON */}
             {activeTab === 'register' && (
               <RegisterPokemonView
                 dex={dex}
@@ -1969,13 +2269,13 @@ export function App() {
                     {paginatedDex.map((p) => {
                       const isCaught = caughtSet.has(p.id);
                       const isShiny = shinySet.has(p.id);
-                      const isLiving = livingSet.has(p.id);
                       const specimenCount = inventory.filter((inv) => inv.pokemonId === p.id).length;
                       const ownedSummary = getOwnedGamesAvailabilitySummary(p);
                       const variations = getVariationsForPokemon(p);
                       const savedVariantId = boxSelectedVariantsMap.get(p.id);
                       const displayVariant =
                         variations.find((v) => v.variantId === savedVariantId) || variations[0];
+                      const isLockedByProgress = lockedByProgressSet.has(p.id);
 
                       return (
                         <div
@@ -1993,6 +2293,14 @@ export function App() {
                               #{String(p.id).padStart(4, '0')}
                             </span>
                             <div className="flex items-center gap-1">
+                              {isLockedByProgress && (
+                                <span
+                                  className="px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 font-mono text-[9px] font-bold border border-slate-700"
+                                  title="Not yet reachable with your current game progress"
+                                >
+                                  🔒
+                                </span>
+                              )}
                               {specimenCount > 0 && (
                                 <span className="px-1.5 py-0.2 rounded bg-amber-400/20 text-amber-300 font-mono text-[9px] font-bold border border-amber-400/40">
                                   {specimenCount} {specimenCount === 1 ? 'specimen' : 'specimens'}
@@ -2030,7 +2338,11 @@ export function App() {
                               {p.name}
                             </div>
                             <div className="text-[11px] font-mono-tabular flex flex-col gap-0.5 pt-1 border-t border-slate-800/70">
-                              {!ownedSummary.obtainableInOwned ? (
+                              {isLockedByProgress ? (
+                                <span className="text-amber-400 font-semibold truncate">
+                                  Locked — progress
+                                </span>
+                              ) : !ownedSummary.obtainableInOwned ? (
                                 <span className="text-rose-400 font-semibold truncate">
                                   Not in owned games
                                 </span>
@@ -2068,6 +2380,7 @@ export function App() {
                             const isCaught = caughtSet.has(p.id);
                             const specimenCount = inventory.filter((inv) => inv.pokemonId === p.id).length;
                             const ownedSummary = getOwnedGamesAvailabilitySummary(p);
+                            const isLockedByProgress = lockedByProgressSet.has(p.id);
                             return (
                               <tr
                                 key={p.id}
@@ -2091,7 +2404,11 @@ export function App() {
                                   </div>
                                 </td>
                                 <td className="py-2.5 px-4 text-xs">
-                                  {!ownedSummary.obtainableInOwned ? (
+                                  {isLockedByProgress ? (
+                                    <span className="text-amber-400 font-mono-tabular font-semibold">
+                                      🔒 Locked — reach next milestone
+                                    </span>
+                                  ) : !ownedSummary.obtainableInOwned ? (
                                     <span className="text-rose-400 font-mono-tabular font-semibold">
                                       Not obtainable with current games
                                     </span>
@@ -2157,7 +2474,7 @@ export function App() {
               />
             )}
 
-            {/* TAB 4: INVENTORY (Replaces Trainer Card & Export on menu bar) */}
+            {/* TAB 4: INVENTORY */}
             {activeTab === 'inventory' && (
               <InventoryView
                 dex={dex}
@@ -2171,6 +2488,20 @@ export function App() {
                 onNavigateToSettings={() => setActiveTab('settings')}
               />
             )}
+
+            {/* ── GAME PROGRESS TRACKING TAB ── */}
+            {activeTab === 'progress' && (
+              <GameProgressTracker
+                progress={gameProgress}
+                trackedGames={trackedGames}
+                ownedGames={ownedGames}
+                onToggle={toggleMilestone}
+                onToggleTracking={toggleTracking}
+                onReset={resetGameProgress}
+                onCompleteAll={completeAllMilestones}
+              />
+            )}
+            {/* ── END GAME PROGRESS TRACKING TAB ── */}
 
             {/* TAB 5: PUBLIC LIVING DEX */}
             {activeTab === 'public_stats' && (
@@ -2193,7 +2524,27 @@ export function App() {
               />
             )}
 
-            {/* TAB 6: SETTINGS (Includes Trainer Card & Export embedded under Settings) */}
+            {/* TAB: FRIENDS */}
+            {activeTab === 'friends' && (
+              <FriendsView
+                dex={dex}
+                user={user}
+                myFriendCode={myFriendCode}
+                myFriends={myFriends}
+                incomingRequests={incomingRequests}
+                friendProfiles={friendProfiles}
+                friendsLoading={friendsLoading}
+                isGuest={!user}
+                onRequestAuth={() => handleOpenAuth()}
+                onAddFriendByCode={handleAddFriendByCode}
+                onAcceptRequest={handleAcceptRequest}
+                onDeclineRequest={handleDeclineRequest}
+                onRemoveFriend={handleRemoveFriend}
+                onOpenFriendProfile={(uid) => setActiveFriendUid(uid)}
+              />
+            )}
+
+            {/* TAB 6: SETTINGS */}
             {activeTab === 'settings' && (
               <SettingsView
                 dex={dex}
@@ -2309,6 +2660,24 @@ export function App() {
           <span>Boxes</span>
         </button>
 
+        {/* ── GAME PROGRESS TRACKING MOBILE TAB ── */}
+        <button
+          type="button"
+          onClick={() => {
+            setFullPagePokemon(null);
+            setActiveTab('progress');
+          }}
+          className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors cursor-pointer ${
+            activeTab === 'progress' && !fullPagePokemon
+              ? 'text-amber-400 font-bold'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Trophy className="w-4 h-4" />
+          <span>Progress</span>
+        </button>
+        {/* ── END GAME PROGRESS TRACKING MOBILE TAB ── */}
+
         <button
           type="button"
           onClick={() => {
@@ -2382,6 +2751,53 @@ export function App() {
           trainerName={displayTrainerName}
           onClose={() => setActiveTrainerCardInstance(null)}
         />
+      )}
+
+      {/* Friend Profile Modal */}
+      {activeFriendUid && friendProfiles[activeFriendUid] && (
+        <div className="fixed inset-0 z-50 bg-[#0B0F17] overflow-y-auto">
+          <div className="sticky top-0 z-10 bg-[#0B0F17]/95 backdrop-blur-md border-b border-slate-800/80 px-4 py-3 flex items-center justify-between">
+            <span className="text-sm font-bold text-slate-200 flex items-center gap-2">
+              Viewing
+              <span className="text-sky-300">
+                {friendProfiles[activeFriendUid].trainerName || 'Trainer'}
+              </span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setActiveFriendUid(null)}
+              className="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 cursor-pointer"
+              aria-label="Close"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="p-4 sm:p-6">
+            <PublicStatsPageView
+              dex={dex}
+              trainerName={friendProfiles[activeFriendUid].trainerName || 'Trainer'}
+              caughtSet={new Set(friendProfiles[activeFriendUid].caughtIds)}
+              shinySet={new Set(friendProfiles[activeFriendUid].shinyIds)}
+              livingSet={new Set(friendProfiles[activeFriendUid].livingIds)}
+              caughtVariantsSet={new Set(friendProfiles[activeFriendUid].caughtVariants || [])}
+              boxSelectedVariantsMap={parseBoxSelectedVariants(
+                friendProfiles[activeFriendUid].boxSelectedVariants || []
+              )}
+              boxSelectedGamesMap={parseBoxSelectedGames(
+                friendProfiles[activeFriendUid].boxSelectedGames || []
+              )}
+              ownedGames={friendProfiles[activeFriendUid].ownedGames || DEFAULT_OWNED_GAMES}
+              ownedDlcs={(friendProfiles[activeFriendUid].ownedDlcs as DlcId[]) || []}
+              gameCatches={
+                friendProfiles[activeFriendUid].gameCatches || createEmptyGameCatchesMap()
+              }
+              shareUrl=""
+              isOwnPreview={false}
+              inventory={(friendProfiles[activeFriendUid].inventory as PokemonInstance[]) || []}
+              onExitPublicView={() => setActiveFriendUid(null)}
+            />
+          </div>
+        </div>
       )}
 
       {/* Floating Toast Notification */}

@@ -24,8 +24,7 @@ export interface RegionalVariation {
     | 'Kitakami'
     | 'Mega Evolution'
     | 'Gigantamax'
-    | 'Unown Form'
-    | 'Gender Difference';
+    | 'Unown Form';
   types: string[];
   spriteId: number;
   imageUrl?: string;
@@ -138,7 +137,6 @@ export const REGIONAL_FORM_SPECS: Record<number, ExtraVariantSpec[]> = {
   18: [
     { suffix: 'mega', formName: 'Mega Pidgeot', regionTag: 'Mega Evolution', types: ['Normal', 'Flying'], spriteId: 10073, findInGames: MEGA_GAMES_XY_ORAS_LGPE_POGO },
   ],
-  // Alolan Rattata & Raticate
   19: [
     {
       suffix: 'alola',
@@ -295,7 +293,6 @@ export const REGIONAL_FORM_SPECS: Record<number, ExtraVariantSpec[]> = {
   83: [
     { suffix: 'galar', formName: "Galarian Farfetch'd", regionTag: 'Galarian', types: ['Fighting'], spriteId: 10166, findInGames: [{ gameId: 'swsh', gameShortTitle: 'Sword / Shield', requiresDlc: false, method: 'Sword Exclusive: Route 5' }] },
   ],
-  // Alolan Grimer & Muk
   88: [
     {
       suffix: 'alola',
@@ -338,7 +335,6 @@ export const REGIONAL_FORM_SPECS: Record<number, ExtraVariantSpec[]> = {
   101: [
     { suffix: 'hisui', formName: 'Hisuian Electrode', regionTag: 'Hisuian', types: ['Electric', 'Grass'], spriteId: 10232, findInGames: [{ gameId: 'pla', gameShortTitle: 'Legends: Arceus', requiresDlc: false, method: 'Use Leaf Stone on Hisuian Voltorb' }] },
   ],
-  // Alolan Exeggutor
   103: [
     {
       suffix: 'alola',
@@ -355,7 +351,6 @@ export const REGIONAL_FORM_SPECS: Record<number, ExtraVariantSpec[]> = {
       ],
     },
   ],
-  // Alolan Marowak
   105: [
     {
       suffix: 'alola',
@@ -700,7 +695,7 @@ export function getVariationsForPokemon(pokemon: PokemonEntry): RegionalVariatio
     formName: isUnown
       ? 'Unown [A]'
       : isBothGenders
-      ? `${pokemon.name} (Male / Standard)`
+      ? `${pokemon.name} (Male)`
       : `${pokemon.name} (${pokemon.region} Original Form)`,
     regionTag: isUnown ? 'Unown Form' : 'Original',
     types: pokemon.types,
@@ -731,7 +726,7 @@ export function getVariationsForPokemon(pokemon: PokemonEntry): RegionalVariatio
       variantId: `${pokemon.id}:female`,
       pokemonId: pokemon.id,
       formName: `${pokemon.name} (Female)`,
-      regionTag: 'Gender Difference',
+      regionTag: 'Original',
       types: pokemon.types,
       spriteId: genderInfo.femaleSpriteId || pokemon.id,
       imageUrl: genderInfo.femaleImageUrl,

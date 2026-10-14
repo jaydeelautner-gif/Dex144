@@ -1,3 +1,7 @@
+import {
+  getEvolutionFamilyForPokemon,
+} from './pokemonEvolutionData';
+
 export interface HomeGiftPokemonDefinition {
   pokemonId: number;
   speciesName: string;
@@ -164,15 +168,123 @@ export const HOME_GIFT_POKEMON_MAP: Record<number, HomeGiftPokemonDefinition> = 
 };
 
 /**
- * Checks whether a Pokémon species can be received as a Gift in Pokémon HOME.
+ * ────────────────────────────────────────────────────────────────────────────
+ * FALLBACK EVOLUTION CHAINS FOR GIFT SPECIES
+ * ────────────────────────────────────────────────────────────────────────────
+ * The main evolution database (pokemonEvolutionData.ts) is curated for
+ * notable lines but does not cover every starter family. This table fills the
+ * gaps so that gift eligibility correctly propagates to evolved forms of
+ * every HOME gift species, regardless of whether the family is in the curated
+ * list.
+ *
+ * The first ID in each array is the family head. If a family is already in
+ * CURATED_EVOLUTION_FAMILIES, this entry is redundant but harmless.
+ */
+const HOME_GIFT_FALLBACK_CHAINS: number[][] = [
+  [1, 2, 3],                                    // Bulbasaur
+  [4, 5, 6],                                    // Charmander
+  [7, 8, 9],                                    // Squirtle
+  [172, 25, 26],                                // Pichu / Pikachu
+  [133, 134, 135, 136, 196, 197, 470, 471, 700],// Eevee
+  [155, 156, 157],                              // Cyndaquil
+  [387, 388, 389],                              // Turtwig
+  [390, 391, 392],                              // Chimchar
+  [393, 394, 395],                              // Piplup
+  [501, 502, 503],                              // Oshawott
+  [722, 723, 724],                              // Rowlet
+  [808, 809],                                   // Meltan
+  [810, 811, 812],                              // Grookey
+  [813, 814, 815],                              // Scorbunny
+  [816, 817, 818],                              // Sobble
+  [906, 907, 908],                              // Sprigatito
+  [909, 910, 911],                              // Fuecoco
+  [912, 913, 914],                              // Quaxly
+];
+
+/**
+ * Maps every species ID to the ID of its family head, using both the fallback
+ * chains above and the curated evolution database. Fallback entries take
+ * priority when the same species appears in both, since they are specifically
+ * tuned for the HOME gift list.
+ */
+const HOME_GIFT_FAMILY_HEAD: Record<number, number> = (() => {
+  const map: Record<number, number> = {};
+
+  // 1. Populate from fallback chains first
+  for (const chain of HOME_GIFT_FALLBACK_CHAINS) {
+    if (chain.length === 0) continue;
+    const head = chain[0];
+    for (const id of chain) {
+      map[id] = head;
+    }
+  }
+
+  // 2. Fill any remaining gift species from the curated evolution data
+  for (const headId of Object.keys(HOME_GIFT_POKEMON_MAP).map(Number)) {
+    if (map[headId] !== undefined) continue; // already covered
+    const family = getEvolutionFamilyForPokemon(headId);
+    for (const stage of family.stages) {
+      if (map[stage.pokemonId] === undefined) {
+        map[stage.pokemonId] = family.familyId;
+      }
+    }
+  }
+
+  return map;
+})();
+
+/**
+ * The set of every species ID that can be registered as a HOME gift —
+ * including every evolution of a gift species.
+ */
+const HOME_GIFTABLE_IDS: Set<number> = (() => {
+  const set = new Set<number>();
+  for (const headId of Object.keys(HOME_GIFT_POKEMON_MAP).map(Number)) {
+    set.add(headId);
+  }
+  for (const id of Object.keys(HOME_GIFT_FAMILY_HEAD).map(Number)) {
+    set.add(id);
+  }
+  return set;
+})();
+
+/**
+ * Checks whether a Pokémon species (or any member of its evolution family)
+ * can be received as a Gift in Pokémon HOME.
  */
 export function canBeHomeGift(pokemonId: number): boolean {
-  return Boolean(HOME_GIFT_POKEMON_MAP[pokemonId]);
+  return HOME_GIFTABLE_IDS.has(pokemonId);
 }
 
 /**
- * Gets details about the Pokémon HOME gift if available.
+ * Gets details about the Pokémon HOME gift.
+ *
+ * If the species itself has a dedicated gift definition, that is returned.
+ * Otherwise, if it is an evolution of a gift species, the base form's gift
+ * definition is returned (with its description preserved). The `speciesName`
+ * on the returned object always reflects the base gift species, so the UI
+ * can still show "Evolved form of X" if it wants.
  */
-export function getHomeGiftInfo(pokemonId: number): HomeGiftPokemonDefinition | undefined {
-  return HOME_GIFT_POKEMON_MAP[pokemonId];
+export function getHomeGiftInfo(
+  pokemonId: number
+): HomeGiftPokemonDefinition | undefined {
+  // Direct hit — the exact species has its own gift definition
+  const direct = HOME_GIFT_POKEMON_MAP[pokemonId];
+  if (direct) return direct;
+
+  // Family hit — find the head of this species' family
+  const headId = HOME_GIFT_FAMILY_HEAD[pokemonId];
+  if (headId === undefined) return undefined;
+
+  const baseDef = HOME_GIFT_POKEMON_MAP[headId];
+  if (!baseDef) return undefined;
+
+  // Return an adapted copy — keep the base gift's metadata but note that this
+  // is an evolved form, so the UI can render it accurately.
+  return {
+    ...baseDef,
+    description:
+      baseDef.description +
+      ` (Evolved form of ${baseDef.speciesName})`,
+  };
 }
