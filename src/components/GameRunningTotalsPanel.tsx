@@ -9,6 +9,7 @@ import {
   GAMES,
   GAME_GENERATION_GROUPS,
   DLC_PACKS,
+  getDlcPacksForGame,
   getGameRunningTotalStats,
   type PokemonEntry,
   type GameId,
@@ -125,7 +126,7 @@ export const GameRunningTotalsPanel: React.FC<GameRunningTotalsPanelProps> = ({
                   ownedDlcs,
                   gameCatches[gameId] || []
                 );
-                const gameDlcPacks = DLC_PACKS.filter((p) => p.gameId === gameId);
+                const gameDlcPacks = getDlcPacksForGame(gameId);
                 const ownedPacksForGame = gameDlcPacks.filter((p) =>
                   ownedDlcs.includes(p.id)
                 );

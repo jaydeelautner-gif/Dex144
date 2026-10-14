@@ -301,6 +301,20 @@ export const DLC_PACKS: DlcPackInfo[] = [
   },
 ];
 
+/**
+ * DLC packs for a given game, including sibling versions.
+ * DLC_PACKS entries carry a single representative gameId (e.g. 'sword'),
+ * but Expansion Passes apply to both versions of a pair (Sword & Shield,
+ * Scarlet & Violet). Each GAMES entry declares its own dlcPacks list,
+ * which is the authoritative per-version mapping.
+ */
+export function getDlcPacksForGame(gameId: GameId): DlcPackInfo[] {
+  const game = GAMES.find((g) => g.id === gameId);
+  if (!game || game.dlcPacks.length === 0) return [];
+  const packIds = new Set<DlcId>(game.dlcPacks);
+  return DLC_PACKS.filter((p) => packIds.has(p.id));
+}
+
 export const GAMES: GameInfo[] = [
   // ── Generation I ──
   {

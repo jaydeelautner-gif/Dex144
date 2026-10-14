@@ -26,6 +26,7 @@ import {
   DLC_PACKS,
   GAME_GENERATION_GROUPS,
   ALL_GAME_IDS,
+  getDlcPacksForGame,
   type PokemonEntry,
   type GameId,
   type DlcId,
@@ -393,7 +394,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 {group.games.map((gameId) => {
                   const game = GAMES.find((g) => g.id === gameId)!;
                   const isOwned = ownedGames.includes(gameId);
-                  const gameDlcs = DLC_PACKS.filter((p) => p.gameId === gameId);
+                  const gameDlcs = getDlcPacksForGame(gameId);
 
                   return (
                     <div
