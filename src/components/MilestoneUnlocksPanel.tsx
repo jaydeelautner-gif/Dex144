@@ -299,7 +299,7 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
     }
 
     return out;
-  }, [progress, ownedGames, ownedDlcs, dex, caughtSet, starterChoices, encounters]);
+  }, [progress, ownedGames, ownedDlcs, dex, caughtSet, starterChoices, encounters, groupFilter]);
 
   const hasContent = rows.some(
     (r) =>
