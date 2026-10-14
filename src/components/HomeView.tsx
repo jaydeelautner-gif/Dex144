@@ -338,7 +338,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 onToggleTracking={onToggleTracking}
                 onReset={onResetGameProgress}
                 onCompleteAll={onCompleteAllMilestones}
-                variant="embedded"
               />
             )}
           </div>
@@ -361,11 +360,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
         onNavigateToSettings={onNavigateToSettings}
         isGuest={isGuest}
         onRequestAuth={onRequestAuth}
-        // ── GAME PROGRESS TRACKING ──
-        lockedByProgressSet={lockedByProgressSet}
-        trackedGamesCount={trackedGames.size}
-        onNavigateToProgress={onNavigateToProgress}
-        // ── END GAME PROGRESS TRACKING ──
       />
 
       {/* QUICK HUB NAVIGATION CARDS */}

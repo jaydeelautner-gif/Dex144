@@ -230,7 +230,7 @@ export const MILESTONE_GATES: Record<number, string[]> = {
   884: ['swsh-badge-7'],             // Duraludon — Giant's Mirror / Dusty Bowl
 
   // ── Legends: Arceus (non-Kanto suggestions) ──
-  101: ['pla-rank-4'],               // Electrode — Coronet Highlands (already gated above)
+  // (Electrode #101 already gated above with a broader gate list)
 };
 
 // ═══════════════════════════════════════════════════════════════════════

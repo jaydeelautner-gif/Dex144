@@ -18,6 +18,7 @@ import {
   AlertTriangle,
   ShieldCheck,
   Heart,
+  CloudDownload,
   X,
 } from 'lucide-react';
 import {
@@ -36,6 +37,18 @@ import { OfflineSettingsCard } from './OfflineSettingsCard';
 import { RescueShelterSection } from './RescueShelterSection';
 import type { RescueBinItem } from '../data/pokemonInventoryData';
 import type { User } from '../firebase';
+
+type TabId = 'games' | 'tracker' | 'appearance' | 'export' | 'storage' | 'rescue' | 'danger';
+
+const SETTINGS_TABS: { id: TabId; label: string; hint: string; icon: React.ElementType }[] = [
+  { id: 'games', label: 'Games & DLC', hint: 'Owned games & expansions', icon: Layers },
+  { id: 'tracker', label: 'Tracker', hint: 'Tally & suggestions', icon: Compass },
+  { id: 'appearance', label: 'Appearance', hint: 'Dark / light theme', icon: Sun },
+  { id: 'export', label: 'Export & Sharing', hint: 'Trainer card & backups', icon: Share2 },
+  { id: 'storage', label: 'Storage & Sync', hint: 'Offline & cloud sync', icon: CloudDownload },
+  { id: 'rescue', label: 'Rescue Shelter', hint: '30-day protection bin', icon: Heart },
+  { id: 'danger', label: 'Danger Zone', hint: 'Reset your data', icon: Shield },
+];
 
 interface SettingsViewProps {
   dex: PokemonEntry[];
@@ -118,6 +131,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onNavigateToTracker,
 }) => {
   const [confirmReset, setConfirmReset] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabId>('games');
   const [showExportSection, setShowExportSection] = useState(true);
   const [isResetConsentModalOpen, setIsResetConsentModalOpen] = useState(false);
   const [hasPositiveConsent, setHasPositiveConsent] = useState(false);
@@ -176,15 +190,50 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </button>
       </div>
 
+      {/* Tabbed layout: sticky side nav + single active panel */}
+      <div className="flex flex-col md:flex-row items-start gap-6">
+        <nav
+          className="w-full md:w-60 shrink-0 md:sticky md:top-6 flex md:flex-col gap-1.5 overflow-x-auto md:overflow-visible pb-2 md:pb-0"
+          aria-label="Settings sections"
+        >
+          {SETTINGS_TABS.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                aria-current={isActive ? 'page' : undefined}
+                className={`shrink-0 md:w-full inline-flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-amber-400/15 border-amber-400/40 text-amber-300 shadow-md shadow-amber-950/20'
+                    : 'bg-[#0F1522] border-slate-800/80 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                }`}
+              >
+                <tab.icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-amber-400' : ''}`} />
+                <span className="min-w-0">
+                  <span className="block text-xs font-bold whitespace-nowrap md:truncate">{tab.label}</span>
+                  <span className="hidden md:block text-[10px] text-slate-500 truncate">{tab.hint}</span>
+                </span>
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="flex-1 min-w-0 w-full flex flex-col gap-8">
+
       {/* SECTION: IPAD WEBAPP STORAGE & OFFLINE AVAILABILITY */}
+      {activeTab === 'storage' && (
       <OfflineSettingsCard
         dex={dex}
         user={user || null}
         trainerName={trainerName}
         onSyncSuccess={onSyncSuccess}
       />
+      )}
 
       {/* SECTION 1: TRAINER CARD & PROGRESS EXPORT (Moved under Settings as requested) */}
+      {activeTab === 'export' && (
       <section className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 flex flex-col gap-5 shadow-xl">
         <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
           <div className="flex items-center gap-2.5">
@@ -226,8 +275,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           />
         )}
       </section>
+      )}
 
       {/* SECTION 2: APPEARANCE & THEME (Light Mode / Dark Mode) */}
+      {activeTab === 'appearance' && (
       <section className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 flex flex-col gap-5 shadow-xl">
         <div className="border-b border-slate-800/80 pb-3">
           <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
@@ -281,8 +332,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         </div>
       </section>
+      )}
 
       {/* SECTION 3: OWNED GAMES & DLC EXPANSIONS */}
+      {activeTab === 'games' && (
       <section className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 flex flex-col gap-6 shadow-xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
           <div>
@@ -425,8 +478,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           ))}
         </div>
       </section>
+      )}
 
       {/* SECTION 3B: RUNNING TOTAL TALLY CONFIGURATION */}
+      {activeTab === 'tracker' && (<>
       <section className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 flex flex-col gap-6 shadow-xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
           <div>
@@ -560,16 +615,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </button>
         </div>
       </section>
+      </>)}
 
       {/* SECTION 4: RESCUE SHELTER (30-DAY PROTECTION BIN) */}
+      {activeTab === 'rescue' && (
       <RescueShelterSection
         rescueBin={rescueBin}
         dex={dex}
         onRescuePokepet={onRescuePokepet}
         onRescueAll={onRescueAll}
       />
+      )}
 
       {/* SECTION 5: DATA RESET WITH POSITIVE CONSENT PROTECTION */}
+      {activeTab === 'danger' && (
       <section className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 flex flex-col gap-5 shadow-xl">
         <div className="flex flex-col gap-1 border-b border-slate-800/80 pb-4">
           <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
@@ -642,6 +701,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         )}
       </section>
+      )}
 
       {/* POSITIVE CONSENT MODAL FOR RESETTING WITH ACTIVE POKEPETS */}
       {isResetConsentModalOpen && (
@@ -723,6 +783,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         </div>
       )}
+
+        </div>{/* /tab content */}
+      </div>{/* /tabbed layout */}
     </div>
   );
 };
