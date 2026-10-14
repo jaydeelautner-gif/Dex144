@@ -109,7 +109,7 @@ export const STARTER_TRIOS: Record<string, number[]> = {
   lgpe: [1, 4, 7],
   swsh: [810, 813, 816],
   pla: [155, 501, 724],
-  sv: [907, 910, 913],
+  sv: [906, 909, 912],
 };
 
 export const GAME_META: Record<string, { name: string; short: string; accent: string }> = {

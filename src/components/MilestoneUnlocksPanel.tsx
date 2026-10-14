@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { Trophy, Sparkles, Check, X } from 'lucide-react';
-import type { GameId, PokemonEntry } from '../data/pokemonData';
+import { Trophy, Sparkles, Check, X, ArrowLeftRight } from 'lucide-react';
+import type { GameId, PokemonEntry, DlcId } from '../data/pokemonData';
 import {
   GAME_META,
   GROUP_MEMBER_GAMES,
@@ -13,6 +13,11 @@ import { useEncounterDataset, type EncounterDataset } from '../data/encountersDa
 import { getEvolutionFamilyForPokemon } from '../data/pokemonEvolutionData';
 import type { ProgressState } from '../hooks/useGameProgress';
 import { PokemonSprite } from './PokemonSprite';
+import {
+  getUnchosenStarterLineIds,
+  findAlternateAcquisitionLabel,
+  normalizeStarterChoiceId,
+} from '../utils/starterAlternates';
 
 interface MilestoneUnlocksPanelProps {
   progress: ProgressState;
@@ -25,6 +30,8 @@ interface MilestoneUnlocksPanelProps {
   onClearStarter: (gameGroup: string) => void;
   onSelectPokemon: (pokemon: PokemonEntry) => void;
   onNavigateToProgress: () => void;
+  /** Owned DLC ids — used to detect DLC alternate ways to get unchosen starters. */
+  ownedDlcs: DlcId[];
   /** Restrict the panel to a single trackable group (Catch Hub game tabs). */
   groupFilter?: string;
 }
@@ -37,6 +44,10 @@ interface PanelRow {
   lastMilestoneLabel: string | null;
   starterOptions: PokemonEntry[];
   chosenStarter: PokemonEntry | null;
+  /** Unchosen starter-line species with NO alternate way in this game → trade only. */
+  starterTradeOnly: PokemonEntry[];
+  /** Unchosen starter-line species the game itself offers another way to get. */
+  starterAlternates: { p: PokemonEntry; how: string }[];
   startingSpecies: PokemonEntry[];
   startingSpeciesOverflow: number;
   startingEvolutionSpecies: PokemonEntry[];
@@ -76,6 +87,7 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
   onClearStarter,
   onSelectPokemon,
   onNavigateToProgress,
+  ownedDlcs,
   groupFilter,
 }) => {
   // Wild-encounter bundle (PokéAPI) — used to hide evolution-only species.
@@ -166,11 +178,38 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
           .map((id) => dexById.get(id))
           .filter((p): p is PokemonEntry => Boolean(p));
 
+        // ── UNCHOSEN STARTER LINES (after a starter is chosen+registered): ──
+        // The game's own starter gift no longer applies to the other lines.
+        // Unless this game offers another way (raid dens, overworld spawns,
+        // island scans, DLC returns…), they are receivable only by trade.
+        const chosenIdForLines = normalizeStarterChoiceId(group, starterChoices[group]);
+        const unchosenLineIds = new Set(
+          getUnchosenStarterLineIds(group, chosenIdForLines)
+        );
+        const starterTradeOnly: PokemonEntry[] = [];
+        const starterAlternates: { p: PokemonEntry; how: string }[] = [];
+        for (const sid of unchosenLineIds) {
+          const sp = dexById.get(sid);
+          if (!sp || caughtSet.has(sid)) continue;
+          const how = findAlternateAcquisitionLabel(
+            sid,
+            group,
+            encounters,
+            ownedDlcs,
+            (id) => dexById.get(id)?.availability
+          );
+          if (how) starterAlternates.push({ p: sp, how });
+          else starterTradeOnly.push(sp);
+        }
+        starterTradeOnly.sort((a, b) => a.id - b.id);
+        starterAlternates.sort((a, b) => a.p.id - b.p.id);
+
         for (const p of dex) {
           if (caughtSet.has(p.id)) continue;
           if (lockedAtStart.has(p.id)) continue;
           const isStarter = starters.some((s) => s.id === p.id);
           if (isStarter) continue; // starters live in the dedicated choice row
+          if (unchosenLineIds.has(p.id)) continue; // unchosen starter lines get their own grids below
           if (!isCatchableInWild(p, members)) continue; // evolution-only
           const obtainableFromStart = members.some(
             (gId) => p.availability[gId]?.status === 'base'
@@ -186,7 +225,7 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
         const startingEvolutionOverflow = Math.max(0, startingEvolutionSpecies.length - MAX_STARTING_GRID);
         startingEvolutionSpecies.length = Math.min(startingEvolutionSpecies.length, MAX_STARTING_GRID);
 
-        const chosen = chosenId != null ? dexById.get(chosenId) ?? null : null;
+        const chosen = chosenId != null ? dexById.get(normalizeStarterChoiceId(group, chosenId) ?? chosenId) ?? null : null;
         // Always offer all three starters until a choice is made, even if
         // some are already caught/registered in the dex.
         const starterOptions = chosenId == null ? starters : [];
@@ -201,6 +240,8 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
           // caught — otherwise the whole row would vanish after choosing
           // an already-registered starter (looks like the pick failed).
           chosenStarter: chosen,
+          starterTradeOnly,
+          starterAlternates,
           startingSpecies,
           startingSpeciesOverflow,
           startingEvolutionSpecies,
@@ -243,6 +284,8 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
           lastMilestoneLabel,
           starterOptions: [],
           chosenStarter: null,
+          starterTradeOnly: [],
+          starterAlternates: [],
           startingSpecies: [],
           startingSpeciesOverflow: 0,
           startingEvolutionSpecies: [],
@@ -256,7 +299,7 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
     }
 
     return out;
-  }, [progress, ownedGames, dex, caughtSet, starterChoices]);
+  }, [progress, ownedGames, ownedDlcs, dex, caughtSet, starterChoices, encounters]);
 
   const hasContent = rows.some(
     (r) =>
@@ -264,6 +307,8 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
       r.freshEvolutionSpecies.length > 0 ||
       r.startingSpecies.length > 0 ||
       r.startingEvolutionSpecies.length > 0 ||
+      r.starterTradeOnly.length > 0 ||
+      r.starterAlternates.length > 0 ||
       r.chosenStarter ||
       r.starterOptions.length > 0
   );
@@ -406,6 +451,64 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
                           );
                         })
                       )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Unchosen starter lines: trade-only unless the game offers another way */}
+                {row.starterTradeOnly.length > 0 && (
+                  <div className="px-4 pb-3">
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-rose-300 uppercase tracking-wide mb-1.5">
+                      <ArrowLeftRight className="w-3 h-3" />
+                      Other starters — receivable by trade only
+                    </div>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+                      {row.starterTradeOnly.map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => onSelectPokemon(p)}
+                          title={`#${String(p.id).padStart(4, '0')} ${p.name} — this game only offers its starter gift; trade with a player who chose ${p.name}'s line`}
+                          className="p-2 rounded-xl bg-rose-500/5 border border-rose-500/20 hover:border-rose-400/60 hover:bg-slate-900 flex flex-col items-center gap-1 transition-colors cursor-pointer"
+                        >
+                          <PokemonSprite id={p.id} name={p.name} size="sm" />
+                          <span className="text-[10px] text-rose-200/80 truncate w-full text-center">
+                            #{String(p.id).padStart(3, '0')} {p.name}
+                          </span>
+                          <span className="text-[9px] font-bold text-rose-300/80 flex items-center gap-1">
+                            <ArrowLeftRight className="w-2.5 h-2.5" /> Trade only
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Unchosen starter lines with an alternate way in this game */}
+                {row.starterAlternates.length > 0 && (
+                  <div className="px-4 pb-3">
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-sky-300 uppercase tracking-wide mb-1.5">
+                      <Sparkles className="w-3 h-3" />
+                      Other starters — another way in this game
+                    </div>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+                      {row.starterAlternates.map(({ p, how }) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => onSelectPokemon(p)}
+                          title={`#${String(p.id).padStart(4, '0')} ${p.name} — ${how}`}
+                          className="p-2 rounded-xl bg-sky-500/5 border border-sky-500/20 hover:border-sky-400/60 hover:bg-slate-900 flex flex-col items-center gap-1 transition-colors cursor-pointer"
+                        >
+                          <PokemonSprite id={p.id} name={p.name} size="sm" />
+                          <span className="text-[10px] text-sky-200/80 truncate w-full text-center">
+                            #{String(p.id).padStart(3, '0')} {p.name}
+                          </span>
+                          <span className="text-[9px] font-semibold text-sky-300/80 text-center leading-tight line-clamp-2">
+                            {how}
+                          </span>
+                        </button>
+                      ))}
                     </div>
                   </div>
                 )}

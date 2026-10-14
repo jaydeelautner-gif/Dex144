@@ -332,6 +332,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               progress={gameProgress}
               trackedGames={trackedGames}
               ownedGames={ownedGames}
+              ownedDlcs={ownedDlcs}
               dex={dex}
               caughtSet={caughtSet}
               starterChoices={starterChoices}
@@ -359,6 +360,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               onRequestAuth={onRequestAuth}
               lockedByProgressSet={lockedByProgressSet}
               lockedMilestonesByDex={lockedMilestonesByDex}
+              starterChoices={starterChoices}
               gameFilter={effectiveCatchGame}
               embedded
             />

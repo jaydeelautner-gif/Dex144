@@ -13,10 +13,17 @@ import {
   Gamepad2,
   SlidersHorizontal,
   Lock,
+  ArrowLeftRight,
 } from 'lucide-react';
 import type { PokemonEntry, GameId, DlcId } from '../data/pokemonData';
 import { GAMES } from '../data/pokemonData';
-import { MILESTONE_INDEX } from '../data/milestones';
+import { MILESTONE_INDEX, GAME_ID_TO_TRACKABLE } from '../data/milestones';
+import { useEncounterDataset } from '../data/encountersData';
+import {
+  getUnchosenStarterLineIds,
+  findAlternateAcquisitionLabel,
+  normalizeStarterChoiceId,
+} from '../utils/starterAlternates';
 import { GameLogoBadge } from './GameLogoBadge';
 import { PokemonSprite } from './PokemonSprite';
 import type { PokemonInstance } from '../data/pokemonInventoryData';
@@ -42,6 +49,10 @@ export interface PokemonSuggestion {
   evolutionTip?: string;
   /** Milestone IDs still blocking this species in the tracked games (when progress tracking is on). */
   lockedMilestoneIds?: string[];
+  /** Species is in an unchosen starter line with no alternate way in this game → trade only. */
+  starterTradeOnly?: boolean;
+  /** The alternate way this game offers to get an unchosen starter line species. */
+  starterAlternateHow?: string;
 }
 
 interface DexSuggestionsSectionProps {
@@ -66,6 +77,9 @@ interface DexSuggestionsSectionProps {
   lockedMilestonesByDex?: Map<number, string[]>;
   /** Restrict suggestions to a single owned game (Catch Hub game tabs). */
   gameFilter?: GameId;
+  /** Saved starter choices per trackable group — used to tag unchosen
+   *  starter-line species as trade-only (or with the game's alternate way). */
+  starterChoices?: Record<string, number>;
   /** Skip the outer panel chrome (title header) when embedded in the Catch Hub. */
   embedded?: boolean;
 }
@@ -88,11 +102,16 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
   lockedByProgressSet,
   lockedMilestonesByDex,
   gameFilter,
+  starterChoices,
   embedded,
 }) => {
   const [activeFilter, setActiveFilter] = useState<'all' | 'upgrades' | 'uncaught'>('all');
   const [showAll, setShowAll] = useState<boolean>(false);
   const INITIAL_VISIBLE = 24;
+
+  // Wild-encounter bundle — used to detect alternate ways to get unchosen
+  // starter lines in the active game tab.
+  const { dataset: encounters } = useEncounterDataset();
 
   // Compute all potential candidates across the dex
   const allEligibleCandidates = useMemo(() => {
@@ -115,6 +134,18 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
     // Catch Hub game tabs restrict suggestions to a single owned game.
     const sourceGames = gameFilter ? [gameFilter] : ownedGames;
 
+    // Unchosen starter lines for the active game tab (after a starter is
+    // chosen): those species get a "Trade only" tag (or the game's
+    // alternate way) instead of implying they can be caught normally.
+    const dexById = new Map(dex.map((p) => [p.id, p]));
+    const hubGroup = gameFilter
+      ? (GAME_ID_TO_TRACKABLE as Record<string, string | undefined>)[gameFilter]
+      : undefined;
+    const hubChosenId = normalizeStarterChoiceId(hubGroup, starterChoices?.[hubGroup ?? '']);
+    const unchosenStarterLineIds = new Set(
+      getUnchosenStarterLineIds(hubGroup, hubChosenId)
+    );
+
     for (const p of dex) {
       // Find obtainable owned games
       const obtainableOwned = sourceGames.filter((gId) => {
@@ -133,6 +164,21 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
       // Progress-locked species STAY in the list (users must see every
       // uncaught Pokémon, including ones that just unlocked) — they are
       // flagged with a "Locked until …" chip instead of being dropped.
+
+      // Tag unchosen starter lines for this game tab.
+      let starterTradeOnly: boolean | undefined;
+      let starterAlternateHow: string | undefined;
+      if (hubGroup && unchosenStarterLineIds.has(p.id)) {
+        const how = findAlternateAcquisitionLabel(
+          p.id,
+          hubGroup,
+          encounters,
+          ownedDlcs,
+          (id) => dexById.get(id)?.availability
+        );
+        if (how) starterAlternateHow = how;
+        else starterTradeOnly = true;
+      }
 
       // Filter console-only games (excluding pogo)
       const consoleObtainable = obtainableOwned.filter((gId) => gId !== 'pogo');
@@ -167,6 +213,8 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
           boxSlot: p.boxSlot,
           evolutionTip: stage?.detail,
           lockedMilestoneIds: lockedMilestonesByDex?.get(p.id),
+          starterTradeOnly,
+          starterAlternateHow,
         });
         continue; // Already assigned high-priority upgrade
       }
@@ -197,6 +245,8 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
           boxSlot: p.boxSlot,
           evolutionTip: stage?.detail,
           lockedMilestoneIds: lockedMilestonesByDex?.get(p.id),
+          starterTradeOnly,
+          starterAlternateHow,
         });
         continue;
       }
@@ -224,6 +274,8 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
           boxNumber: p.boxNumber,
           boxSlot: p.boxSlot,
           lockedMilestoneIds: lockedMilestonesByDex?.get(p.id),
+          starterTradeOnly,
+          starterAlternateHow,
         });
       }
     }
@@ -239,6 +291,8 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
     boxSelectedGames,
     includePokemonGoInSuggestions,
     gameFilter,
+    starterChoices,
+    encounters,
     lockedMilestonesByDex,
   ]);
 
@@ -461,8 +515,18 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
                   </div>
 
                   {/* Status Badge */}
-                  <div className="shrink-0 text-right">
-                    {isUpgrade ? (
+                  <div className="shrink-0 text-right flex flex-col items-end gap-1">
+                    {item.starterTradeOnly ? (
+                      <span className="px-2 py-0.5 rounded-full bg-rose-500/20 border border-rose-500/50 text-rose-300 text-[10px] font-mono font-bold flex items-center gap-1">
+                        <ArrowLeftRight className="w-2.5 h-2.5" />
+                        <span>Trade Only</span>
+                      </span>
+                    ) : item.starterAlternateHow ? (
+                      <span className="px-2 py-0.5 rounded-full bg-sky-500/20 border border-sky-500/50 text-sky-300 text-[10px] font-mono font-bold flex items-center gap-1">
+                        <Sparkles className="w-2.5 h-2.5" />
+                        <span>Alt. Way</span>
+                      </span>
+                    ) : isUpgrade ? (
                       <span className="px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/50 text-amber-300 text-[10px] font-mono font-bold flex items-center gap-1">
                         <Flame className="w-3 h-3 text-amber-400" />
                         <span>GO Upgrade</span>
@@ -474,6 +538,16 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
                     ) : (
                       <span className="px-2 py-0.5 rounded-full bg-sky-500/20 border border-sky-500/50 text-sky-300 text-[10px] font-mono font-bold">
                         Missing Box Pokepet
+                      </span>
+                    )}
+                    {item.starterTradeOnly && (
+                      <span className="text-[9px] text-rose-300/80 font-mono max-w-[130px] leading-tight">
+                        Other starters of this game are receivable by trade
+                      </span>
+                    )}
+                    {item.starterAlternateHow && (
+                      <span className="text-[9px] text-sky-300/80 font-mono max-w-[130px] leading-tight">
+                        {item.starterAlternateHow}
                       </span>
                     )}
                   </div>
