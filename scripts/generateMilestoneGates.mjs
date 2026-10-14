@@ -129,6 +129,35 @@ const GALAR_ZONES = [
   ['start', /./],
 ];
 
+/** Hisui (PLA) — areas unlock progressively via star rank + story beats.
+ *  Coarse mapping: sub-areas inherit their main region's rank. */
+const HISUI_ZONES = (p) => [
+  [`${p}-rank-6`, /space-time|distortion|stark-mountain|turnback|spear-pillar|temple-of-sinnoh|icepeak-arena|lavadomesanctum|top/],
+  [`${p}-rank-5`, /alabaster/],
+  [`${p}-rank-4`, /coronet/],
+  [`${p}-rank-3`, /cobalt/],
+  [`${p}-rank-2`, /crimson/],
+  [`${p}-rank-1`, /obsidian|jubilife|aspiration|grandtree|fieldlands-camp|sandgemflats|obsidianfalls|horseshoe|deertrack|aipom|bolderoll/],
+  ['start', /./],
+];
+
+/** Paldea (SV) — open world, but zones follow the recommended badge path.
+ *  Titan areas gate behind the ride-ability they unlock. */
+const PALDEA_ZONES = [
+  ['sv-champion', /areazero|greatcrater|zerogate|zerolab/],
+  ['sv-gym-8', /glaseadomountain/],
+  ['sv-gym-7', /alfornada/],
+  ['sv-gym-6', /montenevera|north-province|northpaldeansea/],
+  ['sv-titan-5', /casseroyalake/],
+  ['sv-titan-4', /asadodesert/],
+  ['sv-gym-5', /medali/],
+  ['sv-gym-4', /cascarrafa/],
+  ['sv-gym-3', /levincia/],
+  ['sv-gym-2', /artazon|east-province|eastpaldeansea/],
+  ['sv-gym-1', /cortondo|west-province|westpaldeansea/],
+  ['start', /./],
+];
+
 const GROUP_ZONES = {
   rb: { zones: KANTO_ZONES('rb'), members: ['red', 'blue', 'yellow'] },
   frlg: { zones: KANTO_ZONES('frlg').concat([['frlg-badge-7', /(one|two|three)-island|kindle-road|treasure-beach|mt-ember|ember-spa|bond-bridge|canyon-entrance|five-isle-meadow/], ['frlg-champion', /(four|five|six|seven)-island|icefall-cave|berry-forest|lost-cave|dilford-chamber|tanoby|pattern-bush|green-path|water-labyrinth|outcast-island|resort-gorgeous|valencia-island|ruin-valley|sevii|birth-island|navel-rock/]]), members: ['firered', 'leafgreen'] },
@@ -139,6 +168,9 @@ const GROUP_ZONES = {
   dppt: { zones: SINNOH_ZONES('dppt'), members: ['diamond', 'pearl', 'platinum'] },
   bw: { zones: UNOVA_ZONES('bw'), members: ['black', 'white'] },
   b2w2: { zones: UNOVA_ZONES('b2w2'), members: ['black2', 'white2'] },
+  bdsp: { zones: SINNOH_ZONES('bdsp'), members: ['bd', 'sp'] },
+  pla: { zones: HISUI_ZONES('pla'), members: ['pla'] },
+  sv: { zones: PALDEA_ZONES, members: ['scarlet', 'violet'] },
   xy: { zones: KALOS_ZONES('xy'), members: ['x', 'y'] },
   sm: { zones: ALOLA_ZONES('sm'), members: ['sun', 'moon'] },
   lgpe: { zones: KANTO_ZONES('lgpe'), members: ['lgp', 'lge'] },

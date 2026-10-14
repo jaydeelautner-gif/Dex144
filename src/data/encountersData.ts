@@ -99,6 +99,8 @@ export function prettyEncounterCondition(name: string): string | null {
       'weather-snowing': 'Snowing',
       'weather-snowstorm': 'Snowstorm',
       'weather-sandstorm': 'Sandstorm',
+      'weather-drought': 'Drought',
+      'weather-rainstorm': 'Rainstorm',
     };
     return (
       map[name] ||
@@ -112,6 +114,7 @@ export function prettyEncounterCondition(name: string): string | null {
   const exact: Record<string, string> = {
     'time-day': 'Daytime',
     'time-morning': 'Morning',
+    'time-evening': 'Evening',
     'time-night': 'Night',
     'season-spring': 'Spring',
     'season-summer': 'Summer',
@@ -122,8 +125,15 @@ export function prettyEncounterCondition(name: string): string | null {
     'bug-catching-contest-yes': 'Bug-Catching Contest',
     'radio-hoenn': 'Hoenn Sound radio',
     'radio-sinnoh': 'Sinnoh Sound radio',
+    'pla-alpha': 'Alpha form',
+    'pla-mass-outbreak': 'Mass Outbreak',
+    'sv-mass': 'Mass outbreak nearby',
   };
   if (exact[name]) return exact[name];
+  if (name.startsWith('sv-biome-')) {
+    const biome = name.replace('sv-biome-', '').split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    return `Biome: ${biome}`;
+  }
   const prefix = (p: string, fmt: (rest: string) => string): string | null =>
     name.startsWith(p) ? fmt(name.slice(p.length)) : null;
   return (
