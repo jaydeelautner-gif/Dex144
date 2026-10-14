@@ -10,6 +10,7 @@ import {
 } from '../data/milestones';
 import { getLockedDexNumbers } from '../data/milestoneGates';
 import { useEncounterDataset, type EncounterDataset } from '../data/encountersData';
+import { getEvolutionFamilyForPokemon } from '../data/pokemonEvolutionData';
 import type { ProgressState } from '../hooks/useGameProgress';
 import { PokemonSprite } from './PokemonSprite';
 
@@ -36,13 +37,23 @@ interface PanelRow {
   chosenStarter: PokemonEntry | null;
   startingSpecies: PokemonEntry[];
   startingSpeciesOverflow: number;
+  startingEvolutionSpecies: PokemonEntry[];
+  startingEvolutionOverflow: number;
   freshSpecies: PokemonEntry[];
+  freshEvolutionSpecies: PokemonEntry[];
+  freshEvolutionOverflow: number;
   /** True when wild-encounter filtering is active for this group. */
   wildFiltered: boolean;
 }
 
 const MAX_STARTING_GRID = 48;
 const EMPTY_MILESTONES = new Set<string>();
+
+/** Encounter methods that are direct wild captures (vs gifts, trades, events). */
+const NON_WILD_METHODS = new Set([
+  'gift', 'gift-egg', 'npc-trade',
+  'colosseum-bonus-disc-jpn', 'colosseum-bonus-disc-us', 'pokemon-channel-pal',
+]);
 
 /**
  * "Fresh Catches" panel.
@@ -93,6 +104,41 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
     });
   };
 
+  /** True when the species has a recorded direct wild capture (walk, rods,
+   *  surf, headbutt, dens, ambushes…) in one of the group's games. */
+  const hasDirectWildCapture = (p: PokemonEntry, members: GameId[]): boolean => {
+    if (!encounters) return true;
+    return members.some((g) => {
+      const byArea = encounters[String(p.id)]?.[g];
+      if (!byArea) return false;
+      return Object.values(byArea).some((rows) =>
+        rows.some((r) => !NON_WILD_METHODS.has(r.m))
+      );
+    });
+  };
+
+  /** True when the species is a later-stage evolution (has pre-evolutions). */
+  const hasPreEvolution = (p: PokemonEntry): boolean => {
+    const family = getEvolutionFamilyForPokemon(p.id);
+    const idx = family.stages.findIndex((s) => s.pokemonId === p.id);
+    return idx > 0;
+  };
+
+  /** Split candidates into direct wild captures vs later-stage evolutions.
+   *  Covered groups use the encounter-method data; groups without wild-encounter
+   *  coverage (SV, BDSP, PLA…) fall back to the evolution-family heuristic. */
+  const splitWildVsEvolution = (candidates: PokemonEntry[], members: GameId[]) => {
+    const wild: PokemonEntry[] = [];
+    const evolution: PokemonEntry[] = [];
+    const covered = members.some((g) => coveredGames.has(g));
+    for (const p of candidates) {
+      const directWild = covered ? hasDirectWildCapture(p, members) : !hasPreEvolution(p);
+      if (directWild || !hasPreEvolution(p)) wild.push(p);
+      else evolution.push(p);
+    }
+    return { wild, evolution };
+  };
+
   const rows = useMemo<PanelRow[]>(() => {
     const dexById = new Map(dex.map((p) => [p.id, p]));
     const ownedGroups = getOwnedTrackableGames(ownedGames);
@@ -103,10 +149,9 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
       const meta = GAME_META[group];
       const members = GROUP_MEMBER_GAMES[group] ?? [];
 
-      const startingSpecies: PokemonEntry[] = [];
-      const freshSpecies: PokemonEntry[] = [];
+      const startingCandidates: PokemonEntry[] = [];
+      const freshCandidates: PokemonEntry[] = [];
       let lastMilestoneLabel: string | null = null;
-      let startingSpeciesOverflow = 0;
       const wildFiltered = members.some((g) => coveredGames.has(g));
 
       if (completedIds.length === 0) {
@@ -127,11 +172,15 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
             (gId) => p.availability[gId]?.status === 'base'
           );
           if (!obtainableFromStart) continue;
-          startingSpecies.push(p);
+          startingCandidates.push(p);
         }
-        startingSpecies.sort((a, b) => a.id - b.id);
-        startingSpeciesOverflow = Math.max(0, startingSpecies.length - MAX_STARTING_GRID);
+        const split = splitWildVsEvolution(startingCandidates, members);
+        const startingSpecies = split.wild.sort((a, b) => a.id - b.id);
+        const startingEvolutionSpecies = split.evolution.sort((a, b) => a.id - b.id);
+        const startingSpeciesOverflow = Math.max(0, startingSpecies.length - MAX_STARTING_GRID);
         startingSpecies.length = Math.min(startingSpecies.length, MAX_STARTING_GRID);
+        const startingEvolutionOverflow = Math.max(0, startingEvolutionSpecies.length - MAX_STARTING_GRID);
+        startingEvolutionSpecies.length = Math.min(startingEvolutionSpecies.length, MAX_STARTING_GRID);
 
         const chosen = chosenId != null ? dexById.get(chosenId) ?? null : null;
         // Always offer all three starters until a choice is made, even if
@@ -150,7 +199,11 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
           chosenStarter: chosen,
           startingSpecies,
           startingSpeciesOverflow,
-          freshSpecies,
+          startingEvolutionSpecies,
+          startingEvolutionOverflow,
+          freshSpecies: [],
+          freshEvolutionSpecies: [],
+          freshEvolutionOverflow: 0,
           wildFiltered,
         });
       } else {
@@ -171,9 +224,13 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
             .filter((m) => m.order < lastMilestone.order)
             .map((m) => m.id);
           const lockedBefore = getLockedDexNumbers(new Set(previousCompleted), group);
-          if (lockedBefore.has(p.id)) freshSpecies.push(p);
+          if (lockedBefore.has(p.id)) freshCandidates.push(p);
         }
-        freshSpecies.sort((a, b) => a.id - b.id);
+        const split = splitWildVsEvolution(freshCandidates, members);
+        const freshSpecies = split.wild.sort((a, b) => a.id - b.id);
+        const freshEvolutionSpecies = split.evolution.sort((a, b) => a.id - b.id);
+        const freshEvolutionOverflow = Math.max(0, freshEvolutionSpecies.length - MAX_STARTING_GRID);
+        freshEvolutionSpecies.length = Math.min(freshEvolutionSpecies.length, MAX_STARTING_GRID);
 
         out.push({
           group,
@@ -184,7 +241,11 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
           chosenStarter: null,
           startingSpecies: [],
           startingSpeciesOverflow: 0,
+          startingEvolutionSpecies: [],
+          startingEvolutionOverflow: 0,
           freshSpecies,
+          freshEvolutionSpecies,
+          freshEvolutionOverflow,
           wildFiltered,
         });
       }
@@ -194,7 +255,13 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
   }, [progress, ownedGames, dex, caughtSet, starterChoices]);
 
   const hasContent = rows.some(
-    (r) => r.freshSpecies.length > 0 || r.startingSpecies.length > 0 || r.chosenStarter || r.starterOptions.length > 0
+    (r) =>
+      r.freshSpecies.length > 0 ||
+      r.freshEvolutionSpecies.length > 0 ||
+      r.startingSpecies.length > 0 ||
+      r.startingEvolutionSpecies.length > 0 ||
+      r.chosenStarter ||
+      r.starterOptions.length > 0
   );
 
   return (
@@ -342,6 +409,9 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
                 {/* Starting species grid (no badges yet) */}
                 {hasStarting && row.startingSpecies.length > 0 && (
                   <div className="px-4 py-3">
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">
+                      Wild encounters — catch them directly
+                    </div>
                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
                       {row.startingSpecies.map((p) => (
                         <button
@@ -366,23 +436,88 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
                   </div>
                 )}
 
+                {/* Later-stage evolutions (not found in the wild at this point) */}
+                {hasStarting && row.startingEvolutionSpecies.length > 0 && (
+                  <div className="px-4 pb-3">
+                    <div className="text-[10px] font-bold text-purple-300 uppercase tracking-wide mb-1.5">
+                      Evolution stages — obtain by evolving your catches
+                    </div>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+                      {row.startingEvolutionSpecies.map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => onSelectPokemon(p)}
+                          title={`#${String(p.id).padStart(4, '0')} ${p.name} — not found in the wild here; register via evolution`}
+                          className="p-2 rounded-xl bg-purple-500/5 border border-purple-500/20 hover:border-purple-400/60 hover:bg-slate-900 flex flex-col items-center gap-1 transition-colors cursor-pointer"
+                        >
+                          <PokemonSprite id={p.id} name={p.name} size="sm" />
+                          <span className="text-[10px] text-purple-200/80 truncate w-full text-center">
+                            #{String(p.id).padStart(3, '0')} {p.name}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                    {row.startingEvolutionOverflow > 0 && (
+                      <p className="mt-2 text-[10px] text-slate-500 text-center">
+                        +{row.startingEvolutionOverflow} more evolution-stage species
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 {/* Fresh unlock grid (after milestones) */}
                 {!hasStarting && row.freshSpecies.length > 0 && (
-                  <div className="px-4 py-3 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
-                    {row.freshSpecies.map((p) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => onSelectPokemon(p)}
-                        title={`#${String(p.id).padStart(4, '0')} ${p.name} — view encounter info`}
-                        className="p-2 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-amber-400/60 hover:bg-slate-900 flex flex-col items-center gap-1 transition-colors cursor-pointer"
-                      >
-                        <PokemonSprite id={p.id} name={p.name} size="sm" />
-                        <span className="text-[10px] text-slate-300 truncate w-full text-center">
-                          #{String(p.id).padStart(3, '0')} {p.name}
-                        </span>
-                      </button>
-                    ))}
+                  <div className="px-4 pt-3 pb-1">
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">
+                      Wild encounters — newly catchable
+                    </div>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+                      {row.freshSpecies.map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => onSelectPokemon(p)}
+                          title={`#${String(p.id).padStart(4, '0')} ${p.name} — view encounter info`}
+                          className="p-2 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-amber-400/60 hover:bg-slate-900 flex flex-col items-center gap-1 transition-colors cursor-pointer"
+                        >
+                          <PokemonSprite id={p.id} name={p.name} size="sm" />
+                          <span className="text-[10px] text-slate-300 truncate w-full text-center">
+                            #{String(p.id).padStart(3, '0')} {p.name}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Fresh unlock evolutions (after milestones) */}
+                {!hasStarting && row.freshEvolutionSpecies.length > 0 && (
+                  <div className="px-4 pb-3">
+                    <div className="text-[10px] font-bold text-purple-300 uppercase tracking-wide mb-1.5">
+                      Evolution stages — obtain by evolving your catches
+                    </div>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+                      {row.freshEvolutionSpecies.map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => onSelectPokemon(p)}
+                          title={`#${String(p.id).padStart(4, '0')} ${p.name} — not found in the wild here; register via evolution`}
+                          className="p-2 rounded-xl bg-purple-500/5 border border-purple-500/20 hover:border-purple-400/60 hover:bg-slate-900 flex flex-col items-center gap-1 transition-colors cursor-pointer"
+                        >
+                          <PokemonSprite id={p.id} name={p.name} size="sm" />
+                          <span className="text-[10px] text-purple-200/80 truncate w-full text-center">
+                            #{String(p.id).padStart(3, '0')} {p.name}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                    {row.freshEvolutionOverflow > 0 && (
+                      <p className="mt-2 text-[10px] text-slate-500 text-center">
+                        +{row.freshEvolutionOverflow} more evolution-stage species
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
