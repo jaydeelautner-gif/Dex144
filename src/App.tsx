@@ -47,7 +47,7 @@ import {
 } from './data/pokemonInventoryData';
 // ── GAME PROGRESS TRACKING ──
 import { useGameProgress } from './hooks/useGameProgress';
-import { getLockedDexNumbers } from './data/milestoneGates';
+import { getLockedDexNumbers, MILESTONE_GATES } from './data/milestoneGates';
 import { GameProgressTracker } from './components/GameProgressTracker';
 // ── END GAME PROGRESS TRACKING ──
 import { getActiveOfflineUid } from './utils/offlineAuth';
@@ -503,6 +503,23 @@ export function App() {
     });
     return finalLocked;
   }, [mergedCompletedSet, trackedGames, dex]);
+
+  // For each progress-locked dex number, the uncompleted milestone IDs behind
+  // which it sits in the tracked games — used for "Locked until …" chips so
+  // locked species stay VISIBLE in suggestions instead of disappearing.
+  const lockedMilestonesByDex = useMemo(() => {
+    const map = new Map<number, string[]>();
+    if (trackedGames.size === 0) return map;
+    for (const [dexStr, ids] of Object.entries(MILESTONE_GATES)) {
+      const dexNum = Number(dexStr);
+      if (!lockedByProgressSet.has(dexNum)) continue;
+      const blocking = ids.filter(
+        (id) => trackedGames.has(id.split('-')[0] as GameId) && !mergedCompletedSet.has(id)
+      );
+      if (blocking.length > 0) map.set(dexNum, blocking);
+    }
+    return map;
+  }, [lockedByProgressSet, trackedGames, mergedCompletedSet]);
   // ── END GAME PROGRESS TRACKING ──
 
   // Theme State — locked to dark mode
@@ -2052,6 +2069,7 @@ export function App() {
                 onLookupPokeId={handleLookupPokeId}
                 // ── GAME PROGRESS TRACKING ──
                 lockedByProgressSet={lockedByProgressSet}
+                lockedMilestonesByDex={lockedMilestonesByDex}
                 gameProgress={gameProgress}
                 trackedGames={trackedGames}
                 starterChoices={starterChoices}

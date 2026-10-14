@@ -12,9 +12,11 @@ import {
   Flame,
   Gamepad2,
   SlidersHorizontal,
+  Lock,
 } from 'lucide-react';
 import type { PokemonEntry, GameId, DlcId } from '../data/pokemonData';
 import { GAMES } from '../data/pokemonData';
+import { MILESTONE_INDEX } from '../data/milestones';
 import { GameLogoBadge } from './GameLogoBadge';
 import { PokemonSprite } from './PokemonSprite';
 import type { PokemonInstance } from '../data/pokemonInventoryData';
@@ -38,6 +40,8 @@ export interface PokemonSuggestion {
   boxNumber: number;
   boxSlot: number;
   evolutionTip?: string;
+  /** Milestone IDs still blocking this species in the tracked games (when progress tracking is on). */
+  lockedMilestoneIds?: string[];
 }
 
 interface DexSuggestionsSectionProps {
@@ -57,6 +61,9 @@ interface DexSuggestionsSectionProps {
   onRequestAuth: (prompt: string) => void;
   /** Dex numbers locked by unfinished story milestones in tracked games. */
   lockedByProgressSet?: Set<number>;
+  /** Uncompleted milestone IDs blocking each locked dex number — shown as a
+   *  "Locked until …" chip so locked species stay visible, not hidden. */
+  lockedMilestonesByDex?: Map<number, string[]>;
 }
 
 export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
@@ -75,10 +82,11 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
   isGuest,
   onRequestAuth,
   lockedByProgressSet,
+  lockedMilestonesByDex,
 }) => {
   const [activeFilter, setActiveFilter] = useState<'all' | 'upgrades' | 'uncaught'>('all');
-  const [randomSeed, setRandomSeed] = useState<number>(() => Date.now());
-  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [showAll, setShowAll] = useState<boolean>(false);
+  const INITIAL_VISIBLE = 24;
 
   // Compute all potential candidates across the dex
   const allEligibleCandidates = useMemo(() => {
@@ -113,9 +121,9 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
 
       if (obtainableOwned.length === 0) continue;
 
-      // Species still locked behind an uncompleted story milestone in every
-      // tracked game aren't catchable yet — exclude from suggestions.
-      if (lockedByProgressSet?.has(p.id)) continue;
+      // Progress-locked species STAY in the list (users must see every
+      // uncaught Pokémon, including ones that just unlocked) — they are
+      // flagged with a "Locked until …" chip instead of being dropped.
 
       // Filter console-only games (excluding pogo)
       const consoleObtainable = obtainableOwned.filter((gId) => gId !== 'pogo');
@@ -149,6 +157,7 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
           boxNumber: p.boxNumber,
           boxSlot: p.boxSlot,
           evolutionTip: stage?.detail,
+          lockedMilestoneIds: lockedMilestonesByDex?.get(p.id),
         });
         continue; // Already assigned high-priority upgrade
       }
@@ -178,6 +187,7 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
           boxNumber: p.boxNumber,
           boxSlot: p.boxSlot,
           evolutionTip: stage?.detail,
+          lockedMilestoneIds: lockedMilestonesByDex?.get(p.id),
         });
         continue;
       }
@@ -204,6 +214,7 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
           alternativeGamesCount: consoleObtainable.length - 1,
           boxNumber: p.boxNumber,
           boxSlot: p.boxSlot,
+          lockedMilestoneIds: lockedMilestonesByDex?.get(p.id),
         });
       }
     }
@@ -218,6 +229,7 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
     inventory,
     boxSelectedGames,
     includePokemonGoInSuggestions,
+    lockedMilestonesByDex,
   ]);
 
   // Filter pool based on active subtab
@@ -231,31 +243,13 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
     return allEligibleCandidates;
   }, [allEligibleCandidates, activeFilter]);
 
-  // Pick up to 10 randomly shuffled candidates using deterministic or re-seeded shuffle
-  const sampledSuggestions = useMemo(() => {
-    if (filteredPool.length === 0) return [];
-
-    // Deterministic pseudo-random shuffle seeded by randomSeed
-    const arrayCopy = [...filteredPool];
-    let seed = randomSeed;
-    for (let i = arrayCopy.length - 1; i > 0; i--) {
-      seed = (seed * 9301 + 49297) % 233280;
-      const j = Math.floor((seed / 233280) * (i + 1));
-      const temp = arrayCopy[i];
-      arrayCopy[i] = arrayCopy[j];
-      arrayCopy[j] = temp;
-    }
-
-    return arrayCopy.slice(0, 10);
-  }, [filteredPool, randomSeed]);
-
-  const handleRefresh = useCallback(() => {
-    setIsRefreshing(true);
-    setRandomSeed(Date.now() + Math.floor(Math.random() * 100000));
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 350);
-  }, []);
+  // Stable, dex-ordered visible list — NO random reshuffle. Previously-shown
+  // uncaught suggestions never disappear when the pool grows (e.g. a milestone
+  // unlock adds species); new entries simply slot into dex order.
+  const visibleSuggestions = useMemo(
+    () => (showAll ? filteredPool : filteredPool.slice(0, INITIAL_VISIBLE)),
+    [filteredPool, showAll]
+  );
 
   const upgradeCount = useMemo(() => {
     return allEligibleCandidates.filter((c) => c.suggestionType === 'living_upgrade_pogo').length;
@@ -291,25 +285,16 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
           <h2 className="text-lg sm:text-xl font-bold text-slate-100 flex items-center gap-2">
             <span>Encounter & Living Dex Suggestions</span>
             <span className="text-xs font-mono font-medium text-slate-400">
-              (Up to 10 Recommended)
+              (All Uncaught — Stable Order)
             </span>
           </h2>
           <p className="text-xs text-slate-400 max-w-2xl">
-            Targeted recommendations for Pokémon you can catch in your owned games, with detailed encounter guides and high-priority Living Dex upgrades to replace mobile Pokémon GO entries with authentic console catches.
+            Every Pokémon you haven't registered yet in your owned games — including newly unlocked ones after completing a milestone. Progress-locked species stay visible with a "Locked until …" note instead of disappearing.
           </p>
         </div>
 
         {/* Action Controls */}
         <div className="flex items-center gap-2.5 shrink-0">
-          <button
-            type="button"
-            onClick={handleRefresh}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-amber-300 font-bold text-xs transition-all cursor-pointer shadow-sm active:scale-95"
-            title="Roll 10 other random suggestions"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-            <span>Refresh (10 Other Options)</span>
-          </button>
           <button
             type="button"
             onClick={onNavigateToSettings}
@@ -361,12 +346,35 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
         </div>
 
         <div className="text-[11px] font-mono text-slate-400">
-          Showing {sampledSuggestions.length} of {filteredPool.length} eligible
+          Showing {visibleSuggestions.length} of {filteredPool.length} eligible
         </div>
       </div>
 
-      {/* Main Grid: Up to 10 Suggestion Cards */}
-      {sampledSuggestions.length === 0 ? (
+      {/* Expand toggle */}
+      {filteredPool.length > INITIAL_VISIBLE && (
+        <div className="flex items-center justify-center">
+          {showAll ? (
+            <button
+              type="button"
+              onClick={() => setShowAll(false)}
+              className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-xs font-semibold cursor-pointer"
+            >
+              Collapse to first {INITIAL_VISIBLE}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowAll(true)}
+              className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-amber-300 text-xs font-bold cursor-pointer"
+            >
+              Show all {filteredPool.length} suggestions
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Main Grid: Suggestion Cards */}
+      {visibleSuggestions.length === 0 ? (
         <div className="p-8 rounded-2xl bg-slate-900/40 border border-slate-800 text-center flex flex-col items-center gap-3">
           <CheckCircle2 className="w-10 h-10 text-emerald-400" />
           <h3 className="text-base font-bold text-slate-100">
@@ -390,8 +398,9 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
           </button>
         </div>
       ) : (
+        <div className="max-h-[720px] overflow-y-auto pr-1 rounded-xl">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {sampledSuggestions.map((item) => {
+          {visibleSuggestions.map((item) => {
             const p = item.pokemon;
             const isUpgrade = item.suggestionType === 'living_upgrade_pogo';
             const isUncaught = item.suggestionType === 'uncaught_owned';
@@ -496,6 +505,18 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
                       🧬 {item.evolutionTip}
                     </div>
                   )}
+
+                  {item.lockedMilestoneIds && item.lockedMilestoneIds.length > 0 && (
+                    <div className="flex items-start gap-1.5 text-[10px] font-mono text-rose-300/90 pt-1 border-t border-slate-800/60">
+                      <Lock className="w-3 h-3 mt-0.5 shrink-0" />
+                      <span>
+                        Locked until:{' '}
+                        {item.lockedMilestoneIds
+                          .map((id) => MILESTONE_INDEX.get(id)?.label ?? id)
+                          .join(' · ')}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Footer Action Buttons */}
@@ -523,6 +544,7 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
               </div>
             );
           })}
+        </div>
         </div>
       )}
     </section>

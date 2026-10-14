@@ -48,6 +48,8 @@ interface HomeViewProps {
   onLookupPokeId?: (pokeId: string) => Promise<string | null> | void;
   // ── GAME PROGRESS TRACKING ──
   lockedByProgressSet: Set<number>;
+  /** Uncompleted milestone IDs blocking each locked dex number (tracked games only). */
+  lockedMilestonesByDex: Map<number, string[]>;
   gameProgress: ProgressState;
   trackedGames: Set<GameId>;
   starterChoices: Record<string, number>;
@@ -84,6 +86,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onLookupPokeId,
   // ── GAME PROGRESS TRACKING ──
   lockedByProgressSet,
+  lockedMilestonesByDex,
   gameProgress,
   trackedGames,
   starterChoices,
@@ -277,6 +280,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         isGuest={isGuest}
         onRequestAuth={onRequestAuth}
         lockedByProgressSet={lockedByProgressSet}
+        lockedMilestonesByDex={lockedMilestonesByDex}
       />
 
       {/* QUICK HUB NAVIGATION CARDS */}

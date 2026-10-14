@@ -324,6 +324,7 @@ export const MILESTONES: Record<string, Milestone[]> = {
     { id: 'pla-noble-5', label: 'Noble — Avalugg',                     short: 'Avalugg', type: 'noble', order: 10 },
     { id: 'pla-rank-6',  label: 'Star Rank 6 — Space-Time Distortions', short: 'Rank 6', type: 'rank',  order: 11 },
     { id: 'pla-rank-7',  label: 'Star Rank 7 — Post-Game',             short: 'Rank 7',  type: 'rank',  order: 12 },
+    { id: 'pla-champion', label: 'Champion · Arceus Captured',         short: 'Champion', type: 'story', order: 13 },
   ],
   bdsp: [
     { id: 'bdsp-badge-1', label: 'Gym 1 — Oreburgh (Rock · Roark)',        short: 'Badge 1', type: 'badge', order: 1 },
