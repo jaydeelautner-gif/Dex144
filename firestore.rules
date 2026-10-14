@@ -1,0 +1,259 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hardened Global Helpers
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidPokeId(id) {
+      return id is string && id.size() == 12 && id.matches('^ID[A-Z0-9]{10}$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidIntList(arr) {
+      return arr is list && arr.size() <= 1050 && (arr.size() == 0 || arr[0] is int);
+    }
+
+    function isValidGameCatchesMap(m) {
+      return m is map && m.size() <= 60;
+    }
+
+    function isValidInventory(inv) {
+      return inv is list &&
+        inv.size() <= 2000 &&
+        (inv.size() == 0 || (
+          inv[0] is map &&
+          inv[0].pokeId is string &&
+          inv[0].pokeId.size() == 12 &&
+          inv[0].pokeId.matches('^ID[A-Z0-9]{10}$') &&
+          inv[0].pokemonId is int &&
+          inv[0].pokemonId >= 1 &&
+          inv[0].pokemonId <= 1025 &&
+          inv[0].level is int &&
+          inv[0].level >= 1 &&
+          inv[0].level <= 100
+        ));
+    }
+
+    // Entity Blueprint Validation Helper: UserDexProfile
+    function isValidUserDexProfile(data) {
+      return data.keys().hasAll([
+        'ownerId',
+        'trainerName',
+        'activeGameFilter',
+        'isPublic',
+        'caughtIds',
+        'shinyIds',
+        'livingIds',
+        'caughtVariants',
+        'boxSelectedVariants',
+        'boxSelectedGames',
+        'ownedGames',
+        'ownedDlcs',
+        'gameCatches',
+        'inventory',
+        'caughtCount',
+        'shinyCount',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'ownerId',
+        'trainerName',
+        'activeGameFilter',
+        'isPublic',
+        'caughtIds',
+        'shinyIds',
+        'livingIds',
+        'caughtVariants',
+        'boxSelectedVariants',
+        'boxSelectedGames',
+        'ownedGames',
+        'ownedDlcs',
+        'gameCatches',
+        'inventory',
+        'rescueBin',
+        'caughtCount',
+        'shinyCount',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.ownerId is string &&
+      data.ownerId.size() >= 1 &&
+      data.ownerId.size() <= 128 &&
+      data.ownerId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.ownerId == request.auth.uid &&
+      data.trainerName is string &&
+      data.trainerName.size() >= 1 &&
+      data.trainerName.size() <= 60 &&
+      data.activeGameFilter is string &&
+      data.activeGameFilter.size() >= 1 &&
+      data.activeGameFilter.size() <= 32 &&
+      data.isPublic is bool &&
+      isValidIntList(data.caughtIds) &&
+      isValidIntList(data.shinyIds) &&
+      isValidIntList(data.livingIds) &&
+      data.caughtVariants is list &&
+      data.caughtVariants.size() <= 1500 &&
+      (data.caughtVariants.size() == 0 || (data.caughtVariants[0] is string && data.caughtVariants[0].size() <= 32)) &&
+      data.boxSelectedVariants is list &&
+      data.boxSelectedVariants.size() <= 1050 &&
+      (data.boxSelectedVariants.size() == 0 || (data.boxSelectedVariants[0] is string && data.boxSelectedVariants[0].size() <= 32)) &&
+      data.boxSelectedGames is list &&
+      data.boxSelectedGames.size() <= 1050 &&
+      (data.boxSelectedGames.size() == 0 || (data.boxSelectedGames[0] is string && data.boxSelectedGames[0].size() <= 32)) &&
+      data.ownedGames is list &&
+      data.ownedGames.size() <= 50 &&
+      (data.ownedGames.size() == 0 || (data.ownedGames[0] is string && data.ownedGames[0].size() <= 30)) &&
+      data.ownedDlcs is list &&
+      data.ownedDlcs.size() <= 20 &&
+      (data.ownedDlcs.size() == 0 || (data.ownedDlcs[0] is string && data.ownedDlcs[0].size() <= 40)) &&
+      isValidGameCatchesMap(data.gameCatches) &&
+      isValidInventory(data.inventory) &&
+      (!('rescueBin' in data) || (data.rescueBin is list && data.rescueBin.size() <= 2000)) &&
+      data.caughtCount is int &&
+      data.caughtCount >= 0 &&
+      data.caughtCount <= 1050 &&
+      data.shinyCount is int &&
+      data.shinyCount >= 0 &&
+      data.shinyCount <= 1050 &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    // Entity Blueprint Validation Helper: RegisteredPokepet
+    function isValidRegisteredPokepet(data) {
+      return data.keys().hasAll([
+        'pokeId',
+        'ownerId',
+        'trainerName',
+        'pokemonId',
+        'level',
+        'gender',
+        'variantId',
+        'variantName',
+        'isShiny',
+        'isHomeGift',
+        'isTraded',
+        'storedInHome',
+        'isInLivingBox',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.pokeId is string &&
+      data.pokeId.size() == 12 &&
+      data.pokeId.matches('^ID[A-Z0-9]{10}$') &&
+      data.ownerId is string &&
+      data.ownerId.size() >= 1 &&
+      data.ownerId.size() <= 128 &&
+      data.ownerId == request.auth.uid &&
+      data.trainerName is string &&
+      data.trainerName.size() >= 1 &&
+      data.trainerName.size() <= 60 &&
+      data.pokemonId is int &&
+      data.pokemonId >= 1 &&
+      data.pokemonId <= 1025 &&
+      data.level is int &&
+      data.level >= 1 &&
+      data.level <= 100 &&
+      data.gender is string &&
+      data.gender.size() <= 16 &&
+      data.variantId is string &&
+      data.variantId.size() <= 32 &&
+      data.variantName is string &&
+      data.variantName.size() <= 60 &&
+      data.isShiny is bool &&
+      data.isHomeGift is bool &&
+      data.isTraded is bool &&
+      data.storedInHome is bool &&
+      data.isInLivingBox is bool &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    // Per-User Dex Profile Collection
+    match /userDexProfiles/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || existing().isPublic == true);
+      allow create: if isOwner(userId) &&
+        isValidId(userId) &&
+        isValidUserDexProfile(incoming()) &&
+        incoming().ownerId == userId &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if (
+        isSignedIn() &&
+        isValidUserDexProfile(incoming()) &&
+        isOwner(userId) &&
+        isValidId(userId) &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          // Action: SyncDexProgress
+          (incoming().diff(existing()).affectedKeys().hasOnly([
+            'trainerName',
+            'activeGameFilter',
+            'isPublic',
+            'caughtIds',
+            'shinyIds',
+            'livingIds',
+            'caughtVariants',
+            'boxSelectedVariants',
+            'boxSelectedGames',
+            'ownedGames',
+            'ownedDlcs',
+            'gameCatches',
+            'inventory',
+            'rescueBin',
+            'caughtCount',
+            'shinyCount',
+            'updatedAt'
+          ]))
+        )
+      );
+      allow delete: if isOwner(userId) && isValidId(userId);
+    }
+
+    // Universal Registry of Registered Pokepets
+    match /registeredPokepets/{pokeId} {
+      allow get: if isValidPokeId(pokeId);
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() &&
+        isValidPokeId(pokeId) &&
+        incoming().pokeId == pokeId &&
+        isValidRegisteredPokepet(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isSignedIn() &&
+        isOwner(existing().ownerId) &&
+        isValidPokeId(pokeId) &&
+        incoming().pokeId == existing().pokeId &&
+        incoming().pokemonId == existing().pokemonId &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        isValidRegisteredPokepet(incoming());
+      allow delete: if isSignedIn() && isOwner(existing().ownerId) && isValidPokeId(pokeId);
+    }
+  }
+}

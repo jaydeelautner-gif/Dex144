@@ -1,0 +1,248 @@
+{
+  "entities": {
+    "UserDexProfile": {
+      "title": "UserDexProfile",
+      "description": "Stores a trainer's Pokédex catching progress, regional variant catches, Living Box variant selections, Living Box game origin selections, per-game catches, owned games, shiny progress, Living Dex box state, owned DLC expansions, poképet inventory instances with POKEIDs, and public stats page visibility.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "The Firebase Auth UID of the profile owner.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "trainerName": {
+          "type": "string",
+          "description": "Display name or custom trainer handle.",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "activeGameFilter": {
+          "type": "string",
+          "description": "Last selected game filter.",
+          "minLength": 1,
+          "maxLength": 32
+        },
+        "isPublic": {
+          "type": "boolean",
+          "description": "Whether the trainer has enabled a public shareable Living Dex stats page."
+        },
+        "caughtIds": {
+          "type": "array",
+          "description": "Bounded list of caught National Pokédex IDs (1 to 1025)."
+        },
+        "shinyIds": {
+          "type": "array",
+          "description": "Bounded list of caught Shiny National Pokédex IDs (1 to 1025)."
+        },
+        "livingIds": {
+          "type": "array",
+          "description": "Bounded list of Living Dex boxed National Pokédex IDs (1 to 1025)."
+        },
+        "caughtVariants": {
+          "type": "array",
+          "description": "Bounded list of caught regional variation IDs (e.g., 37:base, 37:alola)."
+        },
+        "boxSelectedVariants": {
+          "type": "array",
+          "description": "Bounded list of selected regional variation IDs displayed in Living Dex Box slots."
+        },
+        "boxSelectedGames": {
+          "type": "array",
+          "description": "Bounded list of single selected game origin per Pokémon for Living Dex Box slots (e.g., 25:sword)."
+        },
+        "ownedGames": {
+          "type": "array",
+          "description": "Bounded list of game IDs owned by the trainer."
+        },
+        "ownedDlcs": {
+          "type": "array",
+          "description": "Bounded list of DLC identifiers owned by the trainer."
+        },
+        "gameCatches": {
+          "type": "object",
+          "description": "Map of gameId to bounded array of caught National Dex IDs in that specific game."
+        },
+        "inventory": {
+          "type": "array",
+          "description": "Bounded list of caught poképet instances with unique 12-char POKEIDs, levels, nicknames, origin game or HOME gift, and trade status."
+        },
+        "caughtCount": {
+          "type": "integer",
+          "description": "Total number of standard Pokémon caught."
+        },
+        "shinyCount": {
+          "type": "integer",
+          "description": "Total number of shiny Pokémon caught."
+        },
+        "rescueBin": {
+          "type": "array",
+          "description": "List of deleted poképet instances kept in the 30-day rescue bin before permanent deletion, eligible for rescue in Settings."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the profile was first created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the profile was last updated."
+        }
+      },
+      "required": [
+        "ownerId",
+        "trainerName",
+        "activeGameFilter",
+        "isPublic",
+        "caughtIds",
+        "shinyIds",
+        "livingIds",
+        "caughtVariants",
+        "boxSelectedVariants",
+        "boxSelectedGames",
+        "ownedGames",
+        "ownedDlcs",
+        "gameCatches",
+        "inventory",
+        "caughtCount",
+        "shinyCount",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "RegisteredPokepet": {
+      "title": "RegisteredPokepet",
+      "description": "Global database record of a registered poképet indexed by its unique 12-character POKEID.",
+      "type": "object",
+      "properties": {
+        "pokeId": {
+          "type": "string",
+          "description": "12-character unique identifier starting with 'ID'.",
+          "minLength": 12,
+          "maxLength": 12,
+          "pattern": "^ID[A-Z0-9]{10}$"
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the trainer who registered this poképet.",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "trainerName": {
+          "type": "string",
+          "description": "Trainer name of the registering trainer.",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "pokemonId": {
+          "type": "integer",
+          "description": "National Pokédex ID (1 to 1025)."
+        },
+        "nickname": {
+          "type": "string",
+          "description": "Custom nickname (max 10 characters).",
+          "maxLength": 10
+        },
+        "level": {
+          "type": "integer",
+          "description": "Poképet level (1 to 100)."
+        },
+        "gender": {
+          "type": "string",
+          "description": "Gender ('male', 'female', 'genderless').",
+          "maxLength": 16
+        },
+        "variantId": {
+          "type": "string",
+          "description": "Form / variant ID.",
+          "maxLength": 32
+        },
+        "variantName": {
+          "type": "string",
+          "description": "Display name of the form.",
+          "maxLength": 60
+        },
+        "isShiny": {
+          "type": "boolean",
+          "description": "Whether the poképet is shiny."
+        },
+        "gameId": {
+          "type": "string",
+          "description": "Origin game ID (empty or omitted if isHomeGift is true)."
+        },
+        "isHomeGift": {
+          "type": "boolean",
+          "description": "Whether gifted from Pokémon HOME."
+        },
+        "isTraded": {
+          "type": "boolean",
+          "description": "Whether received via trade."
+        },
+        "storedInHome": {
+          "type": "boolean",
+          "description": "Whether deposited in Pokémon HOME."
+        },
+        "isInLivingBox": {
+          "type": "boolean",
+          "description": "Whether assigned to a Living Dex box slot."
+        },
+        "livingBoxNumber": {
+          "type": "integer",
+          "description": "Living Dex box number (1 to 35)."
+        },
+        "livingBoxSlot": {
+          "type": "integer",
+          "description": "Living Dex box slot (1 to 30)."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Trainer notes.",
+          "maxLength": 120
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of registration."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last edit."
+        }
+      },
+      "required": [
+        "pokeId",
+        "ownerId",
+        "trainerName",
+        "pokemonId",
+        "level",
+        "gender",
+        "variantId",
+        "variantName",
+        "isShiny",
+        "isHomeGift",
+        "isTraded",
+        "storedInHome",
+        "isInLivingBox",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/userDexProfiles/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserDexProfile"
+      },
+      "description": "Per-user Pokédex tracking document indexed by Firebase Auth UID, with optional opt-in public read for sharing Living Dex stats."
+    },
+    "/registeredPokepets/{pokeId}": {
+      "schema": {
+        "$ref": "#/entities/RegisteredPokepet"
+      },
+      "description": "Global database of all registered poképets indexed by unique 12-digit POKEID for site-wide uniqueness check and universal lookup."
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "HomeDex - Living Dex & Pokémon HOME Tracker",
+  "description": "Master Living Pokédex and Pokémon HOME collection tracker with specimen inventory, 12-digit POKEID verification, origin game tracking, and exportable Trainer Cards.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
