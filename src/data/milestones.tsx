@@ -20,6 +20,29 @@ export interface Milestone {
 /** Games that can be tracked with milestones. 'pogo' is excluded (no badges). */
 export const TRACKABLE_GAMES: GameId[] = ['sv', 'swsh', 'pla', 'bdsp', 'lgpe'];
 
+/**
+ * Map any owned-game id (canonical version ids like 'scarlet'/'shield' or
+ * legacy grouped ids) to its trackable group. Expansion-style tracking is
+ * per game pair: Scarlet+Violet, Sword+Shield, BD+SP, LGP+LGE.
+ */
+export const GAME_ID_TO_TRACKABLE: Partial<Record<GameId, string>> = {
+  scarlet: 'sv', violet: 'sv', sv: 'sv',
+  sword: 'swsh', shield: 'swsh', swsh: 'swsh',
+  bd: 'bdsp', sp: 'bdsp', bdsp: 'bdsp',
+  lgp: 'lgpe', lge: 'lgpe', lgpe: 'lgpe',
+  pla: 'pla',
+};
+
+/** Trackable groups the user can actually track, derived from owned games. */
+export function getOwnedTrackableGames(ownedGames: GameId[]): GameId[] {
+  const owned = new Set<string>();
+  for (const id of ownedGames) {
+    const group = GAME_ID_TO_TRACKABLE[id];
+    if (group) owned.add(group);
+  }
+  return TRACKABLE_GAMES.filter((g) => owned.has(g));
+}
+
 export const GAME_META: Record<string, { name: string; short: string; accent: string }> = {
   sv:   { name: 'Scarlet & Violet', short: 'SV',   accent: '#e0463f' },
   swsh: { name: 'Sword & Shield',   short: 'SwSh', accent: '#3f8ee0' },

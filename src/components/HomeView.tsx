@@ -24,7 +24,7 @@ import { MilestoneUnlocksPanel } from './MilestoneUnlocksPanel';
 // ── GAME PROGRESS TRACKING ──
 import { GameProgressTracker } from './GameProgressTracker';
 import type { ProgressState } from '../hooks/useGameProgress';
-import { GAME_META, TRACKABLE_GAMES, milestonesFor } from '../data/milestones';
+import { GAME_META, getOwnedTrackableGames, milestonesFor } from '../data/milestones';
 // ── END GAME PROGRESS TRACKING ──
 
 interface HomeViewProps {
@@ -107,7 +107,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   );
 
   // ── GAME PROGRESS TRACKING: summary stats for the inline card ──
-  const trackableOwnedGames = TRACKABLE_GAMES.filter((g) => ownedGames.includes(g));
+  const trackableOwnedGames = getOwnedTrackableGames(ownedGames);
   const totalTrackedMilestones = [...trackedGames].reduce(
     (acc, gId) => acc + milestonesFor(gId).length,
     0

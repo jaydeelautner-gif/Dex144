@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { GameId } from '../data/pokemonData';
 import {
   GAME_META,
-  TRACKABLE_GAMES,
+  getOwnedTrackableGames,
   milestonesFor,
 } from '../data/milestones';
 import type { ProgressState } from '../hooks/useGameProgress';
@@ -26,7 +26,7 @@ export function GameProgressTracker({
   onReset,
   onCompleteAll,
 }: Props) {
-  const availableGames = TRACKABLE_GAMES.filter((g) => ownedGames.includes(g));
+  const availableGames = getOwnedTrackableGames(ownedGames);
   const [activeGame, setActiveGame] = useState<GameId>(
     availableGames[0] ?? 'sv'
   );
