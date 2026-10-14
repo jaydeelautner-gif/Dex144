@@ -52,6 +52,7 @@ interface HomeViewProps {
   trackedGames: Set<GameId>;
   starterChoices: Record<string, number>;
   onChooseStarter: (gameGroup: string, dexId: number) => void;
+  onClearStarter: (gameGroup: string) => void;
   onToggleMilestone: (gameId: GameId, milestoneId: string) => void;
   onToggleTracking: (gameId: GameId) => void;
   onResetGameProgress: (gameId: GameId) => void;
@@ -87,6 +88,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   trackedGames,
   starterChoices,
   onChooseStarter,
+  onClearStarter,
   onToggleMilestone,
   onToggleTracking,
   onResetGameProgress,
@@ -253,6 +255,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         caughtSet={caughtSet}
         starterChoices={starterChoices}
         onChooseStarter={onChooseStarter}
+        onClearStarter={onClearStarter}
         onSelectPokemon={onSelectPokemon}
         onNavigateToProgress={onNavigateToProgress}
       />

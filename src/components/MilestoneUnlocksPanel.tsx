@@ -21,6 +21,7 @@ interface MilestoneUnlocksPanelProps {
   caughtSet: Set<number>;
   starterChoices: Record<string, number>;
   onChooseStarter: (gameGroup: string, dexId: number) => void;
+  onClearStarter: (gameGroup: string) => void;
   onSelectPokemon: (pokemon: PokemonEntry) => void;
   onNavigateToProgress: () => void;
 }
@@ -59,6 +60,7 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
   caughtSet,
   starterChoices,
   onChooseStarter,
+  onClearStarter,
   onSelectPokemon,
   onNavigateToProgress,
 }) => {
@@ -261,6 +263,16 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
                           ? 'Your starter — already caught ✓'
                           : 'Your starter — catch it to complete the choice!'
                         : 'Choose your starter (pick one of three)'}
+                      {row.chosenStarter && (
+                        <button
+                          type="button"
+                          onClick={() => onClearStarter(row.group)}
+                          title="Unselect this starter and show all three choices again"
+                          className="px-2 py-0.5 rounded-md bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white text-[9px] font-bold transition-colors cursor-pointer"
+                        >
+                          Unselect
+                        </button>
+                      )}
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       {row.chosenStarter ? (

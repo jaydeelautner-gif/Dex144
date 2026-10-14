@@ -102,6 +102,14 @@ export function useGameProgress() {
     setStarterChoices((prev) => ({ ...prev, [gameGroup]: dexId }));
   }, []);
 
+  const clearStarterChoice = useCallback((gameGroup: string) => {
+    setStarterChoices((prev) => {
+      const next = { ...prev };
+      delete next[gameGroup];
+      return next;
+    });
+  }, []);
+
   const toggleTracking = useCallback((gameId: GameId) => {
     setTrackedGames((prev) => {
       const next = new Set(prev);
@@ -129,5 +137,6 @@ export function useGameProgress() {
     resetGame,
     completeAll,
     chooseStarter,
+    clearStarterChoice,
   };
 }

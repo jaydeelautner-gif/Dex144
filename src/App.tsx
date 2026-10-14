@@ -467,6 +467,7 @@ export function App() {
     trackedGames,
     starterChoices,
     chooseStarter,
+    clearStarterChoice,
     mergedCompletedSet,
     toggleMilestone,
     toggleTracking,
@@ -2055,6 +2056,7 @@ export function App() {
                 trackedGames={trackedGames}
                 starterChoices={starterChoices}
                 onChooseStarter={chooseStarter}
+                onClearStarter={clearStarterChoice}
                 onToggleMilestone={toggleMilestone}
                 onToggleTracking={toggleTracking}
                 onResetGameProgress={resetGameProgress}
