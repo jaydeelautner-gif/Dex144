@@ -160,7 +160,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-8 max-w-5xl mx-auto pb-12">
+    <div className="flex flex-col gap-8 max-w-7xl 2xl:max-w-[100rem] mx-auto pb-12">
       {/* Top Header */}
       <div className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xl">
         <div className="flex flex-col gap-2">
