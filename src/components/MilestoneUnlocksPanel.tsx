@@ -9,6 +9,7 @@ import {
   milestonesFor,
 } from '../data/milestones';
 import { getLockedDexNumbers } from '../data/milestoneGates';
+import { useEncounterDataset, type EncounterDataset } from '../data/encountersData';
 import type { ProgressState } from '../hooks/useGameProgress';
 import { PokemonSprite } from './PokemonSprite';
 
@@ -35,6 +36,8 @@ interface PanelRow {
   startingSpecies: PokemonEntry[];
   startingSpeciesOverflow: number;
   freshSpecies: PokemonEntry[];
+  /** True when wild-encounter filtering is active for this group. */
+  wildFiltered: boolean;
 }
 
 const MAX_STARTING_GRID = 48;
@@ -59,6 +62,35 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
   onSelectPokemon,
   onNavigateToProgress,
 }) => {
+  // Wild-encounter bundle (PokéAPI) — used to hide evolution-only species.
+  const { dataset: encounters } = useEncounterDataset();
+
+  // Game ids that actually have encounter coverage in the bundle.
+  const coveredGames = useMemo(() => {
+    const covered = new Set<string>();
+    if (encounters) {
+      for (const byGame of Object.values(encounters)) {
+        for (const g of Object.keys(byGame)) covered.add(g);
+      }
+    }
+    return covered;
+  }, [encounters]);
+
+  /** A species is catchable in the wild if any member game has recorded
+   *  encounters for it. Species with none are only obtainable by evolving
+   *  something (or trading/events) and are excluded from Fresh Catches.
+   *  Groups whose games lack encounter coverage (SV, BDSP, PLA, Colo, XD)
+   *  can't be checked, so they are not filtered. */
+  const isCatchableInWild = (p: PokemonEntry, members: GameId[]): boolean => {
+    if (!encounters) return true;
+    const anyCovered = members.some((g) => coveredGames.has(g));
+    if (!anyCovered) return true;
+    return members.some((g) => {
+      const byArea = encounters[String(p.id)]?.[g];
+      return !!byArea && Object.keys(byArea).length > 0;
+    });
+  };
+
   const rows = useMemo<PanelRow[]>(() => {
     const dexById = new Map(dex.map((p) => [p.id, p]));
     const ownedGroups = getOwnedTrackableGames(ownedGames);
@@ -73,6 +105,7 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
       const freshSpecies: PokemonEntry[] = [];
       let lastMilestoneLabel: string | null = null;
       let startingSpeciesOverflow = 0;
+      const wildFiltered = members.some((g) => coveredGames.has(g));
 
       if (completedIds.length === 0) {
         // ── STARTING MODE: no milestones completed yet ──
@@ -87,6 +120,7 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
           if (lockedAtStart.has(p.id)) continue;
           const isStarter = starters.some((s) => s.id === p.id);
           if (isStarter) continue; // starters live in the dedicated choice row
+          if (!isCatchableInWild(p, members)) continue; // evolution-only
           const obtainableFromStart = members.some(
             (gId) => p.availability[gId]?.status === 'base'
           );
@@ -115,6 +149,7 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
           startingSpecies,
           startingSpeciesOverflow,
           freshSpecies,
+          wildFiltered,
         });
       } else {
         // ── FRESH UNLOCK MODE: diff gates between last two milestones ──
@@ -129,6 +164,7 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
         for (const p of dex) {
           if (caughtSet.has(p.id)) continue;
           if (stillLocked.has(p.id)) continue;
+          if (!isCatchableInWild(p, members)) continue; // evolution-only
           const previousCompleted = completed
             .filter((m) => m.order < lastMilestone.order)
             .map((m) => m.id);
@@ -147,6 +183,7 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
           startingSpecies: [],
           startingSpeciesOverflow: 0,
           freshSpecies,
+          wildFiltered,
         });
       }
     }
@@ -204,7 +241,9 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
                     {row.gameShort}
                   </span>
                   {hasStarting ? (
-                    <span className="text-[10px] text-slate-400">Available from the start</span>
+                    <span className="text-[10px] text-slate-400">
+                      Available from the start{row.wildFiltered ? ' · wild-catchable only' : ''}
+                    </span>
                   ) : (
                     <span className="text-[10px] text-slate-400 truncate">
                       Latest win: <span className="text-amber-300 font-semibold">{row.lastMilestoneLabel}</span>
