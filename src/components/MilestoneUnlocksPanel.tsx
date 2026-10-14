@@ -98,16 +98,16 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
         startingSpecies.length = Math.min(startingSpecies.length, MAX_STARTING_GRID);
 
         const chosen = chosenId != null ? dexById.get(chosenId) ?? null : null;
-        const unchosenStarters = starters.filter(
-          (s) => s.id !== chosenId && !caughtSet.has(s.id)
-        );
+        // Always offer all three starters until a choice is made, even if
+        // some are already caught/registered in the dex.
+        const starterOptions = chosenId == null ? starters : [];
 
         out.push({
           group,
           gameShort: meta?.short ?? group,
           accent: meta?.accent ?? '#f59e0b',
           lastMilestoneLabel: null,
-          starterOptions: chosenId == null ? unchosenStarters : [],
+          starterOptions,
           chosenStarter: chosen && !caughtSet.has(chosen.id) ? chosen : null,
           startingSpecies,
           startingSpeciesOverflow,
@@ -231,23 +231,32 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
                           </span>
                         </button>
                       ) : (
-                        row.starterOptions.map((s) => (
-                          <button
-                            key={s.id}
-                            type="button"
-                            onClick={() => onChooseStarter(row.group, s.id)}
-                            title={`Choose ${s.name} as your starter`}
-                            className="p-2 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-amber-400/60 hover:bg-slate-900 flex flex-col items-center gap-1 transition-colors cursor-pointer group"
-                          >
-                            <PokemonSprite id={s.id} name={s.name} size="sm" />
-                            <span className="text-[10px] text-slate-300 group-hover:text-amber-300 truncate w-full text-center">
-                              #{String(s.id).padStart(3, '0')} {s.name}
-                            </span>
-                            <span className="text-[9px] font-bold text-amber-400/80 flex items-center gap-1">
-                              <Check className="w-3 h-3" /> Choose
-                            </span>
-                          </button>
-                        ))
+                        row.starterOptions.map((s) => {
+                          const alreadyCaught = caughtSet.has(s.id);
+                          return (
+                            <button
+                              key={s.id}
+                              type="button"
+                              onClick={() => onChooseStarter(row.group, s.id)}
+                              title={`Choose ${s.name} as your starter`}
+                              className="p-2 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-amber-400/60 hover:bg-slate-900 flex flex-col items-center gap-1 transition-colors cursor-pointer group"
+                            >
+                              <PokemonSprite id={s.id} name={s.name} size="sm" />
+                              <span className="text-[10px] text-slate-300 group-hover:text-amber-300 truncate w-full text-center">
+                                #{String(s.id).padStart(3, '0')} {s.name}
+                              </span>
+                              {alreadyCaught ? (
+                                <span className="text-[9px] font-bold text-emerald-400 flex items-center gap-1">
+                                  <Check className="w-3 h-3" /> Caught
+                                </span>
+                              ) : (
+                                <span className="text-[9px] font-bold text-amber-400/80 flex items-center gap-1">
+                                  <Check className="w-3 h-3" /> Choose
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })
                       )}
                     </div>
                   </div>
