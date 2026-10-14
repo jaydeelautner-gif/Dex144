@@ -25,6 +25,8 @@ interface MilestoneUnlocksPanelProps {
   onClearStarter: (gameGroup: string) => void;
   onSelectPokemon: (pokemon: PokemonEntry) => void;
   onNavigateToProgress: () => void;
+  /** Restrict the panel to a single trackable group (Catch Hub game tabs). */
+  groupFilter?: string;
 }
 
 interface PanelRow {
@@ -74,6 +76,7 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
   onClearStarter,
   onSelectPokemon,
   onNavigateToProgress,
+  groupFilter,
 }) => {
   // Wild-encounter bundle (PokéAPI) — used to hide evolution-only species.
   const { dataset: encounters } = useEncounterDataset();
@@ -141,7 +144,8 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
 
   const rows = useMemo<PanelRow[]>(() => {
     const dexById = new Map(dex.map((p) => [p.id, p]));
-    const ownedGroups = getOwnedTrackableGames(ownedGames);
+    const ownedGroups = getOwnedTrackableGames(ownedGames)
+      .filter((g) => !groupFilter || g === groupFilter);
     const out: PanelRow[] = [];
 
     for (const group of ownedGroups) {
@@ -265,8 +269,8 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
   );
 
   return (
-    <section className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 flex flex-col gap-4 shadow-xl">
-      <div className="flex items-start justify-between gap-4">
+    <section className={groupFilter ? 'flex flex-col gap-4' : 'bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 flex flex-col gap-4 shadow-xl'}>
+      <div className={groupFilter ? 'flex items-center gap-2.5' : 'flex items-start justify-between gap-4'}>
         <div className="flex items-center gap-2.5">
           <span className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
             <Trophy className="w-4 h-4" />

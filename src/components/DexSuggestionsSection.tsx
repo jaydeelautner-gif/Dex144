@@ -64,6 +64,10 @@ interface DexSuggestionsSectionProps {
   /** Uncompleted milestone IDs blocking each locked dex number — shown as a
    *  "Locked until …" chip so locked species stay visible, not hidden. */
   lockedMilestonesByDex?: Map<number, string[]>;
+  /** Restrict suggestions to a single owned game (Catch Hub game tabs). */
+  gameFilter?: GameId;
+  /** Skip the outer panel chrome (title header) when embedded in the Catch Hub. */
+  embedded?: boolean;
 }
 
 export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
@@ -83,6 +87,8 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
   onRequestAuth,
   lockedByProgressSet,
   lockedMilestonesByDex,
+  gameFilter,
+  embedded,
 }) => {
   const [activeFilter, setActiveFilter] = useState<'all' | 'upgrades' | 'uncaught'>('all');
   const [showAll, setShowAll] = useState<boolean>(false);
@@ -106,9 +112,12 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
 
     const list: PokemonSuggestion[] = [];
 
+    // Catch Hub game tabs restrict suggestions to a single owned game.
+    const sourceGames = gameFilter ? [gameFilter] : ownedGames;
+
     for (const p of dex) {
       // Find obtainable owned games
-      const obtainableOwned = ownedGames.filter((gId) => {
+      const obtainableOwned = sourceGames.filter((gId) => {
         if (!includePokemonGoInSuggestions && gId === 'pogo') return false;
         const av = p.availability[gId];
         if (!av) return false;
@@ -229,6 +238,7 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
     inventory,
     boxSelectedGames,
     includePokemonGoInSuggestions,
+    gameFilter,
     lockedMilestonesByDex,
   ]);
 
@@ -267,8 +277,12 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
     onNavigateToRegister(pokemonId);
   };
 
+  const showChrome = !embedded;
+
   return (
-    <section className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 shadow-xl flex flex-col gap-5">
+    <section className={showChrome ? 'bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 shadow-xl flex flex-col gap-5' : 'flex flex-col gap-5'}>
+     {showChrome && (
+      <>
       {/* Top Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
         <div className="flex flex-col gap-1">
@@ -305,6 +319,8 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
           </button>
         </div>
       </div>
+      </>
+      )}
 
       {/* Filter Tabs */}
       <div className="flex flex-wrap items-center justify-between gap-3">

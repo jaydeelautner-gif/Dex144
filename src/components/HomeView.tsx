@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import type { PokemonEntry, GameCatchesMap, GameId, DlcId } from '../data/pokemonData';
 import { GAMES, ALL_GAME_IDS } from '../data/pokemonData';
+import { GAME_ID_TO_TRACKABLE, milestonesFor } from '../data/milestones';
 import { PokeBankClosureAlertSection } from './PokeBankClosureAlertSection';
 import { GameLogoBadge } from './GameLogoBadge';
 import { type PokemonInstance } from '../data/pokemonInventoryData';
@@ -100,6 +101,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
   // ── END GAME PROGRESS TRACKING ──
 }) => {
   const [pokeIdInput, setPokeIdInput] = useState('');
+  // ── CATCH HUB: one tab per owned game, merging Fresh Catches + suggestions ──
+  const [activeCatchGame, setActiveCatchGame] = useState<GameId | null>(null);
+  const ownedCatchGames: GameId[] = ownedGames.filter((g) => g !== 'pogo');
+  const effectiveCatchGame: GameId | null =
+    activeCatchGame && ownedCatchGames.includes(activeCatchGame)
+      ? activeCatchGame
+      : ownedCatchGames[0] ?? null;
+  const effectiveCatchGroup = effectiveCatchGame
+    ? (GAME_ID_TO_TRACKABLE as Record<string, string | undefined>)[effectiveCatchGame] ?? null
+    : null;
   const [lookupError, setLookupError] = useState<string | null>(null);
 
   const totalSpecies = dex.length;
@@ -249,39 +260,111 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </section>
 
-      {/* FRESH CATCHES: starting species + fresh milestone unlocks */}
-      <MilestoneUnlocksPanel
-        progress={gameProgress}
-        trackedGames={trackedGames}
-        ownedGames={ownedGames}
-        dex={dex}
-        caughtSet={caughtSet}
-        starterChoices={starterChoices}
-        onChooseStarter={onChooseStarter}
-        onClearStarter={onClearStarter}
-        onSelectPokemon={onSelectPokemon}
-        onNavigateToProgress={onNavigateToProgress}
-      />
+      {/* MERGED CATCH HUB: one tab per owned game combining Fresh Catches
+          (starters + milestone unlocks) with Encounter & Living Dex suggestions
+          — GO replacements and uncaught-in-owned-games — for that game. */}
+      <section className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 shadow-xl flex flex-col gap-5">
+        {/* Hub header */}
+        <div className="flex items-start justify-between gap-4 border-b border-slate-800/80 pb-4">
+          <div className="flex items-center gap-2.5">
+            <span className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+              <Trophy className="w-4 h-4" />
+            </span>
+            <div>
+              <h2 className="text-lg font-bold text-slate-100">Catch Hub</h2>
+              <p className="text-xs text-slate-400">
+                Fresh catches, GO replacements, and uncaught suggestions — per game. Locked species stay visible until their milestone is reached.
+              </p>
+            </div>
+          </div>
+        </div>
 
-      {/* DEX SUGGESTIONS SECTION */}
-      <DexSuggestionsSection
-        dex={dex}
-        caughtSet={caughtSet}
-        livingSet={livingSet}
-        ownedGames={ownedGames}
-        ownedDlcs={ownedDlcs}
-        inventory={inventory}
-        boxSelectedGames={boxSelectedGames}
-        includePokemonGoInSuggestions={includePokemonGoInSuggestions}
-        onSelectPokemon={onSelectPokemon}
-        onOpenFullPage={onOpenFullPage}
-        onNavigateToRegister={onNavigateToRegister}
-        onNavigateToSettings={onNavigateToSettings}
-        isGuest={isGuest}
-        onRequestAuth={onRequestAuth}
-        lockedByProgressSet={lockedByProgressSet}
-        lockedMilestonesByDex={lockedMilestonesByDex}
-      />
+        {/* Game tabs */}
+        {ownedCatchGames.length === 0 ? (
+          <div className="p-6 rounded-xl bg-slate-950/60 border border-slate-800 text-center flex flex-col items-center gap-2">
+            <p className="text-xs text-slate-400">
+              No games marked as owned yet. Select your owned games in Settings to see catch suggestions!
+            </p>
+            <button
+              type="button"
+              onClick={onNavigateToSettings}
+              className="px-3.5 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-semibold text-xs cursor-pointer"
+            >
+              Configure Owned Games
+            </button>
+          </div>
+        ) : (
+          <nav className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-900/90 border border-slate-800 rounded-xl overflow-x-auto">
+            {ownedCatchGames.map((gId) => {
+              const gameMeta = GAMES.find((g) => g.id === gId);
+              const group = GAME_ID_TO_TRACKABLE[gId];
+              const done = group ? (gameProgress[group]?.length ?? 0) : 0;
+              const total = group ? milestonesFor(group).length : 0;
+              const active = gId === effectiveCatchGame;
+              return (
+                <button
+                  key={gId}
+                  type="button"
+                  onClick={() => setActiveCatchGame(gId)}
+                  className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                    active
+                      ? 'bg-amber-500 text-slate-950 font-bold shadow'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <GameLogoBadge gameId={gId} size="xs" />
+                  <span>{gameMeta?.shortTitle || gId.toUpperCase()}</span>
+                  {group && (
+                    <span className={`font-mono text-[10px] ${active ? 'text-slate-800' : 'text-slate-500'}`}>
+                      {done}/{total}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+        )}
+
+        {/* Active tab content: Fresh Catches + suggestions for this game */}
+        {effectiveCatchGame && ownedCatchGames.length > 0 && (
+          <>
+            <MilestoneUnlocksPanel
+              progress={gameProgress}
+              trackedGames={trackedGames}
+              ownedGames={ownedGames}
+              dex={dex}
+              caughtSet={caughtSet}
+              starterChoices={starterChoices}
+              onChooseStarter={onChooseStarter}
+              onClearStarter={onClearStarter}
+              onSelectPokemon={onSelectPokemon}
+              onNavigateToProgress={onNavigateToProgress}
+              groupFilter={effectiveCatchGroup ?? undefined}
+            />
+
+            <DexSuggestionsSection
+              dex={dex}
+              caughtSet={caughtSet}
+              livingSet={livingSet}
+              ownedGames={ownedGames}
+              ownedDlcs={ownedDlcs}
+              inventory={inventory}
+              boxSelectedGames={boxSelectedGames}
+              includePokemonGoInSuggestions={includePokemonGoInSuggestions}
+              onSelectPokemon={onSelectPokemon}
+              onOpenFullPage={onOpenFullPage}
+              onNavigateToRegister={onNavigateToRegister}
+              onNavigateToSettings={onNavigateToSettings}
+              isGuest={isGuest}
+              onRequestAuth={onRequestAuth}
+              lockedByProgressSet={lockedByProgressSet}
+              lockedMilestonesByDex={lockedMilestonesByDex}
+              gameFilter={effectiveCatchGame}
+              embedded
+            />
+          </>
+        )}
+      </section>
 
       {/* QUICK HUB NAVIGATION CARDS */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
