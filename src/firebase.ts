@@ -827,57 +827,69 @@ export async function fetchPublicDexProfile(
 
 export function subscribeToUserDexProfile(
   uid: string,
-  onData: (profile: UserDexProfileData | null) => void,
+  onData: (profile: UserDexProfileData | null, fromCache: boolean) => void,
   onError?: (err: Error) => void
 ): Unsubscribe {
   const localCached = getLocallyCachedProfile(uid);
   if (localCached) {
-    onData(localCached);
-  }
-
-  const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
-
-  if (isOffline) {
-    const handleOnline = () => {
-      subscribeToUserDexProfile(uid, onData, onError);
-    };
-    window.addEventListener('online', handleOnline, { once: true });
-    return () => window.removeEventListener('online', handleOnline);
+    onData(localCached, true);
   }
 
   const path = `userDexProfiles/${uid}`;
   const docRef = doc(db, 'userDexProfiles', uid);
+  let unsubscribeSnapshot: Unsubscribe | null = null;
+  let waitingForOnline = false;
+  let cancelled = false;
 
-  return onSnapshot(
-    docRef,
-    (snapshot) => {
-      if (snapshot.exists()) {
-        const parsed = parseProfileSnapshotData(uid, snapshot.data() as Record<string, unknown>);
-        const localNow = getLocallyCachedProfile(uid);
-        if (localNow) {
-          parsed.inventory = localNow.inventory;
-          parsed.rescueBin = localNow.rescueBin;
+  const startSnapshot = () => {
+    if (cancelled) return;
+    waitingForOnline = false;
+    unsubscribeSnapshot = onSnapshot(
+      docRef,
+      { includeMetadataChanges: true },
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const parsed = parseProfileSnapshotData(uid, snapshot.data() as Record<string, unknown>);
+          const localNow = getLocallyCachedProfile(uid);
+          if (localNow) {
+            parsed.inventory = localNow.inventory;
+            parsed.rescueBin = localNow.rescueBin;
+          }
+          saveLocallyCachedProfile(uid, parsed);
+          onData(parsed, snapshot.metadata.fromCache);
+        } else {
+          onData(null, snapshot.metadata.fromCache);
         }
-        saveLocallyCachedProfile(uid, parsed);
-        onData(parsed);
-      } else {
-        if (!localCached) onData(null);
-      }
-    },
-    (error) => {
-      if (localCached) {
-        onData(localCached);
-      } else if (onError) {
-        try {
-          handleFirestoreError(error, OperationType.GET, path);
-        } catch (formattedErr) {
-          if (onError && formattedErr instanceof Error) {
-            onError(formattedErr);
+      },
+      (error) => {
+        if (localCached) {
+          onData(localCached, true);
+        } else if (onError) {
+          try {
+            handleFirestoreError(error, OperationType.GET, path);
+          } catch (formattedErr) {
+            if (onError && formattedErr instanceof Error) {
+              onError(formattedErr);
+            }
           }
         }
       }
-    }
-  );
+    );
+  };
+
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    if (!localCached) onData(null, true);
+    waitingForOnline = true;
+    window.addEventListener('online', startSnapshot, { once: true });
+  } else {
+    startSnapshot();
+  }
+
+  return () => {
+    cancelled = true;
+    if (waitingForOnline) window.removeEventListener('online', startSnapshot);
+    unsubscribeSnapshot?.();
+  };
 }
 
 export function subscribeToUserInventory(
