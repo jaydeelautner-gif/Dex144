@@ -858,11 +858,12 @@ export function App() {
   // Subscribe to Firestore: metadata + inventory subcollection + rescueBin subcollection
   useEffect(() => {
     if (!user) return;
+    setCloudLoaded(false);
     let isInitialFetch = true;
 
     const unsubProfile = subscribeToUserDexProfile(
       user.uid,
-      (remoteProfile) => {
+      (remoteProfile, fromCache) => {
         if (remoteProfile) {
           isApplyingRemoteRef.current = true;
 
@@ -909,15 +910,13 @@ export function App() {
               return merged;
             });
           }
-          setCloudLoaded(true);
           setTimeout(() => {
             isApplyingRemoteRef.current = false;
           }, 50);
-        } else if (isInitialFetch) {
+        } else if (isInitialFetch && !fromCache) {
           // First sign-in for this user: create a metadata-only profile
           const effectiveName = user.displayName || 'Guest';
           setTrainerName(effectiveName);
-          setCloudLoaded(true);
           saveUserDexProfile(user.uid, {
             trainerName: effectiveName,
             activeGameFilter: selectedGame,
@@ -936,10 +935,17 @@ export function App() {
             gameProgress: gameProgressForSync,
           }).catch(() => {});
         }
-        isInitialFetch = false;
+        if (!fromCache) {
+          setCloudLoaded(true);
+          isInitialFetch = false;
+        } else if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          setCloudLoaded(true);
+        }
       },
       () => {
-        setCloudLoaded(true);
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          setCloudLoaded(true);
+        }
       }
     );
 
