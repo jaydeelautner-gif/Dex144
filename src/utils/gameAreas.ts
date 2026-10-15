@@ -257,3 +257,97 @@ export function speciesForWeather(
   }
   return rows.sort((a, b) => b.maxChance - a.maxChance || a.pokemonId - b.pokemonId);
 }
+
+
+/** Time-of-day conditions that change spawns, with player-facing labels. */
+export const TIME_CONDITIONS: { id: string; label: string }[] = [
+  { id: 'time-morning', label: 'Morning' },
+  { id: 'time-day', label: 'Daytime' },
+  { id: 'time-evening', label: 'Evening' },
+  { id: 'time-night', label: 'Night' },
+];
+
+const TIME_IDS = new Set(TIME_CONDITIONS.map((t) => t.id));
+
+/** Time options recorded for a game, in display order. */
+export function timeForGame(dataset: EncounterDataset | null, gameId: GameId): string[] {
+  if (!dataset) return [];
+  const group = (GAME_ID_TO_TRACKABLE as Record<string, string | undefined>)[gameId];
+  const members = group ? GROUP_MEMBER_GAMES[group] ?? [] : [];
+  const found = new Set<string>();
+  for (const byGame of Object.values(dataset)) {
+    for (const member of members) {
+      for (const list of Object.values(byGame[member] ?? {})) {
+        for (const row of list) for (const c of row.cd ?? []) if (TIME_IDS.has(c)) found.add(c);
+      }
+    }
+  }
+  return TIME_CONDITIONS.map((t) => t.id).filter((id) => found.has(id));
+}
+
+/**
+ * Areas that spawn at least one species matching the selected conditions.
+ * Both filters are optional: leaving them empty matches every area, so the
+ * area list stays useful when the player has not picked a condition yet.
+ */
+export function areasForConditions(
+  dataset: EncounterDataset | null,
+  gameId: GameId,
+  weatherId: string,
+  timeId: string
+): string[] {
+  if (!dataset) return [];
+  const group = (GAME_ID_TO_TRACKABLE as Record<string, string | undefined>)[gameId];
+  const members = group ? GROUP_MEMBER_GAMES[group] ?? [] : [];
+  const matches = (row: { cd?: string[] }) =>
+    (!weatherId || (row.cd ?? []).includes(weatherId)) &&
+    (!timeId || (row.cd ?? []).includes(timeId));
+  const areas = new Set<string>();
+  for (const byGame of Object.values(dataset)) {
+    for (const member of members) {
+      for (const [area, list] of Object.entries(byGame[member] ?? {})) {
+        if (list.some(matches)) areas.add(area);
+      }
+    }
+  }
+  return [...areas].sort((a, b) => prettifyAreaName(a).localeCompare(prettifyAreaName(b)));
+}
+
+/**
+ * Uncaught species obtainable in an area under the selected conditions.
+ * Conditions are matched against the individual encounter row, so a species
+ * only listed for other weather/time is correctly excluded.
+ */
+export function speciesForConditions(
+  dataset: EncounterDataset | null,
+  gameId: GameId,
+  area: string,
+  weatherId: string,
+  timeId: string,
+  isUncaught: (pokemonId: number) => boolean
+): WeatherSpawnRow[] {
+  if (!dataset) return [];
+  const group = (GAME_ID_TO_TRACKABLE as Record<string, string | undefined>)[gameId];
+  const members = group ? GROUP_MEMBER_GAMES[group] ?? [] : [];
+  const rows: WeatherSpawnRow[] = [];
+  for (const [idStr, byGame] of Object.entries(dataset)) {
+    const pokemonId = Number(idStr);
+    if (!isUncaught(pokemonId)) continue;
+    let minLevel = Infinity;
+    let maxLevel = 0;
+    let maxChance = 0;
+    const methods = new Set<string>();
+    for (const member of members) {
+      for (const row of byGame[member]?.[area] ?? []) {
+        if (weatherId && !(row.cd ?? []).includes(weatherId)) continue;
+        if (timeId && !(row.cd ?? []).includes(timeId)) continue;
+        methods.add(prettyEncounterMethod(row.m));
+        minLevel = Math.min(minLevel, row.l[0]);
+        maxLevel = Math.max(maxLevel, row.l[1]);
+        maxChance = Math.max(maxChance, row.c);
+      }
+    }
+    if (methods.size > 0) rows.push({ pokemonId, methods: [...methods], minLevel, maxLevel, maxChance });
+  }
+  return rows.sort((a, b) => b.maxChance - a.maxChance || a.pokemonId - b.pokemonId);
+}

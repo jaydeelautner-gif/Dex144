@@ -315,16 +315,26 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
     lockedMilestonesByDex,
   ]);
 
+  // Under Trainer Hints (embedded) this panel is the GO-replacement section:
+  // uncaught species are already suggested by Trainer Hints above, so only
+  // GO upgrades are offered here. Standalone use keeps the full pool.
+  const poolBase = useMemo(
+    () => (embedded
+      ? allEligibleCandidates.filter((c) => c.suggestionType === 'living_upgrade_pogo')
+      : allEligibleCandidates),
+    [allEligibleCandidates, embedded]
+  );
+
   // Filter pool based on active subtab
   const filteredPool = useMemo(() => {
     if (activeFilter === 'upgrades') {
-      return allEligibleCandidates.filter((c) => c.suggestionType === 'living_upgrade_pogo');
+      return poolBase.filter((c) => c.suggestionType === 'living_upgrade_pogo');
     }
     if (activeFilter === 'uncaught') {
-      return allEligibleCandidates.filter((c) => c.suggestionType === 'uncaught_owned');
+      return poolBase.filter((c) => c.suggestionType === 'uncaught_owned');
     }
-    return allEligibleCandidates;
-  }, [allEligibleCandidates, activeFilter]);
+    return poolBase;
+  }, [poolBase, activeFilter]);
 
   // Stable, dex-ordered visible list — NO random reshuffle. Previously-shown
   // uncaught suggestions never disappear when the pool grows (e.g. a milestone
@@ -335,12 +345,12 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
   );
 
   const upgradeCount = useMemo(() => {
-    return allEligibleCandidates.filter((c) => c.suggestionType === 'living_upgrade_pogo').length;
-  }, [allEligibleCandidates]);
+    return poolBase.filter((c) => c.suggestionType === 'living_upgrade_pogo').length;
+  }, [poolBase]);
 
   const uncaughtCount = useMemo(() => {
-    return allEligibleCandidates.filter((c) => c.suggestionType === 'uncaught_owned').length;
-  }, [allEligibleCandidates]);
+    return poolBase.filter((c) => c.suggestionType === 'uncaught_owned').length;
+  }, [poolBase]);
 
   const handleRegisterClick = (pokemonId: number) => {
     if (isGuest) {
@@ -397,7 +407,7 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
 
       {/* Filter Tabs */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-slate-900/90 border border-slate-800 text-xs">
+        <div className={`flex-wrap items-center gap-1.5 p-1 rounded-xl bg-slate-900/90 border border-slate-800 text-xs ${embedded ? 'hidden' : 'flex'}`}>
           <button
             type="button"
             onClick={() => setActiveFilter('all')}
@@ -407,7 +417,7 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            All Suggestions ({allEligibleCandidates.length})
+            {embedded ? `GO Replacements (${allEligibleCandidates.length})` : `All Suggestions (${allEligibleCandidates.length})`}
           </button>
           <button
             type="button"
