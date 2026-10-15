@@ -144,15 +144,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-8 max-w-6xl mx-auto pb-12">
-      {!homePanels.welcome && !homePanels.pokeIdLookup && !(homePanels.catchHub && (homePanels.trainerHints || homePanels.goReplacements)) && !homePanels.quickLinks && !homePanels.bankWatchlist && !homePanels.ownedLibrary && (
+    <div className="w-full min-w-0 flex flex-col gap-5 pb-8">
+      {!homePanels.trainerCard && !homePanels.profileBoxes && !homePanels.profileInventory && !homePanels.profileFriends && !homePanels.profileAvatar && !homePanels.nationalDex && !homePanels.livingDex && !homePanels.runningTotal && !homePanels.welcome && !homePanels.pokeIdLookup && !(homePanels.catchHub && (homePanels.trainerHints || homePanels.goReplacements)) && !homePanels.quickLinks && !homePanels.bankWatchlist && !homePanels.ownedLibrary && (
         <div className="p-6 rounded-2xl border border-slate-800 text-slate-300 text-sm">
           No home tools selected. <button onClick={onNavigateToSettings} className="text-amber-300 underline">Customize your Home Screen in Settings</button>.
         </div>
       )}
       {/* Hero Welcome Banner */}
       {homePanels.welcome && <div className="relative overflow-hidden bg-gradient-to-br from-[#0F1522] via-[#131B2E] to-[#0A0E18] border border-slate-800/80 rounded-2xl p-6 sm:p-8 shadow-2xl">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="relative z-10 flex flex-col 2xl:flex-row 2xl:items-center justify-between gap-4">
           <div className="flex flex-col gap-2 max-w-2xl">
             <div className="flex items-center gap-2">
               <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[11px] font-mono-tabular font-semibold">
@@ -160,7 +160,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </span>
               <span className="text-xs text-slate-400">Game Boy to Switch + Pokémon HOME</span>
             </div>
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-100 tracking-tight">
+            <h1 className="text-2xl xl:text-3xl font-extrabold text-slate-100 tracking-tight">
               Welcome to HomeDex
             </h1>
             <p className="text-sm text-slate-300 leading-relaxed">
@@ -383,7 +383,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       </section>}
 
       {/* QUICK HUB NAVIGATION CARDS */}
-      {homePanels.quickLinks && <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {homePanels.quickLinks && <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {/* Card 1: Register Pokémon */}
         <div
           onClick={() => onNavigateToRegister()}

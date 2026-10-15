@@ -349,7 +349,7 @@ export function App() {
   const finishOpening = useCallback(() => setDexPhase('open'), []);
   const finishClosing = useCallback(() => setDexPhase('closed'), []);
   const [profileSubTab, setProfileSubTab] = useState<'boxes' | 'inventory' | 'friends' | 'trainer'>('boxes');
-  const navigateToProfile = (sub: 'boxes' | 'inventory' | 'friends') => {
+  const navigateToProfile = (sub: 'boxes' | 'inventory' | 'friends' | 'trainer') => {
     setProfileSubTab(sub);
     setFullPagePokemon(null);
     setActiveTab('profile');
@@ -2395,11 +2395,30 @@ export function App() {
           />
         ) : (
           <>
+            <div data-testid="home-layout" className={activeTab === 'home' ? `grid grid-cols-1 gap-5 items-start ${homePanels.trainerCard || homePanels.profileBoxes || homePanels.profileInventory || homePanels.profileFriends || homePanels.profileAvatar ? 'lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]' : ''}` : 'contents'}>
+              {activeTab === 'home' && (homePanels.trainerCard || homePanels.profileBoxes || homePanels.profileInventory || homePanels.profileFriends || homePanels.profileAvatar) && (
+                <aside aria-label="Your trainer and profile shortcuts" className="min-w-0 flex flex-col gap-4">
+                  {homePanels.trainerCard && <ProfileCard compact trainerName={displayTrainerName} avatar={avatar} ownedGames={normalizeToCanonicalGames(ownedGames)} gameProgress={gameProgress as Record<string,string[]>} isPublic={isPublic} />}
+                  {(homePanels.profileBoxes || homePanels.profileInventory || homePanels.profileFriends || homePanels.profileAvatar) && (
+                    <nav aria-label="Home profile shortcuts" className="bg-[#0F1522] border border-slate-800 rounded-2xl p-3 flex flex-col gap-2">
+                      {([
+                        { visible: homePanels.profileBoxes, tab: 'boxes', label: 'Boxes' },
+                        { visible: homePanels.profileInventory, tab: 'inventory', label: 'Inventory' },
+                        { visible: homePanels.profileFriends, tab: 'friends', label: 'Friends' },
+                        { visible: homePanels.profileAvatar, tab: 'trainer', label: 'Avatar Builder' },
+                      ] as const).filter(link => link.visible).map(link => (
+                        <button key={link.tab} type="button" onClick={() => navigateToProfile(link.tab)} className="text-left px-4 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-sm font-bold text-amber-200">{link.label} <span aria-hidden="true" className="float-right">→</span></button>
+                      ))}
+                    </nav>
+                  )}
+                </aside>
+              )}
+              <div className={activeTab === 'home' ? 'min-w-0 flex flex-col gap-5' : 'contents'}>
             {/* Top Global KPI Progress Strip */}
             <section
               style={{display: activeTab === 'register' || (activeTab === 'home' && !homePanels.nationalDex && !homePanels.livingDex && !homePanels.runningTotal) ? 'none' : undefined}}
               aria-label="Global Progress Summary"
-              className={`grid grid-cols-1 gap-4 ${activeTab !== 'home' || [homePanels.nationalDex,homePanels.livingDex,homePanels.runningTotal].filter(Boolean).length === 3 ? 'sm:grid-cols-3' : [homePanels.nationalDex,homePanels.livingDex,homePanels.runningTotal].filter(Boolean).length === 2 ? 'sm:grid-cols-2' : ''}`}
+              className={`grid grid-cols-1 gap-4 ${activeTab !== 'home' ? 'sm:grid-cols-3' : 'xl:grid-cols-2'}`}
             >
               <div style={{display: activeTab === 'home' && !homePanels.nationalDex ? 'none' : undefined}} className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-5 flex flex-col justify-between gap-2 shadow-lg">
                 <div className="flex items-center justify-between text-xs font-mono-tabular text-slate-400">
@@ -2532,6 +2551,9 @@ export function App() {
                 // ── END GAME PROGRESS TRACKING ──
               />
             )}
+
+              </div>
+            </div>
 
             {/* TAB 1: REGISTER POKÉMON */}
             {activeTab === 'register' && (

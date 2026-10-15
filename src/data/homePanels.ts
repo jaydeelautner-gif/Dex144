@@ -1,4 +1,9 @@
 export const HOME_PANELS = [
+  {id:'trainerCard',label:'Trainer card',description:'Your avatar, owned games and earned badge case in the Home sidebar.',group:'Trainer sidebar'},
+  {id:'profileBoxes',label:'Boxes shortcut',description:'Open your living boxes from the Home sidebar.',group:'Trainer sidebar'},
+  {id:'profileInventory',label:'Inventory shortcut',description:'Open your registered PokéPets from the Home sidebar.',group:'Trainer sidebar'},
+  {id:'profileFriends',label:'Friends shortcut',description:'Open your friends from the Home sidebar.',group:'Trainer sidebar'},
+  {id:'profileAvatar',label:'Avatar Builder shortcut',description:'Customize your trainer from the Home sidebar.',group:'Trainer sidebar'},
   {id:'nationalDex',label:'National Pokédex summary',description:'Caught count and completion percentage.',group:'Overview'},
   {id:'livingDex',label:'Living Dex summary',description:'HOME storage count and registered specimens.',group:'Overview'},
   {id:'runningTotal',label:'Owned games running total',description:'Catch totals for your selected owned games and DLC.',group:'Overview'},

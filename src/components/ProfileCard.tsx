@@ -17,7 +17,8 @@ export const ProfileCard: React.FC<{
   ownedGames: GameId[];
   gameProgress: Record<string, string[]>;
   isPublic?: boolean;
-}> = ({ trainerName, avatar, ownedGames, gameProgress, isPublic = false }) => {
+  compact?: boolean;
+}> = ({ trainerName, avatar, ownedGames, gameProgress, isPublic = false, compact = false }) => {
   const owned = React.useMemo(
     () => GAMES.filter((g) => ownedGames.includes(g.id)),
     [ownedGames]
@@ -46,7 +47,7 @@ export const ProfileCard: React.FC<{
   return (
     <section
       aria-label="Trainer card"
-      className="relative overflow-hidden rounded-3xl border-2 border-amber-400/60 shadow-[0_18px_45px_rgba(0,0,0,0.55)] bg-gradient-to-br from-[#B91C1C] via-[#DC2626] to-[#7F1D1D] p-5 sm:p-6 flex flex-col sm:flex-row gap-5"
+      className={`relative min-w-0 overflow-hidden rounded-3xl border-2 border-amber-400/60 shadow-[0_18px_45px_rgba(0,0,0,0.55)] bg-gradient-to-br from-[#B91C1C] via-[#DC2626] to-[#7F1D1D] p-5 flex flex-col gap-5 ${compact ? '' : 'sm:p-6 sm:flex-row'}`}
     >
       {/* Big translucent Pokéball watermark */}
       <svg viewBox="0 0 100 100" className="absolute -right-8 -bottom-10 w-52 h-52 opacity-15 pointer-events-none" aria-hidden="true">
@@ -57,7 +58,7 @@ export const ProfileCard: React.FC<{
       </svg>
 
       {/* Avatar + identity */}
-      <div className="relative z-10 flex items-center gap-4 shrink-0">
+      <div className={`relative z-10 flex items-center gap-4 shrink-0 ${compact ? 'flex-wrap' : ''}`}>
         <div className="rounded-full border-4 border-amber-300/90 shadow-[0_0_18px_rgba(251,191,36,0.4)] bg-[#0B0F17]">
           <TrainerAvatar config={avatar} size={96} />
         </div>
@@ -118,7 +119,7 @@ export const ProfileCard: React.FC<{
           {badgeRows.length === 0 ? (
             <span className="text-[11px] text-red-100/70 font-mono">No badge games owned yet.</span>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-1">
+            <div className={`grid grid-cols-1 gap-2 pr-1 ${compact ? 'max-h-72 overflow-y-auto' : 'sm:grid-cols-2 max-h-64 overflow-y-auto'}`}>
               {badgeRows.map((row) => {
                 const game = owned.find((g) => gameBadgeSprites(g.id)?.prefix === row.prefix)!;
                 const isJohto = row.prefix === 'gs' || row.prefix === 'hgss';
@@ -134,7 +135,7 @@ export const ProfileCard: React.FC<{
                     <GymBadgeStrip
                       gameId={game.id}
                       completedIds={gameProgress[row.prefix] ?? []}
-                      size={30}
+                      size={compact ? 24 : 30}
                       extra={isJohto
                         ? { sprite: 9, earned: (gameProgress[row.prefix] ?? []).includes(`${row.prefix}-kanto`), label: 'Kanto badges (all 8)' }
                         : null}
