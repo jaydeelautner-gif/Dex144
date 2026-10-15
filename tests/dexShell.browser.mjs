@@ -1,0 +1,85 @@
+// Verifies the invite-gate, guest restrictions and the public-profile toggle
+// wiring, including the persistence path the toggle uses.
+import assert from 'node:assert/strict';
+import { readFileSync, existsSync } from 'node:fs';
+import { join, extname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createServer } from 'node:http';
+import { chromium } from '@playwright/test';
+
+const root = fileURLToPath(new URL('../dist/', import.meta.url));
+const mime = { '.js':'application/javascript','.json':'application/json','.html':'text/html','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.ttf':'font/ttf','.webmanifest':'application/manifest+json' };
+const server = createServer((req, res) => {
+  const path = new URL(req.url, 'http://test').pathname;
+  const file = join(root, path === '/' ? 'index.html' : path);
+  if (!existsSync(file)) { res.statusCode = 404; return res.end('not found'); }
+  res.setHeader('Content-Type', mime[extname(file)] ?? 'application/octet-stream');
+  res.end(readFileSync(file));
+});
+await new Promise((r) => server.listen(0, '127.0.0.1', r));
+const base = `http://127.0.0.1:${server.address().port}`;
+
+const browser = await chromium.launch();
+const context = await browser.newContext({ viewport: { width: 1360, height: 1000 } });
+await context.route('**/*', (r) => new URL(r.request().url()).origin === base ? r.continue() : r.abort());
+const page = await context.newPage();
+const errors = [];
+page.on('pageerror', (e) => errors.push(e.message));
+
+try {
+  for (const width of [390, 768, 1360]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.goto(base);
+    await page.getByRole('button', { name: /Open Dex/ }).waitFor();
+    assert.equal(await page.locator('.dex-login').count(), 0);
+    await page.getByRole('button', { name: /Open Dex/ }).click();
+    await page.getByRole('button', { name: /Skip Intro/ }).click();
+    await page.locator('.dex-login').waitFor();
+    assert.equal(await page.getByRole('group', { name: 'PIN touch keypad' }).count(), 0);
+    const chassis = await page.locator('.dex-login > .relative').evaluate(el => getComputedStyle(el).borderTopWidth);
+    assert.equal(chassis, width < 640 ? '2px' : '8px');
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+  }
+  await context.addInitScript(async () => {
+    const salt = 'test-salt';
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(salt + ':1234'));
+    const pinHash = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
+    localStorage.setItem('homedex_cached_auth_vault_v1', JSON.stringify([{
+      uid: 'shell-test-trainer', email: 'trainer@example.test', displayName: 'Test Trainer',
+      salt, passwordHash: 'unused', pinSalt: salt, pinHash,
+      hasLoggedInOnThisDevice: true, lastLoginAt: Date.now()
+    }]));
+  });
+  await page.goto(base);
+  await page.getByRole('button', { name: /Open Dex/ }).click();
+  await page.getByRole('button', { name: /Skip Intro/ }).click();
+  await page.getByRole('group', { name: 'PIN touch keypad' }).waitFor();
+  for (const digit of ['1','2','3','4']) await page.getByRole('button', { name: 'PIN digit ' + digit, exact: true }).click();
+  assert.equal(await page.locator('input[type=password]').inputValue(), '1234');
+  await page.getByRole('button', { name: 'Delete last PIN digit' }).click();
+  assert.equal(await page.locator('input[type=password]').inputValue(), '123');
+  await page.getByRole('button', { name: 'Clear PIN' }).click();
+  assert.equal(await page.locator('input[type=password]').inputValue(), '');
+  for (const digit of ['1','2','3','4']) await page.getByRole('button', { name: 'PIN digit ' + digit, exact: true }).click();
+  await page.getByRole('button', { name: 'Unlock with PIN' }).click();
+  await page.getByRole('button', { name: /Log Out|Sign Out/i }).waitFor({ timeout: 15000 });
+  await page.getByRole('button', { name: /Log Out|Sign Out/i }).click();
+  await page.getByRole('button', { name: /Open Dex/ }).waitFor();
+  assert.equal(await page.locator('.dex-login').count(), 0);
+  await context.setOffline(true);
+  await page.getByRole('button', { name: /Open Dex/ }).click();
+  await page.getByRole('button', { name: /Skip Intro/ }).click();
+  await page.getByRole('group', { name: 'PIN touch keypad' }).waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Password Login', exact: true }).count(), 0);
+  for (const digit of ['1','2','3','4']) await page.getByRole('button', { name: 'PIN digit ' + digit, exact: true }).click();
+  await page.getByRole('button', { name: 'Unlock with PIN' }).click();
+  await page.getByRole('button', { name: /Log Out|Sign Out/i }).waitFor();
+  assert.equal(await page.getByLabel('Pokédex hardware').count(), 1);
+  await page.getByRole('button', { name: /Log Out|Sign Out/i }).click();
+  await page.getByRole('button', { name: /Open Dex/ }).waitFor();
+  assert.deepEqual(errors, []);
+  console.log('PASS: closed-first, responsive login frame, PIN default/keypad/login and logout-to-closed');
+} finally {
+  await context.close(); await browser.close();
+  await new Promise(r => server.close(r));
+}

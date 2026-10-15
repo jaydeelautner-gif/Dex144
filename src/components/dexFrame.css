@@ -1,0 +1,10 @@
+/* Preserve the screen area on phones; hardware detail returns on tablets. */
+@media (max-width: 639px) {
+  .dex-login { padding: 3px; }
+  .dex-login > .relative { border-width: 2px; border-radius: 12px; padding: 2px; gap: 0; }
+  .dex-login > .relative > .absolute,
+  .dex-login > .relative > .w-full { display: none; }
+  .dex-login > .relative > .relative { border-width: 1px; border-radius: 9px; padding: 10px; }
+  .dex-login > .relative > .relative > .absolute,
+  .dex-login > .relative > .relative > .relative:first-of-type { display: none; }
+}

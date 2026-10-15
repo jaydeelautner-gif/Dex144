@@ -28,6 +28,8 @@ page.on('pageerror', (e) => errors.push(e.message));
 await page.addInitScript(() => localStorage.clear());
 
 const skipIntro = async () => {
+  const open = page.getByRole('button', { name: /Open Dex/ });
+  if (await open.count()) await open.click();
   const skip = page.getByRole('button', { name: /Skip Intro/i });
   if (await skip.count()) { await skip.first().click(); await page.waitForTimeout(700); }
 };

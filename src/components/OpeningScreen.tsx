@@ -47,6 +47,8 @@ import { GameLogoBadge } from './GameLogoBadge';
 import { playGameboyPowerOnSound, primeGameboyAudio } from '../utils/gameboySound';
 import { PokedexOpeningAnimation } from './PokedexOpeningAnimation';
 
+import './dexFrame.css';
+
 interface OpeningScreenProps {
   dex: PokemonEntry[];
   onSuccessfulLogin: () => void;
@@ -74,7 +76,7 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
   const [lookupSuccessMsg, setLookupSuccessMsg] = useState<string | null>(null);
 
   // Right Column: Auth form state
-  const [authMode, setAuthMode] = useState<'password' | 'pin' | 'signup'>('password');
+  const [authMode, setAuthMode] = useState<'password' | 'pin' | 'signup'>(() => getCachedAuthAccounts().some(a => a.hasLoggedInOnThisDevice && hasPinSet(a.uid)) ? 'pin' : 'password');
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [showPassword, setShowPassword] = useState<boolean>(false);
@@ -101,7 +103,7 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
   const [showMobileLookupModal, setShowMobileLookupModal] = useState<boolean>(false);
 
   // Pokédex Opening Animation state
-  const [showPokedexAnimation, setShowPokedexAnimation] = useState<boolean>(true);
+  const [showPokedexAnimation, setShowPokedexAnimation] = useState<boolean>(false);
   const [bootScanlineActive, setBootScanlineActive] = useState<boolean>(false);
 
   const handleAnimationComplete = useCallback(() => {
@@ -122,8 +124,8 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
       setSelectedPinAccount(accounts[0].email);
     }
     // If device is offline and cached accounts exist, default to password or pin if configured
-    if (!isOnline && accounts.length > 0) {
-      const firstWithPin = accounts.find((a) => hasPinSet(a.uid));
+    if (accounts.length > 0) {
+      const firstWithPin = accounts.find((a) => a.hasLoggedInOnThisDevice && hasPinSet(a.uid));
       if (firstWithPin) {
         setSelectedPinAccount(firstWithPin.email);
       }
@@ -341,7 +343,7 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
     : null;
 
   return (
-    <div className="w-full min-h-[calc(100vh-1rem)] flex items-center justify-center p-2 sm:p-4 md:p-6 lg:p-8 select-text relative">
+    <div className="dex-login w-full min-h-[calc(100vh-1rem)] flex items-center justify-center p-2 sm:p-4 md:p-6 lg:p-8 select-text relative">
       {/* 1. Early-Style Pokédex Opening Animation Overlay */}
       {showPokedexAnimation && (
         <PokedexOpeningAnimation onComplete={handleAnimationComplete} />
@@ -743,8 +745,8 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
             </div>
 
             {/* Mode Selector */}
-            <div className={`grid ${hasUnlockedSignup ? 'grid-cols-3' : 'grid-cols-2'} p-1 rounded-xl bg-slate-900 border border-slate-800 text-xs font-bold`}>
-              <button
+            <div className="flex gap-1 [&>button]:flex-1 p-1 rounded-xl bg-slate-900 border border-slate-800 text-xs font-bold">
+              {(isOnline || !cachedAccounts.some(a => a.hasLoggedInOnThisDevice)) && <button
                 type="button"
                 onClick={() => {
                   setAuthMode('password');
@@ -757,7 +759,7 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
                 }`}
               >
                 Password Login
-              </button>
+              </button>}
               <button
                 type="button"
                 onClick={() => {
@@ -833,7 +835,7 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
             )}
 
             {/* PASSWORD LOGIN FORM */}
-            {authMode === 'password' && (
+            {authMode === 'password' && (isOnline || !cachedAccounts.some(a => a.hasLoggedInOnThisDevice)) && (
               <form onSubmit={handlePasswordSubmit} className="flex flex-col gap-3.5">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
@@ -901,12 +903,15 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
               </form>
             )}
 
+            {authMode === 'password' && !isOnline && cachedAccounts.some(a => a.hasLoggedInOnThisDevice) && (
+              <p className="text-sm text-amber-200">Connect to the internet to use your password, or choose Quick PIN if you have configured a PIN on this device.</p>
+            )}
             {/* QUICK PIN LOGIN FORM (OFFLINE QUICK ENTRY) */}
             {authMode === 'pin' && (
               <form onSubmit={handlePinSubmit} className="flex flex-col gap-3.5">
                 <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-200 text-xs leading-relaxed">
                   <strong className="text-purple-300 font-bold block mb-1">
-                    Offline Quick-Entry PIN
+                    Quick-Entry PIN
                   </strong>
                   Enter your configured PIN to quickly unlock this device without re-entering your full password.
                   <span className="block mt-1 text-[11px] text-purple-300/80">
@@ -947,6 +952,16 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
                   />
                 </div>
 
+                <div role="group" aria-label="PIN touch keypad" className="grid grid-cols-3 gap-2">
+                  {['1','2','3','4','5','6','7','8','9','Clear','0','⌫'].map(key => (
+                    <button key={key} type="button" disabled={isSubmittingAuth}
+                      aria-label={key === '⌫' ? 'Delete last PIN digit' : key === 'Clear' ? 'Clear PIN' : `PIN digit ${key}`}
+                      onClick={() => setPin(value => key === 'Clear' ? '' : key === '⌫' ? value.slice(0, -1) : (value + key).slice(0, 8))}
+                      className="min-h-12 rounded-xl bg-slate-800 border border-slate-600 text-white text-lg font-bold active:bg-purple-700 disabled:opacity-50">
+                      {key}
+                    </button>
+                  ))}
+                </div>
                 {authErrorMessage && (
                   <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-300 text-xs flex items-start gap-2">
                     <AlertCircle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
@@ -956,7 +971,7 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
 
                 <button
                   type="submit"
-                  disabled={isSubmittingAuth || !pin}
+                  disabled={isSubmittingAuth || pin.length < 4}
                   className="w-full mt-1 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-500 hover:from-purple-500 hover:to-indigo-400 text-white font-black text-sm tracking-wide shadow-lg shadow-purple-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmittingAuth ? (

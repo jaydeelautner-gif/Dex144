@@ -82,6 +82,9 @@ import { AuthModal } from './components/AuthModal';
 import { DeviceAccessModal } from './components/DeviceAccessModal';
 import { FriendsView } from './components/FriendsView';
 import { OpeningScreen } from './components/OpeningScreen';
+import { ClosedDexCover, PokedexClosingAnimation } from './components/DexCover';
+import { DexFrame } from './components/DexFrame';
+import { PokedexOpeningAnimation } from './components/PokedexOpeningAnimation';
 import { playGameboyPowerOnSound } from './utils/gameboySound';
 
 import {
@@ -334,6 +337,9 @@ export function App() {
 
   // Navigation State
   const [activeTab, setActiveTab] = useState<MainWorkspaceTab>('home');
+  const [dexPhase, setDexPhase] = useState<'closed' | 'opening' | 'open' | 'closing'>('closed');
+  const finishOpening = useCallback(() => setDexPhase('open'), []);
+  const finishClosing = useCallback(() => setDexPhase('closed'), []);
   const [profileSubTab, setProfileSubTab] = useState<'boxes' | 'inventory' | 'friends'>('boxes');
   const navigateToProfile = (sub: 'boxes' | 'inventory' | 'friends') => {
     setProfileSubTab(sub);
@@ -1651,7 +1657,14 @@ export function App() {
   };
 
   const handleSignOut = async () => {
-    await signOutUser();
+    setDexPhase('closing');
+    try {
+      await signOutUser();
+    } catch {
+      setDexPhase('open');
+      setToast({ message: 'Could not log out. Please try again.', type: 'error' });
+      return;
+    }
     setTrainerName('Guest');
     setMyFriendCode(undefined);
     setIncomingRequests([]);
@@ -1941,6 +1954,10 @@ export function App() {
     ? trainerName.trim()
     : 'Guest';
 
+  if (dexPhase === 'closed') return <ClosedDexCover onOpen={() => setDexPhase('opening')} />;
+  if (dexPhase === 'opening') return <PokedexOpeningAnimation onComplete={finishOpening} />;
+  if (dexPhase === 'closing') return <PokedexClosingAnimation onClosed={finishClosing} />;
+
   // Unauthenticated Guest Flow: Opening Screen with Random PokéPet, Public Lookups, and Login
   if (!user) {
     return (
@@ -2125,6 +2142,7 @@ export function App() {
   }
 
   return (
+    <DexFrame>
     <div className="min-h-screen bg-[#0B0F17] text-slate-100 flex flex-col">
       {/* Sticky App Header */}
       <header className="sticky top-0 z-30 h-14 bg-[#0B0F17]/95 backdrop-blur-md border-b border-slate-800/80 px-4 sm:px-6 flex items-center justify-between gap-4">
@@ -3262,6 +3280,7 @@ export function App() {
         onClose={() => setIsDeviceModalOpen(false)}
       />
     </div>
+    </DexFrame>
   );
 }
 
