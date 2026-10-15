@@ -1,3 +1,5 @@
+import { evolvedAwaySpecies } from '../utils/pokepetEvolution';
+import { reacquisitionHint, hasRecordedWildEncounter } from '../utils/reacquisition';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Sparkles,
@@ -51,6 +53,8 @@ export interface PokemonSuggestion {
   lockedMilestoneIds?: string[];
   /** Species is in an unchosen starter line with no alternate way in this game → trade only. */
   starterTradeOnly?: boolean;
+  reacquisitionNote?: string;
+  reacquisitionWild?: boolean;
   /** The alternate way this game offers to get an unchosen starter line species. */
   starterAlternateHow?: string;
 }
@@ -142,6 +146,7 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
       ? (GAME_ID_TO_TRACKABLE as Record<string, string | undefined>)[gameFilter]
       : undefined;
     const hubChosenId = normalizeStarterChoiceId(hubGroup, starterChoices?.[hubGroup ?? '']);
+    const evolvedAway = new Set(gameFilter ? evolvedAwaySpecies(inventory, gameFilter) : []);
     const unchosenStarterLineIds = new Set(
       getUnchosenStarterLineIds(hubGroup, hubChosenId)
     );
@@ -165,6 +170,8 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
       // uncaught Pokémon, including ones that just unlocked) — they are
       // flagged with a "Locked until …" chip instead of being dropped.
 
+      const reacquisitionNote = gameFilter && evolvedAway.has(p.id) ? reacquisitionHint(encounters, p.id, gameFilter) : undefined;
+
       // Tag unchosen starter lines for this game tab.
       let starterTradeOnly: boolean | undefined;
       let starterAlternateHow: string | undefined;
@@ -184,7 +191,7 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
       const consoleObtainable = obtainableOwned.filter((gId) => gId !== 'pogo');
 
       const isPogoLivingDex = pogoLivingPokemonIds.has(p.id);
-      const isUncaught = !caughtSet.has(p.id);
+      const isUncaught = !caughtSet.has(p.id) || evolvedAway.has(p.id);
       const isMissingLiving = !livingSet.has(p.id);
 
       // Category 1: Living Dex Quality Upgrade (GO Replacement)
@@ -206,7 +213,7 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
           badgeColor: 'amber',
           primaryGameId: primaryGId,
           primaryGameTitle: primaryTitle,
-          whereToFind: realWhereToFind || primaryAvail?.whereToFind || 'In-game catchable',
+          whereToFind: reacquisitionNote || realWhereToFind || primaryAvail?.whereToFind || 'In-game catchable',
           versionExclusive: primaryAvail?.versionExclusive || 'Both Versions',
           requiresDlc: Boolean(primaryAvail?.requiresDlc),
           dlcName: primaryAvail?.dlcName,
@@ -216,6 +223,8 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
           evolutionTip: stage?.detail,
           lockedMilestoneIds: lockedMilestonesByDex?.get(p.id),
           starterTradeOnly,
+          reacquisitionNote,
+          reacquisitionWild: gameFilter ? hasRecordedWildEncounter(encounters, p.id, gameFilter) : undefined,
           starterAlternateHow,
         });
         continue; // Already assigned high-priority upgrade
@@ -240,7 +249,7 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
           badgeColor: 'emerald',
           primaryGameId: primaryGId,
           primaryGameTitle: primaryTitle,
-          whereToFind: realWhereToFind || primaryAvail?.whereToFind || 'In-game catchable',
+          whereToFind: reacquisitionNote || realWhereToFind || primaryAvail?.whereToFind || 'In-game catchable',
           versionExclusive: primaryAvail?.versionExclusive || 'Both Versions',
           requiresDlc: Boolean(primaryAvail?.requiresDlc),
           dlcName: primaryAvail?.dlcName,
@@ -250,6 +259,8 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
           evolutionTip: stage?.detail,
           lockedMilestoneIds: lockedMilestonesByDex?.get(p.id),
           starterTradeOnly,
+          reacquisitionNote,
+          reacquisitionWild: gameFilter ? hasRecordedWildEncounter(encounters, p.id, gameFilter) : undefined,
           starterAlternateHow,
         });
         continue;
@@ -272,7 +283,7 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
           badgeColor: 'sky',
           primaryGameId: primaryGId,
           primaryGameTitle: primaryTitle,
-          whereToFind: realWhereToFind || primaryAvail?.whereToFind || 'In-game catchable',
+          whereToFind: reacquisitionNote || realWhereToFind || primaryAvail?.whereToFind || 'In-game catchable',
           versionExclusive: primaryAvail?.versionExclusive || 'Both Versions',
           requiresDlc: Boolean(primaryAvail?.requiresDlc),
           dlcName: primaryAvail?.dlcName,
@@ -281,6 +292,8 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
           boxSlot: p.boxSlot,
           lockedMilestoneIds: lockedMilestonesByDex?.get(p.id),
           starterTradeOnly,
+          reacquisitionNote,
+          reacquisitionWild: gameFilter ? hasRecordedWildEncounter(encounters, p.id, gameFilter) : undefined,
           starterAlternateHow,
         });
       }
@@ -522,7 +535,9 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
 
                   {/* Status Badge */}
                   <div className="shrink-0 text-right flex flex-col items-end gap-1">
-                    {item.starterTradeOnly ? (
+                    {item.reacquisitionNote ? (
+                      <span className="px-2 py-0.5 rounded-full border border-amber-500/40 text-amber-300 text-[10px] font-bold">{item.reacquisitionWild ? 'Wild reacquisition' : 'Trade / other acquisition'}</span>
+                    ) : item.starterTradeOnly ? (
                       <span className="px-2 py-0.5 rounded-full bg-rose-500/20 border border-rose-500/50 text-rose-300 text-[10px] font-mono font-bold flex items-center gap-1">
                         <ArrowLeftRight className="w-2.5 h-2.5" />
                         <span>Trade Only</span>

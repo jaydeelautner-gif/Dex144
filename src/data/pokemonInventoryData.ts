@@ -3,6 +3,20 @@ import { GAMES } from './pokemonData';
 
 export type PokemonGender = 'male' | 'female' | 'genderless';
 
+export interface EvolutionRecord {
+  fromSpeciesId: number;
+  previousGameId?: GameId;
+  toSpeciesId: number;
+  fromLevel: number;
+  toLevel: number;
+  fromVariantId: string;
+  toVariantId: string;
+  gameId: GameId;
+  usedItem: boolean;
+  itemName: string;
+  evolvedAt: number;
+}
+
 export interface PokemonInstance {
   pokeId: string; // 12-char unique identifier: starts with "ID" followed by 10 alphanumeric chars (e.g. "ID8F3K9L2M4P")
   pokemonId: number; // 1 to 1025
@@ -27,6 +41,9 @@ export interface PokemonInstance {
   rescuedAt?: number; // Timestamp when rescued
   createdAt: number;
   updatedAt: number;
+  /** Current game is distinct from the immutable origin. */
+  currentGameId?: GameId;
+  evolutionHistory?: EvolutionRecord[];
 }
 
 /**
@@ -150,11 +167,15 @@ export function formatOriginSourceLabel(
  * - If NOT stored in Pokémon HOME: "(stored in [console of the pokemon's caught game])"
  */
 export function formatStorageLocationLabel(
-  instance: Pick<PokemonInstance, 'storedInHome' | 'isHomeGift' | 'gameId'>,
+  instance: Pick<PokemonInstance, 'storedInHome' | 'isHomeGift' | 'gameId' | 'currentGameId'>,
   customPlatform?: string
 ): string {
-  if (instance.storedInHome || instance.isHomeGift) {
+  if (instance.storedInHome) {
     return 'Stored in Pokémon HOME';
+  }
+  if (instance.currentGameId) {
+    const current = GAMES.find(g => g.id === instance.currentGameId);
+    if (current) return `(stored in ${current.shortTitle} · ${current.platform})`;
   }
   let platform = customPlatform;
   if (!platform && instance.gameId) {

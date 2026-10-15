@@ -1,3 +1,6 @@
+import type { PokemonInstance } from '../data/pokemonInventoryData';
+import { evolvedAwaySpecies } from '../utils/pokepetEvolution';
+import { reacquisitionHint } from '../utils/reacquisition';
 import React, { useMemo } from 'react';
 import { Trophy, Sparkles, Check, X, ArrowLeftRight } from 'lucide-react';
 import type { GameId, PokemonEntry, DlcId, GameCatchesMap } from '../data/pokemonData';
@@ -35,6 +38,7 @@ interface MilestoneUnlocksPanelProps {
   ownedDlcs: DlcId[];
   /** Per-game registered catches — drives per-game evolution suggestions. */
   gameCatches?: GameCatchesMap;
+  inventory?: PokemonInstance[];
   /** The active Catch Hub game (canonical id). Evolution suggestions are
    *  computed for this game: species uncaught here whose lower stage IS
    *  caught here. */
@@ -99,6 +103,7 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
   onNavigateToProgress,
   ownedDlcs,
   gameCatches,
+  inventory = [],
   activeGameId,
   groupFilter,
 }) => {
@@ -252,6 +257,7 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
 
         for (const p of dex) {
           if (caughtSet.has(p.id)) continue;
+          if (activeGameId && p.availability[activeGameId]?.reacquisitionMode === 'trade_or_other') continue;
           if (lockedAtStart.has(p.id)) continue;
           const isStarter = starters.some((s) => s.id === p.id);
           if (isStarter) continue; // starters live in the dedicated choice row
@@ -321,6 +327,7 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
 
         for (const p of dex) {
           if (caughtSet.has(p.id)) continue;
+          if (activeGameId && p.availability[activeGameId]?.reacquisitionMode === 'trade_or_other') continue;
           if (stillLocked.has(p.id)) continue;
           if (!isCatchableInWild(p, members)) continue; // evolution-only
           const previousCompleted = completed
@@ -369,6 +376,8 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
     return out;
   }, [progress, ownedGames, ownedDlcs, dex, caughtSet, starterChoices, encounters, groupFilter, gameCatches, activeGameId]);
 
+  const reacquireIds = activeGameId ? evolvedAwaySpecies(inventory, activeGameId) : [];
+
   const hasContent = rows.some(
     (r) =>
       r.freshSpecies.length > 0 ||
@@ -397,6 +406,15 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
           </div>
         </div>
       </div>
+
+      {!!reacquireIds.length && activeGameId && (
+        <section className="rounded-xl border border-amber-500/30 p-3 flex flex-col gap-2">
+          <h3 className="text-sm font-bold text-amber-300">Uncaught after evolution — acquisition hints</h3>
+          {reacquireIds.map(id => <button key={id} onClick={() => { const p = dex.find(p => p.id === id); if (p) onSelectPokemon(p); }} className="text-left text-xs text-slate-300 p-2 bg-slate-900 rounded-lg">
+            <strong>{dex.find(p => p.id === id)?.name ?? `#${id}`}: </strong>{reacquisitionHint(encounters, id, activeGameId)}
+          </button>)}
+        </section>
+      )}
 
       {!hasContent ? (
         <div className="p-6 rounded-xl bg-[#0B0F17] border border-slate-800 text-center text-xs text-slate-400">
@@ -446,7 +464,9 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
                       {row.chosenStarter
                         ? caughtSet.has(row.chosenStarter.id)
                           ? 'Your starter — already caught ✓'
-                          : 'Your starter — catch it to complete the choice!'
+                          : inventory.some(p => p.evolutionHistory?.some(e => e.fromSpeciesId === row.chosenStarter!.id))
+                            ? 'Your starter has evolved — see acquisition hints for another specimen'
+                            : 'Your starter — catch it to complete the choice!'
                         : 'Choose your starter (pick one of three)'}
                       {row.chosenStarter && (
                         <button

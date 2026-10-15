@@ -10,7 +10,9 @@
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
     "fetch:encounters": "node scripts/fetchEncounters.mjs",
-    "generate:gates": "node scripts/generateMilestoneGates.mjs"
+    "generate:gates": "node scripts/generateMilestoneGates.mjs",
+    "fetch:evolution-edges": "node scripts/fetchEvolutionEdges.mjs",
+    "test:evolution": "tsx tests/pokepetEvolution.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

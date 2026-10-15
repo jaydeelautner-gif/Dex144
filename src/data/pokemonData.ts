@@ -194,6 +194,8 @@ export interface GameInfo {
 }
 
 export interface GameAvailability {
+  /** Runtime collection hint after evolving the last specimen in this game. */
+  reacquisitionMode?: 'wild' | 'trade_or_other' | 'unverified';
   gameId: GameId;
   gameShortTitle: string;
   status: 'base' | 'dlc' | 'transfer_only' | 'unavailable';

@@ -21,6 +21,7 @@ interface PokepetTrainerCardModalProps {
   pokemon: PokemonEntry | null;
   trainerName: string;
   onClose: () => void;
+  onEvolve?: () => void;
 }
 
 export const PokepetTrainerCardModal: React.FC<PokepetTrainerCardModalProps> = ({
@@ -28,6 +29,7 @@ export const PokepetTrainerCardModal: React.FC<PokepetTrainerCardModalProps> = (
   pokemon,
   trainerName,
   onClose,
+  onEvolve,
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -173,8 +175,19 @@ export const PokepetTrainerCardModal: React.FC<PokepetTrainerCardModalProps> = (
           </div>
         </div>
 
+        {!!instance.evolutionHistory?.length && (
+          <section className="max-h-40 overflow-y-auto text-xs text-slate-300" aria-label="Evolution history">
+            <h3 className="font-bold text-teal-300">Evolution &amp; item history</h3>
+            {instance.evolutionHistory.map((e, i) => <p key={i} className="py-1 border-b border-slate-800">
+              #{e.fromSpeciesId} → #{e.toSpeciesId} · Lv {e.fromLevel} → {e.toLevel} · {GAMES.find(g => g.id === e.gameId)?.shortTitle ?? e.gameId}<br />
+              {e.usedItem ? `Item used: ${e.itemName}` : 'No item used'} · {new Date(e.evolvedAt).toLocaleString()}
+            </p>)}
+          </section>
+        )}
+
         {/* Modal Actions */}
         <div className="flex items-center justify-end gap-3">
+          {onEvolve && <button onClick={onEvolve} className="px-4 py-2 rounded-xl bg-teal-800 text-teal-100 font-bold text-xs">Evolve</button>}
           <button
             type="button"
             onClick={onClose}

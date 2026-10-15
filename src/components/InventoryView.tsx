@@ -38,6 +38,7 @@ interface InventoryViewProps {
   inventory: PokemonInstance[];
   rescueBinCount?: number;
   onUpdateInstance: (instance: PokemonInstance) => void;
+  onRequestEvolve: (instance: PokemonInstance) => void;
   onDeleteInstance: (pokeId: string) => void;
   onOpenPokemonPage: (pokemon: PokemonEntry) => void;
   onOpenTrainerCardForPokeId: (instance: PokemonInstance) => void;
@@ -50,6 +51,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   inventory,
   rescueBinCount = 0,
   onUpdateInstance,
+  onRequestEvolve,
   onDeleteInstance,
   onOpenPokemonPage,
   onOpenTrainerCardForPokeId,
@@ -337,6 +339,8 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                   </div>
 
                   <div className="flex items-center gap-1">
+                    <button type="button" onClick={() => { setEditingPokeId(null); onRequestEvolve(item); }}
+                      className="px-2 py-1.5 rounded-lg bg-teal-900 text-teal-200 text-xs border border-teal-700" title="Evolve this PokéPet while retaining its POKEID">Evolve</button>
                     {/* View Specimen Trainer Card */}
                     <button
                       type="button"

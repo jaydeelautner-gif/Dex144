@@ -334,6 +334,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               ownedGames={ownedGames}
               ownedDlcs={ownedDlcs}
               gameCatches={gameCatches}
+              inventory={inventory}
               activeGameId={effectiveCatchGame ?? undefined}
               dex={dex}
               caughtSet={caughtSet}

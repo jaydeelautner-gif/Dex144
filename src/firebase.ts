@@ -28,6 +28,7 @@ import {
 
 import {
   getFirestore,
+  runTransaction,
   collection,
   query,
   where,
@@ -138,6 +139,9 @@ export const MAX_OWNED_DLCS_SIZE = 20;
 export const MAX_DLC_ID_LENGTH = 40;
 export const MAX_INVENTORY_ITEMS_SIZE = 2000;
 
+import type { EvolutionRecord } from './data/pokemonInventoryData';
+import { sanitizeEvolutionHistory } from './utils/evolutionHistory';
+
 export interface SerializedPokemonInstance {
   pokeId: string;
   pokemonId: number;
@@ -162,6 +166,8 @@ export interface SerializedPokemonInstance {
   rescuedAt?: number;
   createdAt: number;
   updatedAt: number;
+  currentGameId?: string;
+  evolutionHistory?: EvolutionRecord[];
 }
 
 /**
@@ -292,6 +298,8 @@ export function sanitizeInventory(raw: unknown): SerializedPokemonInstance[] {
     if (rec.trainerName) {
       inst.trainerName = String(rec.trainerName).slice(0, 60);
     }
+    if (typeof rec.currentGameId === 'string' && ALL_GAME_IDS.includes(rec.currentGameId as GameId)) inst.currentGameId = rec.currentGameId;
+    if (Array.isArray(rec.evolutionHistory)) inst.evolutionHistory = sanitizeEvolutionHistory(rec.evolutionHistory);
     if (typeof rec.rescuedAt === 'number') {
       inst.rescuedAt = rec.rescuedAt;
     }
@@ -1251,6 +1259,8 @@ export async function getUserRegisteredPokepets(uid: string): Promise<Serialized
             createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : Date.now(),
             updatedAt: data.updatedAt?.toMillis ? data.updatedAt.toMillis() : Date.now(),
           };
+          item.evolutionHistory = sanitizeEvolutionHistory(data.evolutionHistory);
+          if (data.currentGameId) item.currentGameId = String(data.currentGameId);
           if (data.nickname) item.nickname = String(data.nickname);
           if (data.notes) item.notes = String(data.notes);
           if (data.gameId) item.gameId = String(data.gameId) as any;
@@ -1333,6 +1343,8 @@ export async function savePokepetToUniversalDatabase(
     gameId: item.gameId || null,
     nickname: item.nickname || '',
     notes: item.notes || '',
+    currentGameId: item.currentGameId || null,
+    evolutionHistory: sanitizeEvolutionHistory(item.evolutionHistory),
     livingBoxNumber: item.livingBoxNumber || null,
     livingBoxSlot: item.livingBoxSlot || null,
     createdAt: serverTimestamp(),
@@ -1394,6 +1406,8 @@ export async function updatePokepetInUniversalDatabase(
       gameId: item.gameId || null,
       nickname: item.nickname || '',
       notes: item.notes || '',
+      currentGameId: item.currentGameId || null,
+      evolutionHistory: sanitizeEvolutionHistory(item.evolutionHistory),
       livingBoxNumber: item.livingBoxNumber || null,
       livingBoxSlot: item.livingBoxSlot || null,
       updatedAt: serverTimestamp(),
@@ -1404,6 +1418,31 @@ export async function updatePokepetInUniversalDatabase(
       payload: { instance: item, ownerId, trainerName },
     });
   }
+}
+
+/** Atomic species replacement under the SAME POKEID. No delete/re-register,
+ * no offline queue (avoid stale species replay), and optimistic-concurrency checks. */
+export async function persistPokepetEvolution(
+  uid: string, previous: SerializedPokemonInstance, next: SerializedPokemonInstance, trainerName: string
+): Promise<void> {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) throw new Error('Reconnect before evolving so both records can be updated atomically.');
+  if (previous.pokeId !== next.pokeId || previous.gender !== next.gender) throw new Error('Evolution must preserve POKEID and gender.');
+  const clean = sanitizeInventory([next])[0];
+  if (!clean) throw new Error('Invalid evolved PokéPet.');
+  const userRef = doc(db, 'userDexProfiles', uid, 'inventory', clean.pokeId);
+  const registryRef = doc(db, 'registeredPokepets', clean.pokeId);
+  await runTransaction(db, async tx => {
+    const userSnap = await tx.get(userRef);
+    const registrySnap = await tx.get(registryRef);
+    if (!userSnap.exists() || userSnap.data().pokemonId !== previous.pokemonId || userSnap.data().updatedAt !== previous.updatedAt) throw new Error('This PokéPet was changed on another device. Reopen it before evolving.');
+    if (registrySnap.exists() && (registrySnap.data().ownerId !== uid || registrySnap.data().pokemonId !== previous.pokemonId)) throw new Error('The registry record has changed; evolution was not applied.');
+    const metadata = { ownerId: uid, trainerName: sanitizeTrainerName(trainerName) };
+    tx.set(userRef, removeUndefinedProperties({ ...clean, ...metadata }));
+    tx.set(registryRef, removeUndefinedProperties({ ...clean, ...metadata,
+      livingBoxNumber: clean.livingBoxNumber ?? null, livingBoxSlot: clean.livingBoxSlot ?? null,
+      createdAt: registrySnap.exists() ? registrySnap.data().createdAt : serverTimestamp(), updatedAt: serverTimestamp(),
+    }));
+  });
 }
 
 export async function deletePokepetFromUniversalDatabase(pokeId: string): Promise<void> {
@@ -1478,6 +1517,8 @@ export async function searchPokepetByPokeId(
         livingBoxNumber: data.livingBoxNumber ? Number(data.livingBoxNumber) : undefined,
         livingBoxSlot: data.livingBoxSlot ? Number(data.livingBoxSlot) : undefined,
         notes: data.notes ? String(data.notes) : undefined,
+        currentGameId: data.currentGameId ? String(data.currentGameId) : undefined,
+        evolutionHistory: sanitizeEvolutionHistory(data.evolutionHistory),
         ownerId: data.ownerId ? String(data.ownerId) : undefined,
         trainerName: data.trainerName ? String(data.trainerName) : undefined,
         isRescued: Boolean(data.isRescued),

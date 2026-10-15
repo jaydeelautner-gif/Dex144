@@ -1,3 +1,8 @@
+import { applyEvolutionAcquisitionHints } from './utils/reacquisition';
+import { useEncounterDataset } from './data/encountersData';
+import { EvolvePokepetModal } from './components/EvolvePokepetModal';
+import { evolvePokepet, type EvolutionRequest } from './utils/pokepetEvolution';
+import { persistPokepetEvolution } from './firebase';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Search,
@@ -303,7 +308,8 @@ function isExclusiveLabel(label: string): boolean {
 }
 
 export function App() {
-  const dex = useMemo(() => buildInitialNationalDex(), []);
+  const baseDex = useMemo(() => buildInitialNationalDex(), []);
+  const { dataset: acquisitionDataset } = useEncounterDataset();
 
   // Shared Public Stats Profile URL param (?publicProfile=UID)
   const [sharedProfileUid, setSharedProfileUid] = useState<string | null>(() => {
@@ -337,6 +343,7 @@ export function App() {
 
   // Active Specimen Trainer Card Modal
   const [activeTrainerCardInstance, setActiveTrainerCardInstance] = useState<PokemonInstance | null>(null);
+  const [evolvingPokeId, setEvolvingPokeId] = useState<string | null>(null);
 
   // Auth & Multi-Device Modals
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
@@ -385,6 +392,8 @@ export function App() {
   const [inventory, setInventory] = useState<PokemonInstance[]>(() =>
     loadInventoryFromStorage()
   );
+
+  const dex = useMemo(() => applyEvolutionAcquisitionHints(baseDex, inventory, acquisitionDataset), [baseDex, inventory, acquisitionDataset]);
 
   // 30-Day Rescue Bin State
   const [rescueBin, setRescueBin] = useState<RescueBinItem[]>(() =>
@@ -833,6 +842,8 @@ export function App() {
         rescuedAt: inv.rescuedAt,
         createdAt: inv.createdAt,
         updatedAt: inv.updatedAt,
+        currentGameId: inv.currentGameId as GameId | undefined,
+        evolutionHistory: inv.evolutionHistory,
       }));
       setInventory(mapped);
     });
@@ -1102,6 +1113,37 @@ export function App() {
       }
     }
   }, [user, trainerName]);
+
+  // Evolution updates one identity, never deletes/re-registers a specimen.
+  const handleEvolvePokepet = useCallback(async (request: EvolutionRequest) => {
+    const old = inventory.find(p => p.pokeId === request.pokeId);
+    if (!old) throw new Error('This PokéPet no longer exists.');
+    const updated = evolvePokepet(old, request, dex, inventory);
+    if (user?.uid) await persistPokepetEvolution(user.uid, old as SerializedPokemonInstance, updated as SerializedPokemonInstance, trainerName);
+    // Commit locally only after both cloud documents succeeded (or guest-local save).
+    setInventory(prev => prev.map(p => p.pokeId === old.pokeId ? updated : p));
+    setGameCatches(prev => {
+      const map = { ...prev };
+      const affected = new Set([old.gameId, old.currentGameId, request.gameId].filter(Boolean) as GameId[]);
+      for (const game of affected) {
+        const another = inventory.some(p => p.pokeId !== old.pokeId && p.pokemonId === old.pokemonId && (p.currentGameId ?? p.gameId) === game);
+        map[game] = another ? (prev[game] ?? []) : (prev[game] ?? []).filter(id => id !== old.pokemonId);
+      }
+      map[request.gameId] = [...new Set([...(map[request.gameId] ?? []), updated.pokemonId])];
+      return map;
+    });
+    setCaughtVariants(prev => [...new Set([...prev.filter(id => !id.startsWith(`${old.pokemonId}:`) || inventory.some(p => p.pokeId !== old.pokeId && p.variantId === id)), updated.variantId])]);
+    if (!inventory.some(p => p.pokeId !== old.pokeId && p.pokemonId === old.pokemonId && p.isInLivingBox && p.storedInHome)) {
+      setBoxSelectedVariants(prev => { const map = parseBoxSelectedVariants(prev); map.delete(old.pokemonId); return serializeBoxSelectedVariants(map); });
+      setBoxSelectedGames(prev => { const map = parseBoxSelectedGames(prev); map.delete(old.pokemonId); return serializeBoxSelectedGames(map); });
+    }
+    if (updated.isInLivingBox) {
+      setBoxSelectedVariants(prev => { const map = parseBoxSelectedVariants(prev); map.set(updated.pokemonId, updated.variantId); return serializeBoxSelectedVariants(map); });
+      setBoxSelectedGames(prev => { const map = parseBoxSelectedGames(prev); map.set(updated.pokemonId, request.gameId); return serializeBoxSelectedGames(map); });
+    }
+    setActiveTrainerCardInstance(null);
+    setToast({ message: `PokéPet evolved — ${updated.pokeId} retained. Evolution and item use logged.`, type: 'success' });
+  }, [inventory, dex, user, trainerName]);
 
   // Delete instance → moves to 30-Day Rescue Bin
   const handleDeleteInstance = useCallback((pokeId: string) => {
@@ -1606,7 +1648,7 @@ export function App() {
       const primaryAvail = p.availability[primaryGameId];
       const gameTitle = primaryGameMeta?.shortTitle || primaryAvail?.gameShortTitle || primaryGameId.toUpperCase();
       const otherCount = obtainableOwnedGames.length - 1;
-      const versExcl = primaryAvail?.versionExclusive || 'Both Versions';
+      const versExcl = primaryAvail?.reacquisitionMode === 'trade_or_other' ? 'No recorded wild route — trade / other acquisition' : primaryAvail?.versionExclusive || 'Both Versions';
       const whereFind = primaryAvail?.whereToFind || 'In-game catchable';
       const shortLabel =
         otherCount > 0
@@ -1645,7 +1687,7 @@ export function App() {
       if (selectedGame !== 'all') {
         const avail = p.availability[selectedGame];
         if (!avail) return false;
-        if (availFilter === 'base_only' && avail.status !== 'base') return false;
+        if (availFilter === 'base_only' && (avail.status !== 'base' || avail.reacquisitionMode === 'trade_or_other')) return false;
         if (availFilter === 'requires_dlc' && !avail.requiresDlc) return false;
         if (availFilter === 'version_exclusive' && !isExclusiveLabel(avail.versionExclusive)) return false;
         if (availFilter === 'all' && avail.status === 'unavailable') return false;
@@ -2567,6 +2609,7 @@ export function App() {
                     inventory={inventory}
                     rescueBinCount={rescueBin.length}
                     onUpdateInstance={handleUpdateInstance}
+                    onRequestEvolve={(pet) => setEvolvingPokeId(pet.pokeId)}
                     onDeleteInstance={handleDeleteInstance}
                     onOpenPokemonPage={(p) => setFullPagePokemon(p)}
                     onOpenTrainerCardForPokeId={(inst) => setActiveTrainerCardInstance(inst)}
@@ -2809,11 +2852,19 @@ export function App() {
       {/* Dedicated Pokepet Trainer Card Modal for POKEID */}
       {activeTrainerCardInstance && (
         <PokepetTrainerCardModal
-          instance={activeTrainerCardInstance}
+          instance={inventory.find(p => p.pokeId === activeTrainerCardInstance.pokeId) ?? activeTrainerCardInstance}
+          onEvolve={inventory.some(p => p.pokeId === activeTrainerCardInstance.pokeId) ? () => { setEvolvingPokeId(activeTrainerCardInstance.pokeId); setActiveTrainerCardInstance(null); } : undefined}
           pokemon={dex.find((p) => p.id === activeTrainerCardInstance.pokemonId) || null}
           trainerName={displayTrainerName}
           onClose={() => setActiveTrainerCardInstance(null)}
         />
+      )}
+
+      {evolvingPokeId && inventory.find(p => p.pokeId === evolvingPokeId) && (
+        <EvolvePokepetModal key={evolvingPokeId}
+          pet={inventory.find(p => p.pokeId === evolvingPokeId)!}
+          inventory={inventory} dex={dex} ownedGames={ownedGames}
+          onClose={() => setEvolvingPokeId(null)} onConfirm={handleEvolvePokepet} />
       )}
 
       {/* Friend Profile Modal */}
