@@ -19,6 +19,7 @@ import {
   Heart,
   CloudDownload,
   X,
+  Globe,
 } from 'lucide-react';
 import {
   GAMES,
@@ -194,6 +195,40 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <p className="text-sm text-slate-400 max-w-2xl leading-relaxed">
             Manage your owned games library, generate your global Trainer Card, export backups, and configure cloud synchronization.
           </p>
+
+          {/* Interactive Public Living Dex Profile Toggle */}
+          <div className="flex flex-wrap items-center gap-2.5 pt-2">
+            <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold ${
+              isPublic
+                ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                : 'bg-slate-900 border-slate-700 text-slate-400'
+            }`}>
+              <Globe className={`w-3.5 h-3.5 ${isPublic ? 'text-emerald-400' : 'text-slate-500'}`} />
+              <span>
+                Public Stats Page: <strong className={isPublic ? 'text-emerald-300 font-bold' : 'text-slate-300 font-bold'}>{isPublic ? 'ACTIVE (PUBLIC)' : 'DISABLED (PRIVATE)'}</strong>
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => onTogglePublic(!isPublic)}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-sm ${
+                isPublic
+                  ? 'bg-rose-500/20 hover:bg-rose-500/30 border-rose-500/50 text-rose-200'
+                  : 'bg-emerald-500/25 hover:bg-emerald-500/35 border-emerald-500/60 text-emerald-200'
+              }`}
+            >
+              {isPublic ? 'Switch to Private' : 'Make Public & Shareable'}
+            </button>
+            {isPublic && (
+              <button
+                type="button"
+                onClick={onOpenPublicPreview}
+                className="px-3 py-1.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-200 text-xs font-semibold transition cursor-pointer"
+              >
+                View Public Page ↗
+              </button>
+            )}
+          </div>
         </div>
 
         <button

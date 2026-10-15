@@ -18,11 +18,15 @@ import {
   ArrowRight,
   ExternalLink,
   ChevronRight,
+  UserPlus,
+  X,
+  Key,
 } from 'lucide-react';
 import type { PokemonEntry } from '../data/pokemonData';
 import {
   signInWithEmail,
   signInWithPin,
+  signUpWithEmail,
   fetchRandomRegisteredPokepet,
   searchPokepetByPokeId,
   lookupFriendCode,
@@ -70,7 +74,7 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
   const [lookupSuccessMsg, setLookupSuccessMsg] = useState<string | null>(null);
 
   // Right Column: Auth form state
-  const [authMode, setAuthMode] = useState<'password' | 'pin'>('password');
+  const [authMode, setAuthMode] = useState<'password' | 'pin' | 'signup'>('password');
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [showPassword, setShowPassword] = useState<boolean>(false);
@@ -79,6 +83,22 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
   const [cachedAccounts, setCachedAccounts] = useState<CachedAuthAccount[]>([]);
   const [isSubmittingAuth, setIsSubmittingAuth] = useState<boolean>(false);
   const [authErrorMessage, setAuthErrorMessage] = useState<string | null>(null);
+
+  // Invite code & Sign Up state (Secret code: poketester - NEVER shown to user)
+  const [showInviteModal, setShowInviteModal] = useState<boolean>(false);
+  const [inviteCodeInput, setInviteCodeInput] = useState<string>('');
+  const [inviteCodeError, setInviteCodeError] = useState<string | null>(null);
+  const [hasUnlockedSignup, setHasUnlockedSignup] = useState<boolean>(false);
+
+  // Sign up fields
+  const [signupTrainerName, setSignupTrainerName] = useState<string>('');
+  const [signupEmail, setSignupEmail] = useState<string>('');
+  const [signupPassword, setSignupPassword] = useState<string>('');
+  const [signupConfirmPassword, setSignupConfirmPassword] = useState<string>('');
+  const [showSignupPassword, setShowSignupPassword] = useState<boolean>(false);
+
+  // Phone guest lookup modal state
+  const [showMobileLookupModal, setShowMobileLookupModal] = useState<boolean>(false);
 
   // Pokédex Opening Animation state
   const [showPokedexAnimation, setShowPokedexAnimation] = useState<boolean>(true);
@@ -259,6 +279,62 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
     }
   };
 
+  // Invite Code Verification Handler (Secret code: poketester - NEVER shown to user)
+  const handleVerifyInviteCode = (e: React.FormEvent) => {
+    e.preventDefault();
+    setInviteCodeError(null);
+    const clean = inviteCodeInput.trim().toLowerCase();
+    if (clean === 'poketester') {
+      setHasUnlockedSignup(true);
+      setShowInviteModal(false);
+      setAuthMode('signup');
+      setInviteCodeInput('');
+      setAuthErrorMessage(null);
+    } else {
+      setInviteCodeError('Invalid invite code. Early registration is currently invite-only.');
+    }
+  };
+
+  // Sign Up with Email & Password Submission
+  const handleSignUpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthErrorMessage(null);
+    primeGameboyAudio();
+
+    if (!hasUnlockedSignup) {
+      setAuthErrorMessage('A valid invite code is required to register an account.');
+      return;
+    }
+
+    const cleanEmail = signupEmail.trim().toLowerCase();
+    if (!cleanEmail) {
+      setAuthErrorMessage('Please enter an email address.');
+      return;
+    }
+
+    if (!signupPassword || signupPassword.length < 6) {
+      setAuthErrorMessage('Password must be at least 6 characters.');
+      return;
+    }
+
+    if (signupPassword !== signupConfirmPassword) {
+      setAuthErrorMessage('Passwords do not match.');
+      return;
+    }
+
+    setIsSubmittingAuth(true);
+    try {
+      await signUpWithEmail(cleanEmail, signupPassword, signupTrainerName);
+      playGameboyPowerOnSound();
+      onSuccessfulLogin();
+    } catch (err: unknown) {
+      const msg = (err as Error)?.message || 'Account registration failed. Please check your details.';
+      setAuthErrorMessage(msg);
+    } finally {
+      setIsSubmittingAuth(false);
+    }
+  };
+
   // Find dex entry for the random pet
   const randomPetPokemon = randomPetData
     ? dex.find((p) => p.id === randomPetData.pokepet.pokemonId) || null
@@ -426,12 +502,12 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
           {/* CRT scanline overlay across LCD screen */}
           <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.22)_50%)] bg-[length:100%_4px] pointer-events-none opacity-40 z-0" />
 
-          {/* Main Content inside the Screen: Left Column (Showcase & Lookup) | Right Column (Email/Password Login) */}
-          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+          {/* Main Content inside the Screen: Left Column (Showcase & Lookup) on Tablets/Desktop | Right Column (Login) */}
+          <div className="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-6 lg:gap-8 items-start">
         {/* ========================================================= */}
-        {/* LEFT COLUMN: Random Registered PokéPet & Public Lookup   */}
+        {/* LEFT COLUMN: Random Registered PokéPet & Public Lookup (Tablets & Desktop) */}
         {/* ========================================================= */}
-        <div className="lg:col-span-7 flex flex-col gap-6">
+        <div className="hidden md:flex md:col-span-6 lg:col-span-7 flex-col gap-6">
           {/* Section Banner */}
           <div className="flex flex-col gap-1">
             <div className="inline-flex items-center gap-2">
@@ -641,8 +717,8 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
         {/* ========================================================= */}
         {/* RIGHT COLUMN: Trainer Sign In (Email/Password or PIN)      */}
         {/* ========================================================= */}
-        <div className="lg:col-span-5 flex flex-col justify-center">
-          <div className="rounded-3xl bg-[#0F1522] border border-amber-500/60 p-6 sm:p-8 shadow-2xl flex flex-col gap-5 text-slate-100">
+        <div className="w-full col-span-1 md:col-span-6 lg:col-span-5 flex flex-col justify-center">
+          <div className="rounded-3xl bg-[#0F1522] border border-amber-500/60 p-5 sm:p-7 md:p-8 shadow-2xl flex flex-col gap-5 text-slate-100">
             {/* Header */}
             <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between">
@@ -657,15 +733,17 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
                 )}
               </div>
               <h2 className="text-xl sm:text-2xl font-black text-slate-100 tracking-tight">
-                Sign In to HomeDex
+                {authMode === 'signup' ? 'Create Trainer Account' : 'Sign In to HomeDex'}
               </h2>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Log in to sync your Living Dex, register Pokémon, track progress, and manage your inventory.
+                {authMode === 'signup'
+                  ? 'Early access unlocked via invite code. Register your credentials to begin tracking.'
+                  : 'Log in to sync your Living Dex, register Pokémon, track progress, and manage your inventory.'}
               </p>
             </div>
 
-            {/* Offline Mode Selector: Password vs Quick PIN */}
-            <div className="grid grid-cols-2 p-1 rounded-xl bg-slate-900 border border-slate-800 text-xs font-bold">
+            {/* Mode Selector */}
+            <div className={`grid ${hasUnlockedSignup ? 'grid-cols-3' : 'grid-cols-2'} p-1 rounded-xl bg-slate-900 border border-slate-800 text-xs font-bold`}>
               <button
                 type="button"
                 onClick={() => {
@@ -693,12 +771,29 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
                 }`}
               >
                 <KeyRound className="w-3.5 h-3.5" />
-                <span>Quick PIN Entry</span>
+                <span>Quick PIN</span>
               </button>
+              {hasUnlockedSignup && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode('signup');
+                    setAuthErrorMessage(null);
+                  }}
+                  className={`py-2 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    authMode === 'signup'
+                      ? 'bg-emerald-500 text-slate-950 shadow-md font-extrabold'
+                      : 'text-emerald-400 hover:text-emerald-200'
+                  }`}
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>Sign Up ✓</span>
+                </button>
+              )}
             </div>
 
-            {/* Cached Credentials Quick Fill */}
-            {cachedAccounts.length > 0 && (
+            {/* Cached Credentials Quick Fill (for login) */}
+            {authMode !== 'signup' && cachedAccounts.length > 0 && (
               <div className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 flex flex-col gap-2">
                 <span className="text-[10px] font-mono text-amber-400/90 font-bold uppercase tracking-wider">
                   Cached Credentials on this Device:
@@ -879,6 +974,144 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
               </form>
             )}
 
+            {/* SIGN UP FORM (Only accessible when unlocked via invite code) */}
+            {authMode === 'signup' && (
+              <form onSubmit={handleSignUpSubmit} className="flex flex-col gap-3.5">
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 font-bold">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>Invite Code Verified: Early Access Granted</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setAuthMode('password')}
+                    className="text-[11px] text-slate-400 hover:text-slate-200 underline cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-300">Trainer Name</label>
+                  <input
+                    type="text"
+                    value={signupTrainerName}
+                    onChange={(e) => setSignupTrainerName(e.target.value)}
+                    placeholder="e.g. Red, Blue, Cynthia"
+                    maxLength={24}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700/80 focus:border-amber-400 text-slate-100 text-sm font-sans placeholder:text-slate-600 focus:outline-none"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Email Address</span>
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={signupEmail}
+                    onChange={(e) => setSignupEmail(e.target.value)}
+                    placeholder="trainer@pokemon.com"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700/80 focus:border-amber-400 text-slate-100 text-sm font-mono placeholder:text-slate-600 focus:outline-none"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Password (min. 6 characters)</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showSignupPassword ? 'text' : 'password'}
+                      required
+                      minLength={6}
+                      value={signupPassword}
+                      onChange={(e) => setSignupPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-slate-900 border border-slate-700/80 focus:border-amber-400 text-slate-100 text-sm font-mono placeholder:text-slate-600 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowSignupPassword(!showSignupPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 cursor-pointer"
+                    >
+                      {showSignupPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-300">Confirm Password</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={signupConfirmPassword}
+                    onChange={(e) => setSignupConfirmPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700/80 focus:border-amber-400 text-slate-100 text-sm font-mono placeholder:text-slate-600 focus:outline-none"
+                  />
+                </div>
+
+                {authErrorMessage && (
+                  <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-300 text-xs flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
+                    <span className="leading-relaxed">{authErrorMessage}</span>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isSubmittingAuth}
+                  className="w-full mt-1 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black text-sm tracking-wide shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSubmittingAuth ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Creating Account & Syncing Dex...</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="w-4 h-4" />
+                      <span>Create Trainer Account</span>
+                    </>
+                  )}
+                </button>
+              </form>
+            )}
+
+            {/* Invite Code Trigger Button (Signup hidden behind invite code) */}
+            {!hasUnlockedSignup && (
+              <div className="pt-2 border-t border-slate-800/80 flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowInviteModal(true);
+                    setInviteCodeError(null);
+                  }}
+                  className="w-full py-2.5 px-4 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-bold transition flex items-center justify-center gap-2 shadow-sm cursor-pointer group"
+                >
+                  <Key className="w-4 h-4 text-amber-400 group-hover:rotate-12 transition-transform" />
+                  <span>Have an Invite Code? Unlock Registration</span>
+                </button>
+              </div>
+            )}
+
+            {/* Phone Only: Button to open Guest Lookup for public PokéPets & profiles */}
+            <div className="block md:hidden pt-2 border-t border-slate-800/80">
+              <button
+                type="button"
+                onClick={() => setShowMobileLookupModal(true)}
+                className="w-full py-2.5 px-4 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-sky-300 text-xs font-semibold transition flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Search className="w-3.5 h-3.5 text-sky-400" />
+                <span>Guest Portal: Lookup Public PokéPets & Profiles</span>
+              </button>
+            </div>
+
             <div className="text-[11px] text-slate-500 text-center font-mono pt-1">
               Protected by Local SHA-256 Storage & Firebase Cloud Auth
             </div>
@@ -886,6 +1119,181 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
         </div>
       </div>
       {/* End of Main Content Grid */}
+
+      {/* Invite Code Modal */}
+      {showInviteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 select-text">
+          <div className="relative w-full max-w-md rounded-2xl bg-[#0F1522] border border-amber-500/60 p-6 shadow-2xl flex flex-col gap-4">
+            <button
+              type="button"
+              onClick={() => {
+                setShowInviteModal(false);
+                setInviteCodeError(null);
+              }}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-200 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300 shrink-0">
+                <Key className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-100">
+                  Enter Trainer Invite Code
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Account registration is restricted to authorized testers and invited trainers.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleVerifyInviteCode} className="flex flex-col gap-3.5 pt-2">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-300">Invite Code</label>
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  value={inviteCodeInput}
+                  onChange={(e) => {
+                    setInviteCodeInput(e.target.value);
+                    if (inviteCodeError) setInviteCodeError(null);
+                  }}
+                  placeholder="Enter your invite code"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 focus:border-amber-400 text-slate-100 text-sm font-mono placeholder:text-slate-600 focus:outline-none"
+                />
+              </div>
+
+              {inviteCodeError && (
+                <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-300 text-xs flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
+                  <span>{inviteCodeError}</span>
+                </div>
+              )}
+
+              <div className="text-[11px] text-slate-400 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+                Without a valid invite code, you cannot register an account or save Pokémon. You can still freely explore public PokéPets and public profiles.
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowInviteModal(false);
+                    setInviteCodeError(null);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition cursor-pointer shadow-md"
+                >
+                  Unlock Registration
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Phone Only: Modal for Community Showcase & Public Lookup */}
+      {showMobileLookupModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-4 select-text overflow-y-auto">
+          <div className="relative w-full max-w-lg rounded-2xl bg-[#0B0F19] border-2 border-slate-700 p-5 shadow-2xl flex flex-col gap-4 my-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-400" />
+                <span className="text-xs font-mono font-bold text-slate-200 uppercase tracking-wider">
+                  Community Showcase & Lookup
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowMobileLookupModal(false)}
+                className="text-slate-400 hover:text-slate-200 cursor-pointer p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Random Pet Section inside mobile modal */}
+            {randomPetData && (
+              <div className="p-3.5 rounded-xl bg-[#0F1522] border border-slate-800 flex items-center gap-3">
+                <div className="w-16 h-16 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center shrink-0">
+                  {randomPetPokemon && (
+                    <PokemonSprite
+                      id={randomPetData.pokepet.pokemonId}
+                      name={randomPetPokemon.name}
+                      shiny={randomPetData.pokepet.isShiny}
+                      size="sm"
+                    />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-bold text-slate-100 truncate">
+                    {randomPetData.pokepet.nickname || randomPetPokemon?.name}
+                  </div>
+                  <div className="text-[11px] text-amber-400 font-mono">
+                    POKEID: {randomPetData.pokepet.pokeId}
+                  </div>
+                  <div className="text-[10px] text-slate-400 truncate">
+                    Trainer: {randomPetData.trainerName}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMobileLookupModal(false);
+                    onOpenTrainerCard(randomPetData.pokepet, randomPetData.trainerName);
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold text-xs shrink-0 cursor-pointer"
+                >
+                  View
+                </button>
+              </div>
+            )}
+
+            {/* Lookup Form */}
+            <form onSubmit={handleLookup} className="flex flex-col gap-2.5">
+              <label className="text-xs font-semibold text-slate-300">
+                Lookup POKEID or Trainer Friend Code / UID
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={lookupQuery}
+                  onChange={(e) => setLookupQuery(e.target.value)}
+                  placeholder="e.g. ID8F3K9L2M4P or DX-ABCDEF"
+                  className="flex-1 px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 focus:border-sky-400 text-slate-100 text-xs font-mono placeholder:text-slate-600 focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  disabled={isSearching}
+                  className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shrink-0 cursor-pointer"
+                >
+                  {isSearching ? '...' : 'Lookup'}
+                </button>
+              </div>
+            </form>
+
+            {lookupError && (
+              <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs">
+                {lookupError}
+              </div>
+            )}
+
+            {lookupSuccessMsg && (
+              <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs">
+                {lookupSuccessMsg}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Screen Frame Bottom Footer Bar */}
       <div className="relative z-10 flex items-center justify-between pt-2 border-t border-slate-800/80 text-[11px] font-mono text-slate-500">

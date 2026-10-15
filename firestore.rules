@@ -72,7 +72,6 @@ service cloud.firestore {
         'ownedGames',
         'ownedDlcs',
         'gameCatches',
-        'inventory',
         'caughtCount',
         'shinyCount',
         'createdAt',
@@ -96,6 +95,8 @@ service cloud.firestore {
         'rescueBin',
         'caughtCount',
         'shinyCount',
+        'friendCode',
+        'friends',
         'createdAt',
         'updatedAt'
       ]) &&
@@ -130,8 +131,10 @@ service cloud.firestore {
       data.ownedDlcs.size() <= 20 &&
       (data.ownedDlcs.size() == 0 || (data.ownedDlcs[0] is string && data.ownedDlcs[0].size() <= 40)) &&
       isValidGameCatchesMap(data.gameCatches) &&
-      isValidInventory(data.inventory) &&
+      (!('inventory' in data) || isValidInventory(data.inventory)) &&
       (!('rescueBin' in data) || (data.rescueBin is list && data.rescueBin.size() <= 2000)) &&
+      (!('friendCode' in data) || (data.friendCode is string && data.friendCode.size() <= 32)) &&
+      (!('friends' in data) || (data.friends is list && data.friends.size() <= 500)) &&
       data.caughtCount is int &&
       data.caughtCount >= 0 &&
       data.caughtCount <= 1050 &&
@@ -256,6 +259,8 @@ service cloud.firestore {
             'rescueBin',
             'caughtCount',
             'shinyCount',
+            'friendCode',
+            'friends',
             'updatedAt'
           ]))
         )
@@ -278,7 +283,7 @@ service cloud.firestore {
 
     // User inventory uses numeric local timestamps, unlike the universal registry.
     match /userDexProfiles/{userId}/inventory/{pokeId} {
-      allow read: if isOwner(userId);
+      allow read: if isOwner(userId) || get(/databases/$(database)/documents/userDexProfiles/$(userId)).data.isPublic == true;
       allow create: if isOwner(userId) && isValidInventoryPokepet(incoming()) && incoming().ownerId == userId &&
         incoming().pokeId == pokeId && isValidPokeId(pokeId) &&
         incoming().pokemonId is int && incoming().pokemonId >= 1 && incoming().pokemonId <= 1025;
@@ -294,7 +299,7 @@ service cloud.firestore {
     // Universal Registry of Registered Pokepets
     match /registeredPokepets/{pokeId} {
       allow get: if isValidPokeId(pokeId);
-      allow list: if isSignedIn();
+      allow list: if true;
       allow create: if isSignedIn() &&
         isValidPokeId(pokeId) &&
         incoming().pokeId == pokeId &&
@@ -313,6 +318,17 @@ service cloud.firestore {
         incoming().updatedAt == request.time &&
         isValidRegisteredPokepet(incoming());
       allow delete: if isSignedIn() && isOwner(existing().ownerId) && isValidPokeId(pokeId);
+    }
+
+    // Friend Codes Directory
+    match /friendCodes/{code} {
+      allow get: if true;
+      allow create: if isSignedIn() && incoming().uid == request.auth.uid;
+    }
+
+    // Friend Requests Exchange
+    match /friendRequests/{requestId} {
+      allow read, write: if isSignedIn();
     }
   }
 }

@@ -53,22 +53,23 @@ export const PokedexOpeningAnimation: React.FC<PokedexOpeningAnimationProps> = (
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[#070A10]/95 backdrop-blur-md overflow-hidden p-4 select-none"
+      onClick={primeGameboyAudio}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#070A10]/95 backdrop-blur-md overflow-hidden p-2 sm:p-4 select-none"
       style={{ perspective: '2200px' }}
     >
       {/* Skip Button in the corner */}
       <button
         type="button"
         onClick={handleSkip}
-        className="absolute top-6 right-6 z-50 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-xs font-mono text-slate-300 hover:text-white transition cursor-pointer shadow-2xl group"
+        className="absolute top-4 right-4 sm:top-6 sm:right-6 z-50 inline-flex items-center gap-2 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-xs font-mono text-slate-300 hover:text-white transition cursor-pointer shadow-2xl group"
       >
         <span>Skip Intro (5s)</span>
-        <FastForward className="w-4 h-4 text-amber-400 group-hover:translate-x-0.5 transition-transform" />
+        <FastForward className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-amber-400 group-hover:translate-x-0.5 transition-transform" />
       </button>
 
       {/* Center Pokédex Device (Early Gen 1 Dexter Model) */}
       <div
-        className="relative w-full max-w-[620px] h-[720px] max-h-[92vh] transition-all duration-1000 ease-out"
+        className="relative w-full max-w-[94vw] sm:max-w-[600px] h-[600px] sm:h-[720px] max-h-[92vh] transition-all duration-1000 ease-out"
         style={{
           transformStyle: 'preserve-3d',
           transform:

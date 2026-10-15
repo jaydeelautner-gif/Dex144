@@ -1878,6 +1878,52 @@ export async function lookupFriendCode(code: string): Promise<string | null> {
   }
 }
 
+export async function updateUserPublicProfileStatus(uid: string, isPublic: boolean): Promise<void> {
+  if (!uid || !OWNER_ID_REGEX.test(uid)) throw new Error('Invalid user ID.');
+
+  const localProfile = getLocallyCachedProfile(uid);
+  if (localProfile) {
+    localProfile.isPublic = Boolean(isPublic);
+    localProfile.updatedAt = Date.now();
+    saveLocallyCachedProfile(uid, localProfile);
+  }
+
+  try {
+    localStorage.setItem('homedex_v4_is_public', String(isPublic));
+  } catch {
+    // ignore
+  }
+
+  const docRef = doc(db, 'userDexProfiles', uid);
+  const snap = await getDoc(docRef);
+  if (snap.exists()) {
+    await updateDoc(docRef, {
+      isPublic: Boolean(isPublic),
+      updatedAt: serverTimestamp(),
+    });
+  } else {
+    await setDoc(docRef, {
+      ownerId: uid,
+      trainerName: localProfile?.trainerName || 'Trainer',
+      activeGameFilter: 'all',
+      isPublic: Boolean(isPublic),
+      caughtIds: localProfile?.caughtIds || [],
+      shinyIds: localProfile?.shinyIds || [],
+      livingIds: localProfile?.livingIds || [],
+      caughtVariants: localProfile?.caughtVariants || [],
+      boxSelectedVariants: localProfile?.boxSelectedVariants || [],
+      boxSelectedGames: localProfile?.boxSelectedGames || [],
+      ownedGames: localProfile?.ownedGames || ALL_GAME_IDS,
+      ownedDlcs: localProfile?.ownedDlcs || [],
+      gameCatches: localProfile?.gameCatches || {},
+      caughtCount: localProfile?.caughtCount || 0,
+      shinyCount: localProfile?.shinyCount || 0,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  }
+}
+
 export async function updateUserFriendCode(uid: string, friendCode: string): Promise<void> {
   await updateDoc(doc(db, 'userDexProfiles', uid), {
     friendCode: friendCode.slice(0, 16),

@@ -106,6 +106,7 @@ import {
   // Friends system
   generateAndReserveFriendCode,
   lookupFriendCode,
+  updateUserPublicProfileStatus,
   updateUserFriendCode,
   updateUserFriends,
   sendFriendRequest,
@@ -619,6 +620,40 @@ export function App() {
   const [authErrorMsg, setAuthErrorMsg] = useState<string | null>(null);
   const isApplyingRemoteRef = useRef<boolean>(false);
   const prevUserRef = useRef<User | null>(null);
+
+  const handleTogglePublic = useCallback(async (nextVal: boolean) => {
+    setIsPublic(nextVal);
+    try {
+      localStorage.setItem(LS_PUBLIC_KEY, String(nextVal));
+    } catch {
+      // ignore
+    }
+
+    if (user?.uid) {
+      try {
+        await updateUserPublicProfileStatus(user.uid, nextVal);
+        setToast({
+          message: nextVal
+            ? 'Public Living Dex Page enabled! Anyone with your link can view your collection.'
+            : 'Living Dex Page set to Private.',
+          type: 'success',
+        });
+      } catch (err) {
+        console.warn('Failed to update public profile toggle in cloud:', err);
+        setToast({
+          message: 'Could not sync public status to cloud. Please check your connection.',
+          type: 'error',
+        });
+      }
+    } else {
+      setToast({
+        message: nextVal
+          ? 'Public profile enabled locally. Sign in to share with friends online!'
+          : 'Profile set to private.',
+        type: 'info',
+      });
+    }
+  }, [user?.uid]);
 
   // Play Game Boy power-on sound effect when user logs in and site loads
   useEffect(() => {
@@ -2940,7 +2975,7 @@ export function App() {
                 trainerName={displayTrainerName}
                 isCloudSynced={Boolean(user)}
                 isPublic={isPublic}
-                onTogglePublic={(nextVal) => setIsPublic(nextVal)}
+                onTogglePublic={handleTogglePublic}
                 publicShareUrl={publicShareUrl}
                 onOpenPublicPreview={() => setActiveTab('public_stats')}
                 onImportProgress={handleImportProgress}
