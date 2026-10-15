@@ -203,7 +203,7 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
         const evoFamily = getEvolutionFamilyForPokemon(p.id);
         const stage = evoFamily.stages.find((s) => s.pokemonId === p.id);
         // Correct, verified location from the encounter bundle when covered.
-        const realWhereToFind = summarizeEncountersForGame(encounters, p.id, primaryGId);
+        const realWhereToFind = summarizeEncountersForGame(encounters, p.id, primaryGId, ownedDlcs);
 
         list.push({
           pokemon: p,
@@ -239,7 +239,7 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
         const evoFamily = getEvolutionFamilyForPokemon(p.id);
         const stage = evoFamily.stages.find((s) => s.pokemonId === p.id);
         // Correct, verified location from the encounter bundle when covered.
-        const realWhereToFind = summarizeEncountersForGame(encounters, p.id, primaryGId);
+        const realWhereToFind = summarizeEncountersForGame(encounters, p.id, primaryGId, ownedDlcs);
 
         list.push({
           pokemon: p,
@@ -273,7 +273,7 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
         const primaryAvail = p.availability[primaryGId];
         const primaryTitle = primaryMeta?.shortTitle || primaryAvail?.gameShortTitle || primaryGId.toUpperCase();
         // Correct, verified location from the encounter bundle when covered.
-        const realWhereToFind = summarizeEncountersForGame(encounters, p.id, primaryGId);
+        const realWhereToFind = summarizeEncountersForGame(encounters, p.id, primaryGId, ownedDlcs);
 
         list.push({
           pokemon: p,
@@ -364,6 +364,7 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
 
   return (
     <section className={showChrome ? 'bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 shadow-xl flex flex-col gap-5' : 'flex flex-col gap-5'}>
+     {embedded && <h3 className="text-sm font-bold text-amber-300">GO Replacements</h3>}
      {showChrome && (
       <>
       {/* Top Header */}
@@ -477,15 +478,15 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
         <div className="p-8 rounded-2xl bg-slate-900/40 border border-slate-800 text-center flex flex-col items-center gap-3">
           <CheckCircle2 className="w-10 h-10 text-emerald-400" />
           <h3 className="text-base font-bold text-slate-100">
-            {activeFilter === 'upgrades'
+            {embedded || activeFilter === 'upgrades'
               ? 'No Pokémon GO Replacements Needed!'
               : activeFilter === 'uncaught'
               ? 'No Uncaught Pokémon in Your Owned Games!'
               : 'All Owned Game Catches Complete!'}
           </h3>
           <p className="text-xs text-slate-400 max-w-md">
-            {activeFilter === 'upgrades'
-              ? 'None of your Living Dex slots are occupied by Pokémon GO pokepets that can be replaced by your owned games.'
+            {embedded || activeFilter === 'upgrades'
+              ? 'No GO-held Living Dex specimens have a replacement available in this selected owned game and its owned DLC.'
               : 'You have caught every Pokémon currently available across all your owned games and DLC packs. Add more games in Settings to explore new encounters!'}
           </p>
           <button

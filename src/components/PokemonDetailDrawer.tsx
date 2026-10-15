@@ -489,6 +489,7 @@ export const PokemonDetailDrawer: React.FC<PokemonDetailDrawerProps> = ({
         {/* Accurate Wild Encounter Data (PokéAPI bundle) */}
         <PokemonEncountersSection
           pokemonId={pokemon.id}
+          ownedDlcs={ownedDlcs}
           ownedGames={userOwnedEncounterGames.map((g) => g.id)}
           progress={gameProgress}
           trackedGames={trackedGames}

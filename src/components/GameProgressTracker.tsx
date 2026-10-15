@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, Lock, MapPin, Loader2 } from 'lucide-react';
-import type { GameId, PokemonEntry } from '../data/pokemonData';
+import type { GameId, PokemonEntry, DlcId } from '../data/pokemonData';
 import {
   GAME_META,
   GAME_ID_TO_TRACKABLE,
   getOwnedTrackableGames,
   milestonesFor,
+  applicableCompletedMilestones,
 } from '../data/milestones';
 import type { ProgressState } from '../hooks/useGameProgress';
 import { useGameAreas, getAreaSpecies } from '../utils/gameAreas';
@@ -16,6 +17,7 @@ interface Props {
   progress: ProgressState;
   trackedGames: Set<GameId>;
   ownedGames: GameId[];
+  ownedDlcs: DlcId[];
   onToggle: (gameId: GameId, milestoneId: string) => void;
   onToggleTracking: (gameId: GameId) => void;
   onReset: (gameId: GameId) => void;
@@ -31,6 +33,7 @@ export function GameProgressTracker({
   progress,
   trackedGames,
   ownedGames,
+  ownedDlcs,
   onToggle,
   onToggleTracking,
   onReset,
@@ -45,16 +48,17 @@ export function GameProgressTracker({
     availableGames[0] ?? 'sv'
   );
 
-  const milestones = milestonesFor(activeGame);
+  const milestones = milestonesFor(activeGame, ownedDlcs);
   const completed = useMemo(
-    () => new Set(progress[activeGame] ?? []),
-    [progress, activeGame]
+    () => new Set(applicableCompletedMilestones(activeGame, progress[activeGame] ?? [], ownedDlcs)),
+    [progress, activeGame, ownedDlcs]
   );
 
   // Locations unlocked by the badges/milestones marked complete for this game.
   const { areas, dataset: encounterDataset, loading: areasLoading } = useGameAreas(
     activeGame,
-    completed
+    completed,
+    ownedDlcs
   );
   const [openArea, setOpenArea] = useState<string | null>(null);
   const [showLockedAreas, setShowLockedAreas] = useState(false);
@@ -62,8 +66,8 @@ export function GameProgressTracker({
   const unlockedCount = areas.filter((a) => a.unlocked).length;
   const dexById = useMemo(() => new Map(dex.map((p) => [p.id, p])), [dex]);
   const areaSpecies = useMemo(
-    () => (openArea ? getAreaSpecies(encounterDataset, activeGame, openArea) : []),
-    [openArea, encounterDataset, activeGame]
+    () => (openArea ? getAreaSpecies(encounterDataset, activeGame, openArea, ownedDlcs) : []),
+    [openArea, encounterDataset, activeGame, ownedDlcs]
   );
   const pct = milestones.length
     ? Math.round((completed.size / milestones.length) * 100)
@@ -87,7 +91,7 @@ export function GameProgressTracker({
         <h2 className="text-lg font-bold text-slate-100">Game Progress</h2>
         <p className="text-xs text-slate-400">
           Check off milestones to filter your encounter suggestions to what's
-          actually catchable right now.
+          actually catchable right now. DLC milestones and expansion areas only count when the expansion is marked as owned in Settings.
         </p>
       </header>
 
@@ -95,8 +99,8 @@ export function GameProgressTracker({
       <nav className="flex items-center gap-1 p-1 bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
         {availableGames.map((id) => {
           const gameMeta = GAME_META[id];
-          const total = milestonesFor(id).length;
-          const done = (progress[id] ?? []).length;
+          const total = milestonesFor(id, ownedDlcs).length;
+          const done = applicableCompletedMilestones(id, progress[id] ?? [], ownedDlcs).length;
           const active = id === activeGame;
           return (
             <button

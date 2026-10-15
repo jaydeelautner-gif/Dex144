@@ -1,5 +1,6 @@
+import { isAreaOwned } from './dlcOwnership';
 import { useEffect, useState } from 'react';
-import type { GameId } from './pokemonData';
+import type { GameId, DlcId } from './pokemonData';
 import { ALL_1025_SPECIES_NAMES } from './nationalDexSpeciesNames';
 
 /**
@@ -317,12 +318,13 @@ export function prettifyAreaName(area: string): string {
 export function summarizeEncountersForGame(
   dataset: EncounterDataset | null,
   pokemonId: number,
-  gameId: GameId
+  gameId: GameId,
+  ownedDlcs: readonly DlcId[] = []
 ): string | null {
   if (!dataset) return null;
   const raw = dataset[pokemonId]?.[gameId];
   if (!raw) return null;
-  const areas = Object.entries(raw);
+  const areas = Object.entries(raw).filter(([area]) => isAreaOwned(gameId, area, ownedDlcs));
   if (areas.length === 0) return null;
 
   const parts = areas.slice(0, 3).map(([area, rows]) => {

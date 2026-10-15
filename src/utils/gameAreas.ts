@@ -1,7 +1,8 @@
+import { isAreaOwned } from '../data/dlcOwnership';
 import { useMemo } from 'react';
 import { AREA_UNLOCKS } from '../data/areaUnlocks.generated';
 import { GAME_ID_TO_TRACKABLE, GROUP_MEMBER_GAMES, milestonesFor } from '../data/milestones';
-import type { GameId } from '../data/pokemonData';
+import type { GameId, DlcId } from '../data/pokemonData';
 import {
   useEncounterDataset,
   getEncountersForGame,
@@ -38,16 +39,17 @@ export interface AreaSpeciesRow {
 export function getGameAreas(
   dataset: EncounterDataset | null,
   gameId: GameId,
-  completedMilestones: Set<string>
+  completedMilestones: Set<string>,
+  ownedDlcs: readonly DlcId[] = []
 ): GameArea[] {
   if (!dataset) return [];
   const group = (GAME_ID_TO_TRACKABLE as Record<string, string | undefined>)[gameId];
   if (!group) return [];
   const unlocks = AREA_UNLOCKS[group] ?? {};
   const members = GROUP_MEMBER_GAMES[group] ?? [];
-  const order = new Map(milestonesFor(group).map((m, i) => [m.id, i]));
-  const labels = new Map(milestonesFor(group).map((m) => [m.id, m.label]));
-  const shorts = new Map(milestonesFor(group).map((m) => [m.id, m.short]));
+  const order = new Map(milestonesFor(group, ownedDlcs).map((m, i) => [m.id, i]));
+  const labels = new Map(milestonesFor(group, ownedDlcs).map((m) => [m.id, m.label]));
+  const shorts = new Map(milestonesFor(group, ownedDlcs).map((m) => [m.id, m.short]));
 
   // Only areas that actually have encounters in the selected game.
   const areasWithRows = new Set<string>();
@@ -55,7 +57,7 @@ export function getGameAreas(
     for (const member of members) {
       const rows = species[member];
       if (!rows) continue;
-      for (const area of Object.keys(rows)) areasWithRows.add(area);
+      for (const area of Object.keys(rows)) if (isAreaOwned(gameId, area, ownedDlcs)) areasWithRows.add(area);
     }
   }
 
@@ -82,9 +84,10 @@ export function getGameAreas(
 export function getAreaSpecies(
   dataset: EncounterDataset | null,
   gameId: GameId,
-  area: string
+  area: string,
+  ownedDlcs: readonly DlcId[] = []
 ): AreaSpeciesRow[] {
-  if (!dataset) return [];
+  if (!dataset || !isAreaOwned(gameId, area, ownedDlcs)) return [];
   const group = (GAME_ID_TO_TRACKABLE as Record<string, string | undefined>)[gameId];
   const members = group ? GROUP_MEMBER_GAMES[group] ?? [] : [];
   const rows: AreaSpeciesRow[] = [];
@@ -112,11 +115,11 @@ export function getAreaSpecies(
 }
 
 /** Hook wrapper: loads the verified bundle once per session. */
-export function useGameAreas(gameId: GameId, completedMilestones: Set<string>) {
+export function useGameAreas(gameId: GameId, completedMilestones: Set<string>, ownedDlcs: readonly DlcId[] = []) {
   const { dataset, loading } = useEncounterDataset();
   const areas = useMemo(
-    () => getGameAreas(dataset, gameId, completedMilestones),
-    [dataset, gameId, completedMilestones]
+    () => getGameAreas(dataset, gameId, completedMilestones, ownedDlcs),
+    [dataset, gameId, completedMilestones, ownedDlcs]
   );
   return { areas, dataset, loading };
 }
@@ -130,8 +133,10 @@ export function useGameAreas(gameId: GameId, completedMilestones: Set<string>) {
 export function isAreaReachable(
   gameId: GameId,
   area: string,
-  completedMilestones: Set<string>
+  completedMilestones: Set<string>,
+  ownedDlcs: readonly DlcId[] = []
 ): boolean {
+  if (!isAreaOwned(gameId, area, ownedDlcs)) return false;
   const group = (GAME_ID_TO_TRACKABLE as Record<string, string | undefined>)[gameId];
   if (!group) return true;
   const unlocks = AREA_UNLOCKS[group];
@@ -167,7 +172,7 @@ export const WEATHER_CONDITIONS: { id: string; label: string }[] = [
 const WEATHER_IDS = new Set(WEATHER_CONDITIONS.map((w) => w.id));
 
 /** Weather options actually present in a game's data, in display order. */
-export function weatherForGame(dataset: EncounterDataset | null, gameId: GameId): string[] {
+export function weatherForGame(dataset: EncounterDataset | null, gameId: GameId, ownedDlcs: readonly DlcId[] = []): string[] {
   if (!dataset) return [];
   const group = (GAME_ID_TO_TRACKABLE as Record<string, string | undefined>)[gameId];
   const members = group ? GROUP_MEMBER_GAMES[group] ?? [] : [];
@@ -176,7 +181,8 @@ export function weatherForGame(dataset: EncounterDataset | null, gameId: GameId)
     for (const member of members) {
       const rows = byGame[member];
       if (!rows) continue;
-      for (const list of Object.values(rows)) {
+      for (const [area, list] of Object.entries(rows)) {
+        if (!isAreaOwned(gameId, area, ownedDlcs)) continue;
         for (const row of list) {
           for (const cond of row.cd ?? []) if (WEATHER_IDS.has(cond)) found.add(cond);
         }
@@ -193,7 +199,8 @@ export function weatherForGame(dataset: EncounterDataset | null, gameId: GameId)
 export function areasForWeather(
   dataset: EncounterDataset | null,
   gameId: GameId,
-  weatherId: string
+  weatherId: string,
+  ownedDlcs: readonly DlcId[] = []
 ): string[] {
   if (!dataset) return [];
   const group = (GAME_ID_TO_TRACKABLE as Record<string, string | undefined>)[gameId];
@@ -204,6 +211,7 @@ export function areasForWeather(
       const rows = byGame[member];
       if (!rows) continue;
       for (const [area, list] of Object.entries(rows)) {
+        if (!isAreaOwned(gameId, area, ownedDlcs)) continue;
         if (list.some((row) => (row.cd ?? []).includes(weatherId))) areas.add(area);
       }
     }
@@ -229,9 +237,10 @@ export function speciesForWeather(
   gameId: GameId,
   area: string,
   weatherId: string,
-  isUncaught: (pokemonId: number) => boolean
+  isUncaught: (pokemonId: number) => boolean,
+  ownedDlcs: readonly DlcId[] = []
 ): WeatherSpawnRow[] {
-  if (!dataset) return [];
+  if (!dataset || !isAreaOwned(gameId, area, ownedDlcs)) return [];
   const group = (GAME_ID_TO_TRACKABLE as Record<string, string | undefined>)[gameId];
   const members = group ? GROUP_MEMBER_GAMES[group] ?? [] : [];
   const rows: WeatherSpawnRow[] = [];
@@ -270,14 +279,15 @@ export const TIME_CONDITIONS: { id: string; label: string }[] = [
 const TIME_IDS = new Set(TIME_CONDITIONS.map((t) => t.id));
 
 /** Time options recorded for a game, in display order. */
-export function timeForGame(dataset: EncounterDataset | null, gameId: GameId): string[] {
+export function timeForGame(dataset: EncounterDataset | null, gameId: GameId, ownedDlcs: readonly DlcId[] = []): string[] {
   if (!dataset) return [];
   const group = (GAME_ID_TO_TRACKABLE as Record<string, string | undefined>)[gameId];
   const members = group ? GROUP_MEMBER_GAMES[group] ?? [] : [];
   const found = new Set<string>();
   for (const byGame of Object.values(dataset)) {
     for (const member of members) {
-      for (const list of Object.values(byGame[member] ?? {})) {
+      for (const [area, list] of Object.entries(byGame[member] ?? {})) {
+        if (!isAreaOwned(gameId, area, ownedDlcs)) continue;
         for (const row of list) for (const c of row.cd ?? []) if (TIME_IDS.has(c)) found.add(c);
       }
     }
@@ -294,7 +304,8 @@ export function areasForConditions(
   dataset: EncounterDataset | null,
   gameId: GameId,
   weatherId: string,
-  timeId: string
+  timeId: string,
+  ownedDlcs: readonly DlcId[] = []
 ): string[] {
   if (!dataset) return [];
   const group = (GAME_ID_TO_TRACKABLE as Record<string, string | undefined>)[gameId];
@@ -306,6 +317,7 @@ export function areasForConditions(
   for (const byGame of Object.values(dataset)) {
     for (const member of members) {
       for (const [area, list] of Object.entries(byGame[member] ?? {})) {
+        if (!isAreaOwned(gameId, area, ownedDlcs)) continue;
         if (list.some(matches)) areas.add(area);
       }
     }
@@ -324,9 +336,10 @@ export function speciesForConditions(
   area: string,
   weatherId: string,
   timeId: string,
-  isUncaught: (pokemonId: number) => boolean
+  isUncaught: (pokemonId: number) => boolean,
+  ownedDlcs: readonly DlcId[] = []
 ): WeatherSpawnRow[] {
-  if (!dataset) return [];
+  if (!dataset || !isAreaOwned(gameId, area, ownedDlcs)) return [];
   const group = (GAME_ID_TO_TRACKABLE as Record<string, string | undefined>)[gameId];
   const members = group ? GROUP_MEMBER_GAMES[group] ?? [] : [];
   const rows: WeatherSpawnRow[] = [];

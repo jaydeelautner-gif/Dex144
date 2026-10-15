@@ -1,3 +1,5 @@
+import type { DlcId } from './pokemonData';
+import { isMilestoneOwned } from './dlcOwnership';
 /**
  * ─────────────────────────────────────────────────────────────────────────
  * MILESTONE GATES
@@ -296,14 +298,15 @@ export const GAME_MILESTONE_TO_SPECIES: Map<string, Map<string, number[]>> = (()
  */
 export function getLockedDexNumbers(
   completedMilestones: Set<string>,
-  gameId: string
+  gameId: string,
+  ownedDlcs: readonly DlcId[] = []
 ): Set<number> {
   const locked = new Set<number>();
   const gamePrefix = `${gameId}-`;
 
   for (const [dexStr, requiredIds] of Object.entries(MILESTONE_GATES)) {
     const dexNum = Number(dexStr);
-    const relevant = requiredIds.filter((id) => id.startsWith(gamePrefix));
+    const relevant = requiredIds.filter((id) => id.startsWith(gamePrefix) && isMilestoneOwned(id, ownedDlcs));
     if (relevant.length === 0) continue;
 
     const allMet = relevant.every((id) => completedMilestones.has(id));
@@ -320,10 +323,11 @@ export function getLockedDexNumbers(
 export function getNewlyUnlockedSpecies(
   gameId: string,
   previousCompleted: Set<string>,
-  nextCompleted: Set<string>
+  nextCompleted: Set<string>,
+  ownedDlcs: readonly DlcId[] = []
 ): number[] {
-  const previouslyLocked = getLockedDexNumbers(previousCompleted, gameId);
-  const currentlyLocked = getLockedDexNumbers(nextCompleted, gameId);
+  const previouslyLocked = getLockedDexNumbers(previousCompleted, gameId, ownedDlcs);
+  const currentlyLocked = getLockedDexNumbers(nextCompleted, gameId, ownedDlcs);
   const newlyUnlocked: number[] = [];
   previouslyLocked.forEach((dexNum) => {
     if (!currentlyLocked.has(dexNum)) newlyUnlocked.push(dexNum);

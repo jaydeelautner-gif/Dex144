@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import type { PokemonEntry, GameCatchesMap, GameId, DlcId } from '../data/pokemonData';
 import { GAMES, ALL_GAME_IDS } from '../data/pokemonData';
-import { GAME_ID_TO_TRACKABLE, milestonesFor } from '../data/milestones';
+import { GAME_ID_TO_TRACKABLE, milestonesFor, applicableCompletedMilestones } from '../data/milestones';
 import { PokeBankClosureAlertSection } from './PokeBankClosureAlertSection';
 import { GameLogoBadge } from './GameLogoBadge';
 import { type PokemonInstance } from '../data/pokemonInventoryData';
@@ -24,9 +24,11 @@ import { DexSuggestionsSection } from './DexSuggestionsSection';
 import { MilestoneUnlocksPanel } from './MilestoneUnlocksPanel';
 // ── GAME PROGRESS TRACKING ──
 import type { ProgressState } from '../hooks/useGameProgress';
+import type { HomePanelVisibility } from '../data/homePanels';
 // ── END GAME PROGRESS TRACKING ──
 
 interface HomeViewProps {
+  homePanels: HomePanelVisibility;
   dex: PokemonEntry[];
   caughtSet: Set<number>;
   shinySet: Set<number>;
@@ -66,6 +68,7 @@ interface HomeViewProps {
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({
+  homePanels,
   dex,
   caughtSet,
   shinySet,
@@ -142,8 +145,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
   return (
     <div className="flex flex-col gap-8 max-w-6xl mx-auto pb-12">
+      {!homePanels.welcome && !homePanels.pokeIdLookup && !(homePanels.catchHub && (homePanels.trainerHints || homePanels.goReplacements)) && !homePanels.quickLinks && !homePanels.bankWatchlist && !homePanels.ownedLibrary && (
+        <div className="p-6 rounded-2xl border border-slate-800 text-slate-300 text-sm">
+          No home tools selected. <button onClick={onNavigateToSettings} className="text-amber-300 underline">Customize your Home Screen in Settings</button>.
+        </div>
+      )}
       {/* Hero Welcome Banner */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-[#0F1522] via-[#131B2E] to-[#0A0E18] border border-slate-800/80 rounded-2xl p-6 sm:p-8 shadow-2xl">
+      {homePanels.welcome && <div className="relative overflow-hidden bg-gradient-to-br from-[#0F1522] via-[#131B2E] to-[#0A0E18] border border-slate-800/80 rounded-2xl p-6 sm:p-8 shadow-2xl">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex flex-col gap-2 max-w-2xl">
             <div className="flex items-center gap-2">
@@ -188,10 +196,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </button>
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* POKEID UNIVERSAL LOOKUP CARD */}
-      <section className="bg-[#0F1522] border border-amber-500/40 rounded-2xl p-6 shadow-xl flex flex-col gap-3">
+      {homePanels.pokeIdLookup && <section className="bg-[#0F1522] border border-amber-500/40 rounded-2xl p-6 shadow-xl flex flex-col gap-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-400">
@@ -260,12 +268,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </span>
           )}
         </div>
-      </section>
+      </section>}
 
       {/* MERGED CATCH HUB: one tab per owned game combining Fresh Catches
           (starters + milestone unlocks) with Encounter & Living Dex suggestions
           — GO replacements and uncaught-in-owned-games — for that game. */}
-      <section className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 shadow-xl flex flex-col gap-5">
+      {homePanels.catchHub && (homePanels.trainerHints || homePanels.goReplacements) && <section className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 shadow-xl flex flex-col gap-5">
         {/* Hub header */}
         <div className="flex items-start justify-between gap-4 border-b border-slate-800/80 pb-4">
           <div className="flex items-center gap-2.5">
@@ -300,8 +308,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
             {ownedCatchGames.map((gId) => {
               const gameMeta = GAMES.find((g) => g.id === gId);
               const group = GAME_ID_TO_TRACKABLE[gId];
-              const done = group ? (gameProgress[group]?.length ?? 0) : 0;
-              const total = group ? milestonesFor(group).length : 0;
+              const done = group ? applicableCompletedMilestones(group, gameProgress[group] ?? [], ownedDlcs).length : 0;
+              const total = group ? milestonesFor(group, ownedDlcs).length : 0;
               const active = gId === effectiveCatchGame;
               return (
                 <button
@@ -330,7 +338,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         {/* Active tab content: Fresh Catches + suggestions for this game */}
         {effectiveCatchGame && ownedCatchGames.length > 0 && (
           <>
-            <MilestoneUnlocksPanel
+            {homePanels.trainerHints && <MilestoneUnlocksPanel
               progress={gameProgress}
               trackedGames={trackedGames}
               ownedGames={ownedGames}
@@ -347,9 +355,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
               onNavigateToProgress={onNavigateToProgress}
               onRestartGame={onRestartGame}
               groupFilter={effectiveCatchGroup ?? undefined}
-            />
+            />}
 
-            <DexSuggestionsSection
+            {homePanels.goReplacements && <DexSuggestionsSection
               dex={dex}
               caughtSet={caughtSet}
               livingSet={livingSet}
@@ -369,13 +377,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
               starterChoices={starterChoices}
               gameFilter={effectiveCatchGame}
               embedded
-            />
+            />}
           </>
         )}
-      </section>
+      </section>}
 
       {/* QUICK HUB NAVIGATION CARDS */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {homePanels.quickLinks && <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Register Pokémon */}
         <div
           onClick={() => onNavigateToRegister()}
@@ -475,10 +483,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <span className="text-purple-300 font-bold">{caughtPercent}% ({caughtCount}/1025)</span>
           </div>
         </div>
-      </section>
+      </section>}
 
       {/* WATCHLIST SECTION: Poké Bank Closure Risks */}
-      <section className="flex flex-col gap-4">
+      {homePanels.bankWatchlist && <section className="flex flex-col gap-4">
         <PokeBankClosureAlertSection
           dex={dex}
           caughtSet={caughtSet}
@@ -487,10 +495,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
           onSelectPokemon={onSelectPokemon}
           onOpenFullPage={onOpenFullPage}
         />
-      </section>
+      </section>}
 
       {/* OWNED GAMES SNAPSHOT */}
-      <section className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 flex flex-col gap-4 shadow-xl">
+      {homePanels.ownedLibrary && <section className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 flex flex-col gap-4 shadow-xl">
         <div className="flex items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
           <div className="flex items-center gap-2">
             <Layers className="w-4 h-4 text-amber-400" />
@@ -536,7 +544,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             ))}
           </div>
         )}
-      </section>
+      </section>}
     </div>
   );
 };

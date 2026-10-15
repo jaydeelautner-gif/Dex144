@@ -37,10 +37,12 @@ import { OfflineSettingsCard } from './OfflineSettingsCard';
 import { RescueShelterSection } from './RescueShelterSection';
 import type { RescueBinItem } from '../data/pokemonInventoryData';
 import type { User } from '../firebase';
+import { HOME_PANELS, type HomePanelVisibility, type HomePanelId } from '../data/homePanels';
 
-type TabId = 'games' | 'tracker' | 'export' | 'storage' | 'rescue' | 'danger';
+type TabId = 'home' | 'games' | 'tracker' | 'export' | 'storage' | 'rescue' | 'danger';
 
 const SETTINGS_TABS: { id: TabId; label: string; hint: string; icon: React.ElementType }[] = [
+  { id: 'home', label: 'Home Screen', hint: 'Choose visible panels', icon: Layers },
   { id: 'games', label: 'Games & DLC', hint: 'Owned games & expansions', icon: Layers },
   { id: 'tracker', label: 'Tracker', hint: 'Tally & suggestions', icon: Compass },
   { id: 'export', label: 'Export & Sharing', hint: 'Trainer card & backups', icon: Share2 },
@@ -50,6 +52,9 @@ const SETTINGS_TABS: { id: TabId; label: string; hint: string; icon: React.Eleme
 ];
 
 interface SettingsViewProps {
+  homePanels: HomePanelVisibility;
+  onToggleHomePanel: (id: HomePanelId) => void;
+  onResetHomePanels: () => void;
   dex: PokemonEntry[];
   caughtSet: Set<number>;
   shinySet: Set<number>;
@@ -94,6 +99,9 @@ interface SettingsViewProps {
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
+  homePanels,
+  onToggleHomePanel,
+  onResetHomePanels,
   dex,
   caughtSet,
   shinySet,
@@ -223,6 +231,27 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </nav>
 
         <div className="flex-1 min-w-0 w-full flex flex-col gap-8">
+
+      {activeTab === 'home' && (
+        <section className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 flex flex-col gap-5">
+          <div>
+            <h2 className="text-lg font-bold text-slate-100">Customize Home Screen</h2>
+            <p className="text-xs text-slate-400 mt-1">Choose which panels appear on Home. Saved automatically on this device and available offline. Hiding a panel does not delete PokéPets, catches or progress; other pages stay unchanged.</p>
+          </div>
+          {[...new Set(HOME_PANELS.map(p => p.group))].map(group => (
+            <fieldset key={group} className="flex flex-col gap-2">
+              <legend className="text-sm font-bold text-amber-300 mb-2">{group}</legend>
+              {HOME_PANELS.filter(p => p.group === group).map(panel => (
+                <label key={panel.id} className="flex items-start gap-3 p-3 rounded-xl bg-slate-900 border border-slate-800 cursor-pointer">
+                  <input type="checkbox" checked={homePanels[panel.id]} onChange={() => onToggleHomePanel(panel.id)} className="mt-1 accent-amber-400" />
+                  <span><span className="block text-sm text-slate-100 font-semibold">{panel.label}</span><span className="block text-xs text-slate-400 mt-0.5">{panel.description}</span></span>
+                </label>
+              ))}
+            </fieldset>
+          ))}
+          <button type="button" onClick={onResetHomePanels} className="self-start px-4 py-2 rounded-xl bg-amber-500 text-slate-950 text-xs font-bold">Restore default home layout</button>
+        </section>
+      )}
 
       {/* SECTION: IPAD WEBAPP STORAGE & OFFLINE AVAILABILITY */}
       {activeTab === 'storage' && (

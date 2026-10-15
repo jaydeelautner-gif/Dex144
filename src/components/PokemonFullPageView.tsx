@@ -630,6 +630,7 @@ export const PokemonFullPageView: React.FC<PokemonFullPageViewProps> = ({
       <section className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 shadow-xl">
         <PokemonEncountersSection
           pokemonId={pokemon.id}
+          ownedDlcs={ownedDlcs}
           ownedGames={userOwnedEncounterGames.map((g) => g.id)}
           progress={gameProgress}
           trackedGames={trackedGames}

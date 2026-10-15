@@ -1,3 +1,5 @@
+import { useHomePanels } from './hooks/useHomePanels';
+import { isMilestoneOwned } from './data/dlcOwnership';
 import { OfflineUpdateNotice } from './components/OfflineUpdateNotice';
 import { applyEvolutionAcquisitionHints } from './utils/reacquisition';
 import { useEncounterDataset } from './data/encountersData';
@@ -309,6 +311,7 @@ function isExclusiveLabel(label: string): boolean {
 }
 
 export function App() {
+  const { homePanels, toggleHomePanel, resetHomePanels } = useHomePanels();
   const baseDex = useMemo(() => buildInitialNationalDex(), []);
   const { dataset: acquisitionDataset } = useEncounterDataset();
 
@@ -529,7 +532,7 @@ export function App() {
     resetGame: resetGameProgress,
     restartGame,
     completeAll: completeAllMilestones,
-  } = useGameProgress();
+  } = useGameProgress(ownedDlcs);
 
   // Dex numbers currently locked because the user hasn't reached the milestone yet.
   // Only applies when at least one game is being tracked.
@@ -541,7 +544,7 @@ export function App() {
     const unlockedAcrossTracked = new Set<number>();
 
     for (const gId of trackedGames) {
-      const lockedForGame = getLockedDexNumbers(mergedCompletedSet, gId);
+      const lockedForGame = getLockedDexNumbers(mergedCompletedSet, gId, ownedDlcs);
       // Pokemon NOT in lockedForGame for this game are considered reachable here.
       for (const p of dex) {
         if (!lockedForGame.has(p.id)) {
@@ -558,7 +561,7 @@ export function App() {
       if (!unlockedAcrossTracked.has(id)) finalLocked.add(id);
     });
     return finalLocked;
-  }, [mergedCompletedSet, trackedGames, dex]);
+  }, [mergedCompletedSet, trackedGames, dex, ownedDlcs]);
 
   // For each progress-locked dex number, the uncompleted milestone IDs behind
   // which it sits in the tracked games — used for "Locked until …" chips so
@@ -570,12 +573,12 @@ export function App() {
       const dexNum = Number(dexStr);
       if (!lockedByProgressSet.has(dexNum)) continue;
       const blocking = ids.filter(
-        (id) => trackedGames.has(id.split('-')[0] as GameId) && !mergedCompletedSet.has(id)
+        (id) => trackedGames.has(id.split('-')[0] as GameId) && isMilestoneOwned(id, ownedDlcs) && !mergedCompletedSet.has(id)
       );
       if (blocking.length > 0) map.set(dexNum, blocking);
     }
     return map;
-  }, [lockedByProgressSet, trackedGames, mergedCompletedSet]);
+  }, [lockedByProgressSet, trackedGames, mergedCompletedSet, ownedDlcs]);
   // ── END GAME PROGRESS TRACKING ──
 
 
@@ -2050,10 +2053,11 @@ export function App() {
           <>
             {/* Top Global KPI Progress Strip */}
             <section
+              style={{display: activeTab === 'home' && !homePanels.nationalDex && !homePanels.livingDex && !homePanels.runningTotal ? 'none' : undefined}}
               aria-label="Global Progress Summary"
-              className="grid grid-cols-1 sm:grid-cols-3 gap-4"
+              className={`grid grid-cols-1 gap-4 ${activeTab !== 'home' || [homePanels.nationalDex,homePanels.livingDex,homePanels.runningTotal].filter(Boolean).length === 3 ? 'sm:grid-cols-3' : [homePanels.nationalDex,homePanels.livingDex,homePanels.runningTotal].filter(Boolean).length === 2 ? 'sm:grid-cols-2' : ''}`}
             >
-              <div className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-5 flex flex-col justify-between gap-2 shadow-lg">
+              <div style={{display: activeTab === 'home' && !homePanels.nationalDex ? 'none' : undefined}} className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-5 flex flex-col justify-between gap-2 shadow-lg">
                 <div className="flex items-center justify-between text-xs font-mono-tabular text-slate-400">
                   <span>NATIONAL POKÉDEX CAUGHT ({displayTrainerName.toUpperCase()})</span>
                   <span className="text-emerald-400 font-semibold">{caughtPct}%</span>
@@ -2069,7 +2073,7 @@ export function App() {
                 </div>
               </div>
 
-              <div className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-5 flex flex-col justify-between gap-2 shadow-lg">
+              <div style={{display: activeTab === 'home' && !homePanels.livingDex ? 'none' : undefined}} className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-5 flex flex-col justify-between gap-2 shadow-lg">
                 <div className="flex items-center justify-between text-xs font-mono-tabular text-slate-400">
                   <span>STORED IN POKÉMON HOME (LIVING DEX)</span>
                   <span className="text-sky-400 font-semibold">
@@ -2092,7 +2096,7 @@ export function App() {
                 </div>
               </div>
 
-              <div className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-5 flex flex-col justify-between gap-2 shadow-lg">
+              <div style={{display: activeTab === 'home' && !homePanels.runningTotal ? 'none' : undefined}} className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-5 flex flex-col justify-between gap-2 shadow-lg">
                 <div className="flex items-center justify-between text-xs font-mono-tabular text-slate-400">
                   <span className="font-semibold text-amber-300">
                     {selectedGame === 'all'
@@ -2131,6 +2135,7 @@ export function App() {
             {/* TAB 0: HOME */}
             {activeTab === 'home' && (
               <HomeView
+                homePanels={homePanels}
                 dex={dex}
                 caughtSet={caughtSet}
                 shinySet={shinySet}
@@ -2650,6 +2655,7 @@ export function App() {
             {/* ── GAME PROGRESS TRACKING TAB ── */}
             {activeTab === 'progress' && (
               <GameProgressTracker
+                ownedDlcs={ownedDlcs}
                 progress={gameProgress}
                 trackedGames={trackedGames}
                 ownedGames={ownedGames}
@@ -2689,6 +2695,9 @@ export function App() {
             {/* TAB 6: SETTINGS */}
             {activeTab === 'settings' && (
               <SettingsView
+                homePanels={homePanels}
+                onToggleHomePanel={toggleHomePanel}
+                onResetHomePanels={resetHomePanels}
                 openOfflineSectionRequest={offlineSettingsRequest}
                 dex={dex}
                 caughtSet={caughtSet}

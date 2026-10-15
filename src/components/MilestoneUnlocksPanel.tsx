@@ -1,3 +1,4 @@
+import { isAreaOwned } from '../data/dlcOwnership';
 import type { PokemonInstance } from '../data/pokemonInventoryData';
 import { evolvedAwaySpecies } from '../utils/pokepetEvolution';
 import { reacquisitionHint } from '../utils/reacquisition';
@@ -137,7 +138,7 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
     if (!anyCovered) return true;
     return members.some((g) => {
       const byArea = encounters[String(p.id)]?.[g];
-      return !!byArea && Object.keys(byArea).length > 0;
+      return !!byArea && Object.keys(byArea).some(area => isAreaOwned(g, area, ownedDlcs));
     });
   };
 
@@ -148,8 +149,8 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
     return members.some((g) => {
       const byArea = encounters[String(p.id)]?.[g];
       if (!byArea) return false;
-      return Object.values(byArea).some((rows) =>
-        rows.some((r) => !NON_WILD_METHODS.has(r.m))
+      return Object.entries(byArea).some(([area, rows]) =>
+        isAreaOwned(g, area, ownedDlcs) && rows.some((r) => !NON_WILD_METHODS.has(r.m))
       );
     });
   };
@@ -223,24 +224,24 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
   const [conditionArea, setConditionArea] = useState<string>('');
 
   const weatherOptions = useMemo(
-    () => (activeGameId ? weatherForGame(encounters, activeGameId) : []),
-    [encounters, activeGameId]
+    () => (activeGameId ? weatherForGame(encounters, activeGameId, ownedDlcs) : []),
+    [encounters, activeGameId, ownedDlcs]
   );
   const timeOptions = useMemo(
-    () => (activeGameId ? timeForGame(encounters, activeGameId) : []),
-    [encounters, activeGameId]
+    () => (activeGameId ? timeForGame(encounters, activeGameId, ownedDlcs) : []),
+    [encounters, activeGameId, ownedDlcs]
   );
   const conditionAreas = useMemo(
     () => (activeGameId && (weather || timeOfDay)
-      ? areasForConditions(encounters, activeGameId, weather, timeOfDay)
+      ? areasForConditions(encounters, activeGameId, weather, timeOfDay, ownedDlcs)
       : []),
-    [encounters, activeGameId, weather, timeOfDay]
+    [encounters, activeGameId, weather, timeOfDay, ownedDlcs]
   );
   const conditionSpawns = useMemo(
     () => (activeGameId && conditionArea
-      ? speciesForConditions(encounters, activeGameId, conditionArea, weather, timeOfDay, (pid) => !caughtSet.has(pid))
+      ? speciesForConditions(encounters, activeGameId, conditionArea, weather, timeOfDay, (pid) => !caughtSet.has(pid), ownedDlcs)
       : []),
-    [encounters, activeGameId, conditionArea, weather, timeOfDay, caughtSet]
+    [encounters, activeGameId, conditionArea, weather, timeOfDay, caughtSet, ownedDlcs]
   );
 
   const rows = useMemo<PanelRow[]>(() => {
@@ -252,7 +253,7 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
     for (const group of ownedGroups) {
       const completedIds = progress[group] ?? [];
       const meta = GAME_META[group];
-      const members = GROUP_MEMBER_GAMES[group] ?? [];
+      const members = (GROUP_MEMBER_GAMES[group] ?? []).filter(id => ownedGames.includes(id));
 
       const startingCandidates: PokemonEntry[] = [];
       const freshCandidates: PokemonEntry[] = [];
@@ -261,7 +262,7 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
 
       if (completedIds.length === 0) {
         // ── STARTING MODE: no milestones completed yet ──
-        const lockedAtStart = getLockedDexNumbers(EMPTY_MILESTONES, group);
+        const lockedAtStart = getLockedDexNumbers(EMPTY_MILESTONES, group, ownedDlcs);
         const chosenId = starterChoices[group];
         const starters = (STARTER_TRIOS[group] ?? [])
           .map((id) => dexById.get(id))
@@ -295,6 +296,7 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
 
         for (const p of dex) {
           if (caughtSet.has(p.id)) continue;
+          if (!members.some(game => { const av = p.availability[game]; return av?.status === 'base' || (av?.status === 'dlc' && (!av.dlcId || ownedDlcs.includes(av.dlcId))); })) continue;
           if (activeGameId && p.availability[activeGameId]?.reacquisitionMode === 'trade_or_other') continue;
           if (lockedAtStart.has(p.id)) continue;
           const isStarter = starters.some((s) => s.id === p.id);
@@ -355,18 +357,19 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
         });
       } else {
         // ── FRESH UNLOCK MODE: diff gates between last two milestones ──
-        const all = milestonesFor(group);
+        const all = milestonesFor(group, ownedDlcs);
         const completed = all.filter((m) => completedIds.includes(m.id));
         if (completed.length === 0) continue;
 
         const lastMilestone = completed.reduce((a, b) => (b.order > a.order ? b : a));
         lastMilestoneLabel = lastMilestone.label;
-        const stillLocked = getLockedDexNumbers(new Set(completedIds), group);
+        const stillLocked = getLockedDexNumbers(new Set(completedIds), group, ownedDlcs);
 
         // Cumulative: keep suggesting everything unlocked so far (not just the
         // latest badge), so earlier suggestions never disappear as you progress.
         for (const p of dex) {
           if (caughtSet.has(p.id)) continue;
+          if (!members.some(game => { const av = p.availability[game]; return av?.status === 'base' || (av?.status === 'dlc' && (!av.dlcId || ownedDlcs.includes(av.dlcId))); })) continue;
           if (activeGameId && p.availability[activeGameId]?.reacquisitionMode === 'trade_or_other') continue;
           if (stillLocked.has(p.id)) continue;
           if (!isCatchableInWild(p, members)) continue; // evolution-only

@@ -1,0 +1,53 @@
+import assert from 'node:assert/strict';
+import { milestonesFor, applicableCompletedMilestones } from '../src/data/milestones';
+import { getLockedDexNumbers } from '../src/data/milestoneGates';
+import { isAreaOwned, DLC_MILESTONE_PACK } from '../src/data/dlcOwnership';
+import { getGameAreas, getAreaSpecies, isAreaReachable, weatherForGame, areasForConditions, speciesForConditions } from '../src/utils/gameAreas';
+import { summarizeEncountersForGame, type EncounterDataset } from '../src/data/encountersData';
+import { HOME_PANELS, DEFAULT_HOME_PANELS, normalizeHomePanels } from '../src/data/homePanels';
+const ioa = ['swsh-isle-of-armor'] as const;
+const both = ['swsh-isle-of-armor','swsh-crown-tundra'] as const;
+assert.equal(milestonesFor('swsh',[]).length,9);
+assert.equal(milestonesFor('swsh',ioa).length,10);
+assert.equal(milestonesFor('swsh',both).length,11);
+assert.equal(milestonesFor('sv',[]).length,19);
+assert.equal(milestonesFor('sv',['sv-teal-mask']).length,20);
+assert.equal(milestonesFor('sv',['sv-teal-mask','sv-indigo-disk']).length,21);
+for(const [id,pack] of Object.entries(DLC_MILESTONE_PACK)) {
+  const group=id.split('-')[0];
+  assert.ok(!milestonesFor(group,[]).some(m=>m.id===id));
+  assert.ok(milestonesFor(group,[pack]).some(m=>m.id===id));
+}
+const saved=['swsh-badge-1','swsh-badge-1','swsh-ioa','swsh-ct','unknown'];
+assert.deepEqual(applicableCompletedMilestones('swsh',saved,[]),['swsh-badge-1']);
+assert.deepEqual(applicableCompletedMilestones('swsh',saved,ioa),['swsh-badge-1','swsh-ioa']);
+assert.equal(saved.length,5); // never mutate stored progress
+// No unowned expansion gate contributes to the user's lock/progress calculation.
+assert.ok(!getLockedDexNumbers(new Set(),'swsh',[]).has(1));
+assert.ok(getLockedDexNumbers(new Set(),'swsh',ioa).has(1));
+assert.ok(!getLockedDexNumbers(new Set(['swsh-ioa']),'swsh',ioa).has(1));
+const row={m:'walk',c:20,l:[10,12] as [number,number],v:['sword'],cd:['weather-raining','time-day']};
+const dataset: EncounterDataset={1:{sword:{'rolling-fields-main':[row],'fields-of-honor-area':[row],'freezington-area':[row]}}};
+assert.equal(isAreaOwned('sword','fields-of-honor-area',[]),false);
+assert.equal(isAreaOwned('sword','fields-of-honor-area',ioa),true);
+assert.equal(isAreaOwned('sword','freezington-area',ioa),false);
+assert.equal(isAreaOwned('scarlet','savanna-biome',[]),false);
+assert.equal(isAreaOwned('scarlet','savanna-biome',['sv-indigo-disk']),true);
+assert.deepEqual(getGameAreas(dataset,'sword',new Set(),[]).map(a=>a.area),['rolling-fields-main']);
+assert.equal(getGameAreas(dataset,'sword',new Set(),both).length,3);
+assert.equal(getAreaSpecies(dataset,'sword','fields-of-honor-area',[]).length,0);
+assert.equal(getAreaSpecies(dataset,'sword','fields-of-honor-area',ioa).length,1);
+assert.equal(isAreaReachable('sword','fields-of-honor-area',new Set(['swsh-ioa']),[]),false);
+assert.ok(!summarizeEncountersForGame(dataset,1,'sword',[])!.includes('Fields Of Honor'));
+assert.ok(summarizeEncountersForGame(dataset,1,'sword',ioa)!.includes('Fields Of Honor'));
+assert.deepEqual(areasForConditions(dataset,'sword','weather-raining','',[]),['rolling-fields-main']);
+assert.equal(speciesForConditions(dataset,'sword','fields-of-honor-area','weather-raining','',()=>true,[]).length,0);
+assert.deepEqual(weatherForGame(dataset,'sword',[]),['weather-raining']);
+assert.deepEqual(normalizeHomePanels(null),DEFAULT_HOME_PANELS);
+assert.deepEqual(normalizeHomePanels('bad'),DEFAULT_HOME_PANELS);
+const customized=normalizeHomePanels({welcome:false,trainerHints:false,ownedLibrary:'false',unknown:false});
+assert.equal(customized.welcome,false);assert.equal(customized.trainerHints,false);assert.equal(customized.ownedLibrary,true);
+assert.equal(Object.keys(customized).length,HOME_PANELS.length);
+assert.deepEqual(normalizeHomePanels(JSON.parse(JSON.stringify(customized))),customized);
+assert.ok(Object.values(DEFAULT_HOME_PANELS).every(Boolean));
+console.log('DLC/home preferences tests passed: ownership, counts, stale flags, gates, areas, encounters, conditions, normalization and persistence format.');

@@ -1,0 +1,98 @@
+// Production UI tests with disposable browser storage; no requests reach Firebase.
+import assert from 'node:assert/strict';
+import { createServer } from 'node:http';
+import { readFileSync, existsSync } from 'node:fs';
+import { join, extname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { chromium, expect } from '@playwright/test';
+const root=fileURLToPath(new URL('../dist/',import.meta.url));
+const mime={'.js':'application/javascript','.json':'application/json','.html':'text/html','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.ttf':'font/ttf','.webmanifest':'application/manifest+json'};
+const server=createServer((q,r)=>{
+  const path=new URL(q.url,'http://test').pathname;
+  const file=join(root,path==='/'?'index.html':path);
+  if(!existsSync(file)){r.statusCode=404;return r.end('not found');}
+  r.setHeader('Content-Type',mime[extname(file)]??'application/octet-stream');r.end(readFileSync(file));
+});
+await new Promise(r=>server.listen(0,'127.0.0.1',r));
+const base=`http://127.0.0.1:${server.address().port}`;
+const browser=await chromium.launch();const ctx=await browser.newContext({viewport:{width:1280,height:1000}});
+await ctx.route('**/*',route=>new URL(route.request().url()).origin===base?route.continue():route.abort());
+const page=await ctx.newPage();page.setDefaultTimeout(30000);
+const errors=[];page.on('pageerror',e=>errors.push(e.message));
+await page.addInitScript(()=>{
+  if(localStorage.getItem('preferences-test-seeded')) return;
+  localStorage.setItem('preferences-test-seeded','true');
+  localStorage.setItem('homedex_v4_owned_games',JSON.stringify(['sword']));
+  localStorage.setItem('homedex_v4_owned_dlcs','[]');
+  localStorage.setItem('homedex_v4_game_progress',JSON.stringify({swsh:['swsh-badge-1','swsh-ioa','swsh-ct']}));
+  localStorage.setItem('homedex_v4_tracked_games',JSON.stringify(['swsh']));
+  localStorage.setItem('homedex_v4_inventory',JSON.stringify([{pokeId:'IDABCDEFGHIJ',pokemonId:25,level:10,nickname:'Keep',gender:'male',variantId:'25:base',variantName:'Standard',isShiny:false,isHomeGift:false,isTraded:false,storedInHome:false,isInLivingBox:false,gameId:'sword',createdAt:1,updatedAt:1}]));
+});
+const nav=async name=>page.getByRole('button',{name,exact:true}).first().click();
+const tracker=()=>page.getByRole('heading',{name:'Game Progress',exact:true}).locator('xpath=ancestor::section[1]');
+const sidebar=()=>page.getByRole('navigation',{name:'Settings sections'});
+async function homeSettings(){await nav('Settings');await sidebar().getByRole('button',{name:/^Home Screen/}).click();await page.getByRole('heading',{name:'Customize Home Screen',exact:true}).waitFor();}
+try {
+  await page.goto(base);await page.getByRole('heading',{name:'Welcome to HomeDex'}).waitFor();
+  await nav('Progress');
+  await expect(tracker().getByRole('button',{name:/SwSh\s*1\/9/})).toBeVisible();
+  await expect(tracker().getByText('DLC — Isle of Armor Started',{exact:true})).toHaveCount(0);
+  await expect(tracker().getByText('DLC — Crown Tundra Started',{exact:true})).toHaveCount(0);
+  await tracker().getByRole('button',{name:'Mark all complete',exact:true}).click();
+  await expect(tracker().getByRole('button',{name:/SwSh\s*9\/9/})).toBeVisible();
+  await expect(tracker().getByText('100%',{exact:true})).toBeVisible();
+  console.log('PASS: unowned DLC absent from checklist and numerator/denominator, even with stale completion flags');
+  await nav('Settings');
+  await page.getByRole('button',{name:'Isle of Armor DLC',exact:true}).first().click();
+  await nav('Progress');
+  await expect(tracker().getByText('DLC — Isle of Armor Started',{exact:true})).toBeVisible();
+  await expect(tracker().getByRole('button',{name:/SwSh\s*10\/10/})).toBeVisible();
+  await expect(tracker().getByText('DLC — Crown Tundra Started',{exact:true})).toHaveCount(0);
+  await nav('Settings');await page.getByRole('button',{name:'Isle of Armor DLC',exact:true}).first().click();
+  await nav('Progress');await expect(tracker().getByRole('button',{name:/SwSh\s*9\/9/})).toBeVisible();
+  await nav('Home');
+  await expect(page.getByRole('button',{name:/Sword\s*9\/9/})).toBeVisible();
+  console.log('PASS: ownership changes immediately add/remove only the owned expansion; saved history restores; Home count agrees');
+
+  await homeSettings();
+  for(const label of ['Welcome banner','POKEID finder','National Pokédex summary','Quick navigation cards','Owned games snapshot','GO replacements']) await page.getByRole('checkbox',{name:new RegExp('^'+label)}).uncheck();
+  await nav('Home');
+  await expect(page.getByRole('heading',{name:'Welcome to HomeDex',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('heading',{name:'Find Any Pet Pokémon by POKEID',exact:true})).toHaveCount(0);
+  await expect(page.getByText(/^NATIONAL POKÉDEX CAUGHT/)).not.toBeVisible();
+  await expect(page.getByRole('heading',{name:'Catch Hub',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Trainer Hints',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'GO Replacements',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('heading',{name:/Your Owned Pokémon Library/})).toHaveCount(0);
+  await page.reload();await expect(page.getByRole('heading',{name:'Catch Hub',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Welcome to HomeDex',exact:true})).toHaveCount(0);
+  await nav('Progress');await expect(page.getByText(/^NATIONAL POKÉDEX CAUGHT/)).toBeVisible();
+  console.log('PASS: Home panel switches take effect, survive reload and do not hide panels on other pages');
+  await homeSettings();
+  await page.getByRole('checkbox',{name:/^Trainer Hints/}).uncheck();
+  await page.getByRole('checkbox',{name:/^GO replacements/}).check();
+  await nav('Home');
+  await expect(page.getByRole('heading',{name:'Catch Hub',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Trainer Hints',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('heading',{name:'GO Replacements',exact:true})).toBeVisible();
+  console.log('PASS: Trainer Hints and GO replacements can be hidden independently');
+  await homeSettings();
+  await page.getByRole('checkbox',{name:/^Catch Hub/}).uncheck();
+  await nav('Home');await expect(page.getByRole('heading',{name:'Catch Hub',exact:true})).toHaveCount(0);
+  await homeSettings();await page.getByRole('button',{name:'Restore default home layout',exact:true}).click();
+  await nav('Home');
+  await expect(page.getByRole('heading',{name:'Welcome to HomeDex',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Find Any Pet Pokémon by POKEID',exact:true})).toBeVisible();
+  await expect(page.getByText(/^NATIONAL POKÉDEX CAUGHT/)).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Catch Hub',exact:true})).toBeVisible();
+  const persisted=await page.evaluate(()=>({pets:JSON.parse(localStorage.getItem('homedex_v4_inventory')),progress:JSON.parse(localStorage.getItem('homedex_v4_game_progress')),prefs:JSON.parse(localStorage.getItem('homedex_home_panels_v1'))}));
+  assert.equal(persisted.pets[0].pokeId,'IDABCDEFGHIJ');assert.equal(persisted.pets.length,1);assert.equal(persisted.progress.swsh.length,11);assert.ok(Object.values(persisted.prefs).every(Boolean));
+  await ctx.setOffline(true);
+  await homeSettings();await page.getByRole('checkbox',{name:/^Owned games snapshot/}).uncheck();
+  await nav('Home');await page.reload();
+  await expect(page.getByRole('heading',{name:'Catch Hub',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:/Your Owned Pokémon Library/})).toHaveCount(0);
+  console.log('PASS: home customization persists and works during a fully offline reload');
+  assert.deepEqual(errors,[]);
+  console.log('PASS: hub/subpanel controls and restore defaults preserve every PokéPet and saved progress; no runtime errors');
+} finally {await ctx.close();await browser.close();await new Promise(r=>server.close(r));}

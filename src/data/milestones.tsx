@@ -1,4 +1,5 @@
-import type { GameId } from './pokemonData';
+import type { GameId, DlcId } from './pokemonData';
+import { isMilestoneOwned } from './dlcOwnership';
 
 export type MilestoneType =
   | 'badge'
@@ -350,8 +351,14 @@ export const MILESTONES: Record<string, Milestone[]> = {
   ],
 };
 
-export function milestonesFor(gameId: string): Milestone[] {
-  return [...(MILESTONES[gameId] ?? [])].sort((a, b) => a.order - b.order);
+export function milestonesFor(gameId: string, ownedDlcs: readonly DlcId[] = []): Milestone[] {
+  return (MILESTONES[gameId] ?? []).filter(m => isMilestoneOwned(m.id, ownedDlcs)).sort((a, b) => a.order - b.order);
+}
+
+/** Ignore unknown, duplicated and unowned-DLC completion flags without deleting saved history. */
+export function applicableCompletedMilestones(gameId: string, completed: readonly string[], ownedDlcs: readonly DlcId[] = []): string[] {
+  const available = new Set(milestonesFor(gameId, ownedDlcs).map(m => m.id));
+  return [...new Set(completed)].filter(id => available.has(id));
 }
 
 /** Fast lookup: milestoneId -> Milestone */

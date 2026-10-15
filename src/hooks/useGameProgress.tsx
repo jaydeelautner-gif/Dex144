@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { GameId } from '../data/pokemonData';
-import { TRACKABLE_GAMES } from '../data/milestones';
+import type { GameId, DlcId } from '../data/pokemonData';
+import { TRACKABLE_GAMES, applicableCompletedMilestones, milestonesFor } from '../data/milestones';
+import { isMilestoneOwned } from '../data/dlcOwnership';
 
 const LS_PROGRESS_KEY = 'homedex_v4_game_progress';
 const LS_TRACKED_GAMES_KEY = 'homedex_v4_tracked_games';
@@ -53,8 +54,9 @@ function loadStarterChoices(): Record<string, number> {
   }
 }
 
-export function useGameProgress() {
-  const [progress, setProgress] = useState<ProgressState>(() => loadProgress());
+export function useGameProgress(ownedDlcs: readonly DlcId[] = []) {
+  const [savedProgress, setProgress] = useState<ProgressState>(() => loadProgress());
+  const progress = useMemo(() => Object.fromEntries(TRACKABLE_GAMES.map(id => [id, applicableCompletedMilestones(id, savedProgress[id] ?? [], ownedDlcs)])), [savedProgress, ownedDlcs]);
   const [starterChoices, setStarterChoices] = useState<Record<string, number>>(
     () => loadStarterChoices()
   );
@@ -64,9 +66,9 @@ export function useGameProgress() {
 
   useEffect(() => {
     try {
-      localStorage.setItem(LS_PROGRESS_KEY, JSON.stringify(progress));
+      localStorage.setItem(LS_PROGRESS_KEY, JSON.stringify(savedProgress));
     } catch { /* ignore */ }
-  }, [progress]);
+  }, [savedProgress]);
 
   useEffect(() => {
     try {
@@ -81,6 +83,7 @@ export function useGameProgress() {
   }, [starterChoices]);
 
   const toggleMilestone = useCallback((gameId: GameId, milestoneId: string) => {
+    if (!milestonesFor(gameId, ownedDlcs).some(m => m.id === milestoneId)) return;
     setProgress((prev) => {
       const current = prev[gameId] ?? [];
       const next = current.includes(milestoneId)
@@ -88,7 +91,7 @@ export function useGameProgress() {
         : [...current, milestoneId];
       return { ...prev, [gameId]: next };
     });
-  }, []);
+  }, [ownedDlcs]);
 
   const resetGame = useCallback((gameId: GameId) => {
     setProgress((prev) => ({ ...prev, [gameId]: [] }));
@@ -110,8 +113,11 @@ export function useGameProgress() {
   }, []);
 
   const completeAll = useCallback((gameId: GameId, milestoneIds: string[]) => {
-    setProgress((prev) => ({ ...prev, [gameId]: [...milestoneIds] }));
-  }, []);
+    setProgress((prev) => ({ ...prev, [gameId]: [
+      ...(prev[gameId] ?? []).filter(id => !isMilestoneOwned(id, ownedDlcs)),
+      ...applicableCompletedMilestones(gameId, milestoneIds, ownedDlcs),
+    ] }));
+  }, [ownedDlcs]);
 
   const chooseStarter = useCallback((gameGroup: string, dexId: number) => {
     setStarterChoices((prev) => ({ ...prev, [gameGroup]: dexId }));

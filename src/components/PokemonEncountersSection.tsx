@@ -1,6 +1,7 @@
+import { isAreaOwned } from '../data/dlcOwnership';
 import React, { useMemo, useState } from 'react';
 import { MapPin, Loader2 } from 'lucide-react';
-import { GAMES, type GameId } from '../data/pokemonData';
+import { GAMES, type GameId, type DlcId } from '../data/pokemonData';
 import {
   useEncounterDataset,
   getEncountersForGame,
@@ -16,6 +17,7 @@ interface PokemonEncountersSectionProps {
   pokemonId: number;
   /** Only these games are rendered; pass the user's owned games. */
   ownedGames: GameId[];
+  ownedDlcs?: DlcId[];
   /** Completed milestone ids per trackable group, for the progress filter. */
   progress?: Record<string, string[]>;
   /** Milestone ids currently tracked; enables the "reachable now" toggle. */
@@ -29,6 +31,7 @@ interface PokemonEncountersSectionProps {
 export const PokemonEncountersSection: React.FC<PokemonEncountersSectionProps> = ({
   pokemonId,
   ownedGames,
+  ownedDlcs = [],
   progress = {},
   trackedGames,
 }) => {
@@ -41,9 +44,9 @@ export const PokemonEncountersSection: React.FC<PokemonEncountersSectionProps> =
   const rows = useMemo(() => {
     if (!dataset) return [];
     return GAMES.filter((g) => ownedGames.includes(g.id))
-      .map((gameMeta) => ({ gameMeta, areas: getEncountersForGame(dataset, pokemonId, gameMeta.id) }))
-      .filter((r): r is { gameMeta: (typeof GAMES)[number]; areas: EncounterArea[] } => !!r.areas);
-  }, [dataset, pokemonId, ownedGames]);
+      .map((gameMeta) => ({ gameMeta, areas: getEncountersForGame(dataset, pokemonId, gameMeta.id)?.filter(area => isAreaOwned(gameMeta.id, area.area, ownedDlcs)) ?? null }))
+      .filter((r): r is { gameMeta: (typeof GAMES)[number]; areas: EncounterArea[] } => !!r.areas?.length);
+  }, [dataset, pokemonId, ownedGames, ownedDlcs]);
 
   // Areas reachable with the badges/milestones marked so far, per game.
   const applied = useMemo(() => {
@@ -58,7 +61,7 @@ export const PokemonEncountersSection: React.FC<PokemonEncountersSectionProps> =
           return { gameMeta, areas, hiddenAreas: 0, hiddenMilestones: [] as string[] };
         }
         const completed = new Set(progress[group] ?? []);
-        const kept = areas.filter((a) => isAreaReachable(gameMeta.id, a.area, completed));
+        const kept = areas.filter((a) => isAreaReachable(gameMeta.id, a.area, completed, ownedDlcs));
         const blocked = new Set<string>();
         for (const a of areas) {
           if (kept.includes(a)) continue;
@@ -69,7 +72,7 @@ export const PokemonEncountersSection: React.FC<PokemonEncountersSectionProps> =
         return { gameMeta, areas: kept, hiddenAreas: areas.length - kept.length, hiddenMilestones: [...blocked] };
       })
       .filter((r) => r.areas.length > 0 || r.hiddenAreas === 0);
-  }, [rows, reachableOnly, canFilter, trackedGames, progress]);
+  }, [rows, reachableOnly, canFilter, trackedGames, progress, ownedDlcs]);
 
   if (loading) {
     return (
