@@ -55,6 +55,9 @@ interface PokemonDetailDrawerProps {
   gameCatches: GameCatchesMap;
   inventory?: PokemonInstance[];
   onNavigateToRegister?: (pokemonId?: number) => void;
+  /** Completed milestones per trackable group + tracked games, for the reachability filter. */
+  gameProgress?: Record<string, string[]>;
+  trackedGames?: Set<GameId>;
   onOpenTrainerCardForPokeId?: (instance: PokemonInstance) => void;
 }
 
@@ -75,6 +78,8 @@ export const PokemonDetailDrawer: React.FC<PokemonDetailDrawerProps> = ({
   inventory = [],
   onNavigateToRegister,
   onOpenTrainerCardForPokeId,
+  gameProgress = {},
+  trackedGames,
 }) => {
   const [previewShiny, setPreviewShiny] = useState(false);
   const [revealedDrawerPokeIds, setRevealedDrawerPokeIds] = useState<Set<string>>(() => new Set());
@@ -482,7 +487,12 @@ export const PokemonDetailDrawer: React.FC<PokemonDetailDrawerProps> = ({
         })()}
 
         {/* Accurate Wild Encounter Data (PokéAPI bundle) */}
-        <PokemonEncountersSection pokemonId={pokemon.id} ownedGames={userOwnedEncounterGames.map((g) => g.id)} />
+        <PokemonEncountersSection
+          pokemonId={pokemon.id}
+          ownedGames={userOwnedEncounterGames.map((g) => g.id)}
+          progress={gameProgress}
+          trackedGames={trackedGames}
+        />
       </aside>
     </div>
   );

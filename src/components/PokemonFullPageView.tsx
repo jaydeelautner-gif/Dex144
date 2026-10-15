@@ -64,6 +64,9 @@ interface PokemonFullPageViewProps {
   onDeleteInstance?: (pokeId: string) => void;
   onOpenTrainerCardForPokeId?: (instance: PokemonInstance) => void;
   onNavigateToRegister?: (pokemonId?: number) => void;
+  /** Completed milestones per trackable group + tracked games, for the reachability filter. */
+  gameProgress?: Record<string, string[]>;
+  trackedGames?: Set<GameId>;
 }
 
 export const PokemonFullPageView: React.FC<PokemonFullPageViewProps> = ({
@@ -86,6 +89,8 @@ export const PokemonFullPageView: React.FC<PokemonFullPageViewProps> = ({
   onDeleteInstance,
   onOpenTrainerCardForPokeId,
   onNavigateToRegister,
+  gameProgress = {},
+  trackedGames,
 }) => {
   const [previewShiny, setPreviewShiny] = useState(false);
   const [revealedFullPagePokeIds, setRevealedFullPagePokeIds] = useState<Set<string>>(() => new Set());
@@ -623,7 +628,12 @@ export const PokemonFullPageView: React.FC<PokemonFullPageViewProps> = ({
 
       {/* Accurate Wild Encounter Data (PokéAPI bundle) */}
       <section className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 shadow-xl">
-        <PokemonEncountersSection pokemonId={pokemon.id} ownedGames={userOwnedEncounterGames.map((g) => g.id)} />
+        <PokemonEncountersSection
+          pokemonId={pokemon.id}
+          ownedGames={userOwnedEncounterGames.map((g) => g.id)}
+          progress={gameProgress}
+          trackedGames={trackedGames}
+        />
       </section>
 
       {/* POSITIVE CONSENT MODAL FOR DELETING FROM FULL PAGE VIEW */}

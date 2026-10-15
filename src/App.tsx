@@ -2029,6 +2029,8 @@ export function App() {
             selectedBoxGameId={boxSelectedGamesMap.get(fullPagePokemon.id)}
             ownedGames={ownedGames}
             ownedDlcs={ownedDlcs}
+            gameProgress={gameProgress}
+            trackedGames={trackedGames}
             gameCatches={gameCatches}
             onJumpToBox={(boxNum) => {
               setFullPagePokemon(null);
@@ -2847,6 +2849,8 @@ export function App() {
         caughtVariantsSet={caughtVariantsSet}
         selectedBoxGameId={selectedPokemon ? boxSelectedGamesMap.get(selectedPokemon.id) : undefined}
         ownedGames={ownedGames}
+        gameProgress={gameProgress}
+        trackedGames={trackedGames}
         ownedDlcs={ownedDlcs}
         gameCatches={gameCatches}
         inventory={inventory}

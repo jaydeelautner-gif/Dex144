@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { MapPin, Loader2 } from 'lucide-react';
 import { GAMES, type GameId } from '../data/pokemonData';
 import {
@@ -9,11 +9,17 @@ import {
   type EncounterArea,
 } from '../data/encountersData';
 import { GameLogoBadge } from './GameLogoBadge';
+import { isAreaReachable, areaUnlockMilestone } from '../utils/gameAreas';
+import { MILESTONES, GAME_ID_TO_TRACKABLE } from '../data/milestones';
 
 interface PokemonEncountersSectionProps {
   pokemonId: number;
   /** Only these games are rendered; pass the user's owned games. */
   ownedGames: GameId[];
+  /** Completed milestone ids per trackable group, for the progress filter. */
+  progress?: Record<string, string[]>;
+  /** Milestone ids currently tracked; enables the "reachable now" toggle. */
+  trackedGames?: Set<GameId>;
 }
 
 /**
@@ -23,8 +29,14 @@ interface PokemonEncountersSectionProps {
 export const PokemonEncountersSection: React.FC<PokemonEncountersSectionProps> = ({
   pokemonId,
   ownedGames,
+  progress = {},
+  trackedGames,
 }) => {
   const { dataset, loading } = useEncounterDataset();
+  const [reachableOnly, setReachableOnly] = useState(false);
+
+  // The filter is only meaningful for a game with milestones to check off.
+  const canFilter = (trackedGames?.size ?? 0) > 0;
 
   const rows = useMemo(() => {
     if (!dataset) return [];
@@ -32,6 +44,32 @@ export const PokemonEncountersSection: React.FC<PokemonEncountersSectionProps> =
       .map((gameMeta) => ({ gameMeta, areas: getEncountersForGame(dataset, pokemonId, gameMeta.id) }))
       .filter((r): r is { gameMeta: (typeof GAMES)[number]; areas: EncounterArea[] } => !!r.areas);
   }, [dataset, pokemonId, ownedGames]);
+
+  // Areas reachable with the badges/milestones marked so far, per game.
+  const applied = useMemo(() => {
+    if (!reachableOnly || !canFilter) {
+      return rows.map((r) => ({ ...r, hiddenAreas: 0, hiddenMilestones: [] as string[] }));
+    }
+    return rows
+      .map(({ gameMeta, areas }) => {
+        const group = (GAME_ID_TO_TRACKABLE as Record<string, string | undefined>)[gameMeta.id];
+        // Only filter games the trainer is actually tracking; others stay intact.
+        if (!group || !trackedGames?.has(group as GameId)) {
+          return { gameMeta, areas, hiddenAreas: 0, hiddenMilestones: [] as string[] };
+        }
+        const completed = new Set(progress[group] ?? []);
+        const kept = areas.filter((a) => isAreaReachable(gameMeta.id, a.area, completed));
+        const blocked = new Set<string>();
+        for (const a of areas) {
+          if (kept.includes(a)) continue;
+          const milestoneId = areaUnlockMilestone(gameMeta.id, a.area);
+          const ms = milestoneId ? (MILESTONES[group] ?? []).find((m) => m.id === milestoneId) : undefined;
+          blocked.add(ms?.short ?? milestoneId ?? 'locked');
+        }
+        return { gameMeta, areas: kept, hiddenAreas: areas.length - kept.length, hiddenMilestones: [...blocked] };
+      })
+      .filter((r) => r.areas.length > 0 || r.hiddenAreas === 0);
+  }, [rows, reachableOnly, canFilter, trackedGames, progress]);
 
   if (loading) {
     return (
@@ -58,7 +96,19 @@ export const PokemonEncountersSection: React.FC<PokemonEncountersSectionProps> =
         <span className="text-[10px] font-mono text-slate-400">PokéAPI · location, method, %, levels</span>
       </div>
 
-      {rows.map(({ gameMeta, areas }) => (
+      {canFilter && (
+        <label className="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={reachableOnly}
+            onChange={(e) => setReachableOnly(e.target.checked)}
+            className="accent-amber-400"
+          />
+          <span>Only show locations I can reach with my current game progress</span>
+        </label>
+      )}
+
+      {applied.map(({ gameMeta, areas, hiddenAreas, hiddenMilestones }) => (
         <div
           key={gameMeta.id}
           className="p-3.5 rounded-xl bg-[#0B0F17] border border-slate-800 flex flex-col gap-2 text-xs"
@@ -68,6 +118,12 @@ export const PokemonEncountersSection: React.FC<PokemonEncountersSectionProps> =
             <span className="font-bold text-slate-100">{gameMeta.shortTitle}</span>
             <span className="ml-auto font-mono text-[10px] text-slate-400">
               {areas.length} location{areas.length === 1 ? '' : 's'}
+              {hiddenAreas > 0 && (
+                <span className="text-amber-300">
+                  {' '}· {hiddenAreas} locked
+                  {hiddenMilestones.length > 0 ? ` (${hiddenMilestones.join(', ')})` : ''}
+                </span>
+              )}
             </span>
           </div>
 

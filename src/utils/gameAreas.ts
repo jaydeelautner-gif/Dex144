@@ -120,3 +120,31 @@ export function useGameAreas(gameId: GameId, completedMilestones: Set<string>) {
   );
   return { areas, dataset, loading };
 }
+
+/**
+ * Whether a single named area is reachable given the milestones completed for
+ * a game. Areas with no unlock milestone (reachable from the start) are always
+ * available; a game with no progression data is treated as fully accessible so
+ * we never hide real locations we cannot classify.
+ */
+export function isAreaReachable(
+  gameId: GameId,
+  area: string,
+  completedMilestones: Set<string>
+): boolean {
+  const group = (GAME_ID_TO_TRACKABLE as Record<string, string | undefined>)[gameId];
+  if (!group) return true;
+  const unlocks = AREA_UNLOCKS[group];
+  if (!unlocks) return true;
+  if (!(area in unlocks)) return true; // unknown area: do not hide it
+  const milestone = unlocks[area];
+  if (milestone === null) return true;
+  return completedMilestones.has(milestone);
+}
+
+/** The milestone that unlocks an area, or null when reachable from the start. */
+export function areaUnlockMilestone(gameId: GameId, area: string): string | null {
+  const group = (GAME_ID_TO_TRACKABLE as Record<string, string | undefined>)[gameId];
+  if (!group) return null;
+  return AREA_UNLOCKS[group]?.[area] ?? null;
+}
