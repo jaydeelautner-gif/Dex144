@@ -1,4 +1,5 @@
 import { useHomePanels } from './hooks/useHomePanels';
+import { useOfflineUpdateStatus, checkForOfflineUpdate } from './utils/offlineUpdates';
 import { isMilestoneOwned } from './data/dlcOwnership';
 import { OfflineUpdateNotice } from './components/OfflineUpdateNotice';
 import { applyEvolutionAcquisitionHints } from './utils/reacquisition';
@@ -358,6 +359,8 @@ export function App() {
 
   // Refresh button state
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  // Server-side webapp/data update check (never touches user data or the package).
+  const offlineUpdate = useOfflineUpdateStatus();
 
   // ── Friends system state ──
   const [myFriendCode, setMyFriendCode] = useState<string | undefined>(undefined);
@@ -1596,17 +1599,28 @@ export function App() {
     // Keep myFriends in localStorage so the list persists if they sign back in
   };
 
-  const handleRefresh = async () => {
+  /**
+   * Ask the server whether a newer webapp/data release exists. This only
+   * compares versions — it never reloads the page, clears device storage or
+   * re-downloads the offline package. Applying an update stays an explicit
+   * choice in Settings → Storage (and the indicator under the sync status).
+   */
+  const handleCheckForUpdates = async () => {
     if (isRefreshing) return;
     setIsRefreshing(true);
     try {
-      await drainOfflineSyncQueue();
-    } catch {
-      // ignore — reload anyway
+      const result = await checkForOfflineUpdate();
+      // Refresh the indicator instances with the freshly checked version.
+      await offlineUpdate.refresh(false);
+      setToast({
+        message: result.needsUpdate
+          ? 'Update required — open Settings → Storage to download it. Nothing on this device was changed.'
+          : 'Server checked: this device is already up to date. Nothing was changed or re-downloaded.',
+        type: 'info',
+      });
+    } finally {
+      setIsRefreshing(false);
     }
-    setTimeout(() => {
-      window.location.reload();
-    }, 300);
   };
 
   // ── Friend handlers ──
@@ -2008,10 +2022,10 @@ export function App() {
           {/* Refresh button — drains offline queue, then reloads */}
           <button
             type="button"
-            onClick={handleRefresh}
+            onClick={handleCheckForUpdates}
             disabled={isRefreshing}
-            title="Refresh app and sync pending changes"
-            aria-label="Refresh app and sync pending changes"
+            title="Check the server for a webapp/data update (changes nothing on this device)"
+            aria-label="Check for updates"
             className="p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-amber-300 disabled:opacity-60 disabled:cursor-not-allowed transition-colors cursor-pointer"
           >
             <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-amber-400' : ''}`} />

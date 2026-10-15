@@ -28,10 +28,36 @@ async function checkDeployedVersion():Promise<string|null> {
   if(!pendingCheck) pendingCheck=(async()=>{
     try { const m=await fetchOfflineManifest(); try { localStorage.setItem(LATEST_KEY,JSON.stringify({version:m.version,checkedAt:Date.now()})); } catch { /* Still show the network result in memory. */ } return m.version; }
     catch { return lastKnown(); }
-    finally { pendingCheck=null; }
+    finally {
+      pendingCheck=null;
+      // Let every mounted hook (header notice, settings) re-read the result.
+      window.dispatchEvent(new Event(PACKAGE_EVENT));
+    }
   })();
   return pendingCheck;
 }
+/**
+ * One-shot server check for callers that need the answer immediately (e.g. a
+ * button feedback message). Reads nothing and writes nothing except the cached
+ * latest-version marker used by the indicator.
+ */
+export async function checkForOfflineUpdate(): Promise<{
+  latest: string | null;
+  running: string;
+  needsUpdate: boolean;
+  downloadedVersion: string | null;
+}> {
+  const latest = await checkDeployedVersion();
+  const meta = await getOfflinePackageMetadata();
+  const state = offlineUpdateState(meta, latest, RUNNING_OFFLINE_VERSION, appWaiting);
+  return {
+    latest,
+    running: RUNNING_OFFLINE_VERSION,
+    needsUpdate: state.updateNeeded || state.reloadNeeded,
+    downloadedVersion: meta.version ?? null,
+  };
+}
+
 export function useOfflineUpdateStatus() {
   const [meta,setMeta]=useState<OfflinePackageMeta|null>(null);
   const [latest,setLatest]=useState<string|null>(()=>lastKnown());
@@ -46,7 +72,7 @@ export function useOfflineUpdateStatus() {
   },[]);
   useEffect(()=>{
     void refresh(true);
-    const changed=()=>{ void refresh(false); };
+    const changed=()=>{ setLatest(lastKnown()); setWaiting(appWaiting); void refresh(false); };
     const online=()=>{ void refresh(true); };
     const focus=()=>{ if(document.visibilityState!=='hidden') void refresh(true); };
     window.addEventListener(PACKAGE_EVENT,changed); window.addEventListener('online',online); window.addEventListener('focus',focus);

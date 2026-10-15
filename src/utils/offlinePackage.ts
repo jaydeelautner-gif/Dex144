@@ -136,10 +136,18 @@ async function performDownload(
     for (const file of manifest.files) {
       checkAbort(); let r=await stage.match(url(file.url));
       if (!r || !(await verifyFile(r,file))) {
-        const fetchUrl=new URL(file.url,origin()); fetchUrl.searchParams.set('offline-download',manifest.version);
-        r=await fetchWithDeadline(fetchUrl,{cache:'no-store'},signal,90000);
-        if (!(await verifyFile(r,file))) throw Error(`Offline file verification failed: ${file.url}. The deployment may have changed; retry.`);
-        await stage.put(url(file.url),r.clone());
+        // PATCH, DON'T RE-DOWNLOAD: a byte-identical copy already on this
+        // device (previous package or legacy cache) is promoted into the new
+        // package, so a version bump only fetches the files that changed.
+        const local=(old?await old.match(url(file.url)):undefined) ?? await legacy.match(url(file.url));
+        if (local && (await verifyFile(local,file))) {
+          await stage.put(url(file.url),local.clone());
+        } else {
+          const fetchUrl=new URL(file.url,origin()); fetchUrl.searchParams.set('offline-download',manifest.version);
+          r=await fetchWithDeadline(fetchUrl,{cache:'no-store'},signal,90000);
+          if (!(await verifyFile(r,file))) throw Error(`Offline file verification failed: ${file.url}. The deployment may have changed; retry.`);
+          await stage.put(url(file.url),r.clone());
+        }
       }
       bytes+=file.bytes; current++; progress('downloading');
     }

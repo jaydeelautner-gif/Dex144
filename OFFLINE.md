@@ -45,9 +45,18 @@ and artwork group is verified.
 Under the cloud sync status in the header (for both signed-in and guest users) a small
 label appears when an update is required:
 
-- **“Update needed”** — the deployed release differs from the installed package (or a
+- **“Update required”** — the deployed release differs from the installed package (or a
   download was interrupted / files were evicted). Clicking it opens the offline settings
-  tab, where one click re-downloads the package.
+  tab, where one click downloads it.
+
+The **header reload/refresh control** only asks the server for its release version. It
+never reloads the page, clears device storage or re-downloads the package; it reports
+"update required" or "already up to date" and leaves everything else untouched.
+
+Applying an update **patches rather than replaces**: every file is still hash-verified,
+but a byte-identical copy already on the device (previous package or legacy sprite cache)
+is promoted into the new package instead of being fetched again, so a release bump only
+transfers the files that actually changed.
 - **“Update downloaded — reload”** — a complete newer package is already installed, or the
   service worker has a waiting update. Clicking it asks for confirmation and then reloads.
 

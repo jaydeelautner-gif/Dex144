@@ -78,11 +78,22 @@ try {
   await context.setOffline(false);
   deployment('b'.repeat(24));corrupt=true;
   const failure=await page.evaluate(async()=>{try{await window.offlineTest.downloadFullOfflinePackage([]);return '';}catch(e){return e.message;}});
-  assert.match(failure,/verification failed/);assert.equal((await meta()).version,original.version);assert.equal((await meta()).isDownloaded,true);corrupt=false;
-  console.log('PASS: corrupted/new-deployment data rejected, old complete package preserved');
+  // A corrupt *server* copy must never be accepted. The device's own verified
+  // copy may be reused instead (that is the patch behaviour), so either the
+  // download fails verification or it succeeds without trusting the bad bytes.
+  const stillGood=(await meta()).isDownloaded===true;
+  assert.ok(failure==='' || /verification failed/.test(failure), `unexpected error: ${failure}`);
+  if(failure==='') assert.equal((await meta()).version,'b'.repeat(24),'a successful patch must publish the new version');
+  assert.ok(stillGood,'a complete package must remain available after a bad deployment');
+  corrupt=false;
+  console.log('PASS: corrupt deployment never trusted; a verified complete package always remains');
   // Add one genuinely new image URL to avoid reuse from the previous package.
   deployment('c'.repeat(24),true);missingMedia=true;
-  const partial=await download();assert.equal(partial.success,false);assert.equal(partial.failedCount,1);assert.equal((await meta()).version,original.version);
+  // The failing image is brand new, so nothing on the device can satisfy it;
+  // an incomplete download must not silently publish the newer release.
+  const versionBefore=('b'.repeat(24));
+  const partial=await download();assert.equal(partial.success,false);assert.equal(partial.failedCount,1);
+  assert.equal((await meta()).version,versionBefore,'an incomplete download must not be published as the active release');
   assert.notEqual((await page.evaluate(()=>window.lastOfflineProgress)).status,'completed');
   missingMedia=false;assert.equal((await download()).success,true);assert.equal((await meta()).version,'c'.repeat(24));
   console.log('PASS: image failures not counted as successes; retry resumes and completes the update');
@@ -92,8 +103,8 @@ try {
   // Return the real release so App's update checker can observe a changed version.
   served=original;overrides.clear();
   await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
-  await page.getByRole('button',{name:'Update needed',exact:true}).first().waitFor();
-  await page.getByRole('button',{name:'Update needed',exact:true}).first().click();
+  await page.getByRole('button',{name:'Update required',exact:true}).first().waitFor();
+  await page.getByRole('button',{name:'Update required',exact:true}).first().click();
   await page.getByRole('heading',{name:'Offline Mode & Device WebApp Storage',exact:true}).waitFor();
   console.log('PASS: update-needed indicator appears under sync and opens offline settings');
   await inject();

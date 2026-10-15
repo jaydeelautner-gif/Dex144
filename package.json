@@ -20,7 +20,8 @@
     "generate:areas": "node scripts/generateAreaUnlocks.mjs",
     "test:preferences": "tsx tests/dlcHomePreferences.test.ts && npm run build && node tests/preferences.browser.mjs",
     "test:catchability": "tsx tests/catchability.test.ts",
-    "test:starter-lock": "tsx tests/starterLock.test.ts"
+    "test:starter-lock": "tsx tests/starterLock.test.ts",
+    "test:offline-patch": "node tests/offlinePatch.browser.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

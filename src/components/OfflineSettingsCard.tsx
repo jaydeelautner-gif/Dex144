@@ -348,7 +348,7 @@ export const OfflineSettingsCard: React.FC<OfflineSettingsCardProps> = ({
       <div role="status" aria-live="polite" className="-mt-3 p-3 rounded-xl border border-slate-800 bg-slate-900/60 flex flex-wrap justify-between gap-3 text-xs">
         <div>
           <strong className={updateStatus.updateNeeded || updateStatus.reloadNeeded ? 'text-amber-300' : 'text-slate-300'}>
-            {updateStatus.reloadNeeded ? 'Update downloaded — reload to apply' : updateStatus.updateNeeded ? 'Update needed' : 'No known offline package update'}
+            {updateStatus.reloadNeeded ? 'Update downloaded — reload to apply' : updateStatus.updateNeeded ? 'Update required' : 'No known offline package update'}
           </strong>
           <p className="text-slate-400 mt-1">{!isOnline ? 'Offline — showing the last known update status. Reconnect to check for newer data.' : 'Checks app code, every site data file and artwork catalog against the deployed release.'}</p>
         </div>
