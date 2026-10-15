@@ -35,6 +35,8 @@ import { getVariationsForPokemon } from '../data/regionalVariantsData';
 import { PokemonSprite } from './PokemonSprite';
 import { GameLogoBadge } from './GameLogoBadge';
 
+import { INVENTORY_SORT_OPTIONS, sortInventory, type InventorySort } from '../utils/inventorySort';
+
 interface InventoryViewProps {
   dex: PokemonEntry[];
   inventory: PokemonInstance[];
@@ -63,6 +65,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [filterGame, setFilterGame] = useState<string>('all');
   const [filterHomeStatus, setFilterHomeStatus] = useState<string>('all');
+  const [sortOrder, setSortOrder] = useState<InventorySort>('registered-newest');
 
   // Editing state for a pokepet
   const [editingPokeId, setEditingPokeId] = useState<string | null>(null);
@@ -98,7 +101,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
 
   const filteredInstances = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    return inventory.filter((item) => {
+    const filtered = inventory.filter((item) => {
       const mon = dex.find((p) => p.id === item.pokemonId);
       const name = mon?.name || '';
       const nickname = item.nickname || '';
@@ -121,7 +124,8 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
 
       return true;
     });
-  }, [inventory, dex, searchQuery, filterGame, filterHomeStatus]);
+    return sortInventory(filtered, sortOrder, new Map(dex.map(mon => [mon.id, mon.name])));
+  }, [inventory, dex, searchQuery, filterGame, filterHomeStatus, sortOrder]);
 
   const handleStartEdit = (item: PokemonInstance) => {
     setEditingPokeId(item.pokeId);
@@ -241,6 +245,12 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
 
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+          <label className="flex items-center gap-2 text-xs font-semibold text-slate-300">
+            Sort by
+            <select aria-label="Sort inventory" value={sortOrder} onChange={e => setSortOrder(e.target.value as InventorySort)} className="px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs font-semibold text-slate-200 cursor-pointer">
+              {INVENTORY_SORT_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </label>
           {/* Game filter */}
           <select
             value={filterGame}
