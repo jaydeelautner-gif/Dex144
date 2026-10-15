@@ -2,6 +2,8 @@ import { useHomePanels } from './hooks/useHomePanels';
 import { isMilestoneOwned } from './data/dlcOwnership';
 import { OfflineUpdateNotice } from './components/OfflineUpdateNotice';
 import { applyEvolutionAcquisitionHints } from './utils/reacquisition';
+import { getLockedStarterLineIds } from './utils/starterAlternates';
+import { GAME_ID_TO_TRACKABLE } from './data/milestones';
 import { useEncounterDataset } from './data/encountersData';
 import { EvolvePokepetModal } from './components/EvolvePokepetModal';
 import { evolvePokepet, type EvolutionRequest } from './utils/pokepetEvolution';
@@ -399,6 +401,8 @@ export function App() {
 
   const dex = useMemo(() => applyEvolutionAcquisitionHints(baseDex, inventory, acquisitionDataset), [baseDex, inventory, acquisitionDataset]);
 
+
+
   // 30-Day Rescue Bin State
   const [rescueBin, setRescueBin] = useState<RescueBinItem[]>(() =>
     loadRescueBinFromStorage()
@@ -532,7 +536,28 @@ export function App() {
     resetGame: resetGameProgress,
     restartGame,
     completeAll: completeAllMilestones,
+
   } = useGameProgress(ownedDlcs);
+
+  // Per game, starter lines that are unobtainable once a different starter was
+  // chosen (trade-only). Used to keep them out of "Wild Encounters (Exact Data)".
+  const lockedStartersByGame = useMemo(() => {
+    const map: Partial<Record<GameId, number[]>> = {};
+    const dexById = new Map(baseDex.map((p) => [p.id, p]));
+    for (const gId of ownedGames) {
+      const group = (GAME_ID_TO_TRACKABLE as Record<string, string | undefined>)[gId];
+      if (!group) continue;
+      const ids = getLockedStarterLineIds(
+        gId,
+        starterChoices[group],
+        acquisitionDataset,
+        ownedDlcs,
+        (id) => dexById.get(id)?.availability
+      );
+      if (ids.length) map[gId] = ids;
+    }
+    return map;
+  }, [ownedGames, starterChoices, acquisitionDataset, ownedDlcs, baseDex]);
 
   // Dex numbers currently locked because the user hasn't reached the milestone yet.
   // Only applies when at least one game is being tracked.
@@ -2033,6 +2058,7 @@ export function App() {
             ownedGames={ownedGames}
             ownedDlcs={ownedDlcs}
             gameProgress={gameProgress}
+            lockedStartersByGame={lockedStartersByGame}
             trackedGames={trackedGames}
             gameCatches={gameCatches}
             onJumpToBox={(boxNum) => {
@@ -2859,6 +2885,7 @@ export function App() {
         selectedBoxGameId={selectedPokemon ? boxSelectedGamesMap.get(selectedPokemon.id) : undefined}
         ownedGames={ownedGames}
         gameProgress={gameProgress}
+        lockedStartersByGame={lockedStartersByGame}
         trackedGames={trackedGames}
         ownedDlcs={ownedDlcs}
         gameCatches={gameCatches}

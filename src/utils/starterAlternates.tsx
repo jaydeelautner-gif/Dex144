@@ -1,4 +1,4 @@
-import { STARTER_TRIOS, GROUP_MEMBER_GAMES } from '../data/milestones';
+import { STARTER_TRIOS, GROUP_MEMBER_GAMES, GAME_ID_TO_TRACKABLE } from '../data/milestones';
 import { getEvolutionFamilyForPokemon } from '../data/pokemonEvolutionData';
 import { prettyEncounterMethod, type EncounterDataset } from '../data/encountersData';
 import type { GameId, DlcId } from '../data/pokemonData';
@@ -209,4 +209,42 @@ export function findAlternateAcquisitionLabel(
   }
 
   return null;
+}
+
+/**
+ * Species that must NOT be presented as an obtainable wild/start encounter for
+ * a game: the unchosen starter lines when that game offers no other way to get
+ * them.
+ *
+ * Picking one starter consumes the game's only starter gift. In every main
+ * series group except the ones below, the other two starters are therefore
+ * unlockable only by trading with another player:
+ *   • LGPE  — all three Kanto starters appear as overworld spawns.
+ *   • PLA   — the others have recorded Space-Time Distortion encounters.
+ *   • SwSh  — the Galar starters return in Isle of Armor Max Raid dens (DLC).
+ * Those are detected from the encounter bundle and the curated table rather than
+ * hard-coded here, so the rule stays correct if the data gains a new source.
+ */
+export function getLockedStarterLineIds(
+  gameId: GameId,
+  chosenStarterId: number | undefined,
+  encounters: EncounterDataset | null,
+  ownedDlcs: DlcId[],
+  getAvailability?: (id: number) => StarterAvailability | undefined
+): number[] {
+  const group = GAME_ID_TO_TRACKABLE[gameId];
+  if (!group || chosenStarterId == null) return [];
+  const unchosen = getUnchosenStarterLineIds(
+    group,
+    normalizeStarterChoiceId(group, chosenStarterId)
+  );
+  return unchosen.filter(
+    (id) => {
+      const how = findAlternateAcquisitionLabel(id, group, encounters, ownedDlcs, getAvailability);
+      if (!how) return true; // no other way at all → trade-only
+      // A way that only exists through an expansion the player does not own is
+      // not available to them yet, so the starter still counts as locked.
+      return /requires the DLC|DLC not owned/.test(how);
+    }
+  );
 }

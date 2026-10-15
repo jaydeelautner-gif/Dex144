@@ -57,6 +57,8 @@ interface PokemonDetailDrawerProps {
   onNavigateToRegister?: (pokemonId?: number) => void;
   /** Completed milestones per trackable group + tracked games, for the reachability filter. */
   gameProgress?: Record<string, string[]>;
+  /** Per game: starter lines locked to trade because another starter was chosen. */
+  lockedStartersByGame?: Partial<Record<GameId, number[]>>;
   trackedGames?: Set<GameId>;
   onOpenTrainerCardForPokeId?: (instance: PokemonInstance) => void;
 }
@@ -79,6 +81,7 @@ export const PokemonDetailDrawer: React.FC<PokemonDetailDrawerProps> = ({
   onNavigateToRegister,
   onOpenTrainerCardForPokeId,
   gameProgress = {},
+  lockedStartersByGame,
   trackedGames,
 }) => {
   const [previewShiny, setPreviewShiny] = useState(false);
@@ -490,6 +493,7 @@ export const PokemonDetailDrawer: React.FC<PokemonDetailDrawerProps> = ({
         <PokemonEncountersSection
           pokemonId={pokemon.id}
           ownedDlcs={ownedDlcs}
+          lockedStartersByGame={lockedStartersByGame}
           ownedGames={userOwnedEncounterGames.map((g) => g.id)}
           progress={gameProgress}
           trackedGames={trackedGames}

@@ -66,6 +66,8 @@ interface PokemonFullPageViewProps {
   onNavigateToRegister?: (pokemonId?: number) => void;
   /** Completed milestones per trackable group + tracked games, for the reachability filter. */
   gameProgress?: Record<string, string[]>;
+  /** Per game: starter lines locked to trade because another starter was chosen. */
+  lockedStartersByGame?: Partial<Record<GameId, number[]>>;
   trackedGames?: Set<GameId>;
 }
 
@@ -90,6 +92,7 @@ export const PokemonFullPageView: React.FC<PokemonFullPageViewProps> = ({
   onOpenTrainerCardForPokeId,
   onNavigateToRegister,
   gameProgress = {},
+  lockedStartersByGame,
   trackedGames,
 }) => {
   const [previewShiny, setPreviewShiny] = useState(false);
@@ -631,6 +634,7 @@ export const PokemonFullPageView: React.FC<PokemonFullPageViewProps> = ({
         <PokemonEncountersSection
           pokemonId={pokemon.id}
           ownedDlcs={ownedDlcs}
+          lockedStartersByGame={lockedStartersByGame}
           ownedGames={userOwnedEncounterGames.map((g) => g.id)}
           progress={gameProgress}
           trackedGames={trackedGames}

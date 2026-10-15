@@ -22,6 +22,8 @@ interface PokemonEncountersSectionProps {
   progress?: Record<string, string[]>;
   /** Milestone ids currently tracked; enables the "reachable now" toggle. */
   trackedGames?: Set<GameId>;
+  /** Per game: starter lines that are trade-only once another starter was picked. */
+  lockedStartersByGame?: Partial<Record<GameId, number[]>>;
 }
 
 /**
@@ -34,6 +36,7 @@ export const PokemonEncountersSection: React.FC<PokemonEncountersSectionProps> =
   ownedDlcs = [],
   progress = {},
   trackedGames,
+  lockedStartersByGame,
 }) => {
   const { dataset, loading } = useEncounterDataset();
   const [reachableOnly, setReachableOnly] = useState(false);
@@ -44,9 +47,12 @@ export const PokemonEncountersSection: React.FC<PokemonEncountersSectionProps> =
   const rows = useMemo(() => {
     if (!dataset) return [];
     return GAMES.filter((g) => ownedGames.includes(g.id))
+      // A spent starter pick is not a wild encounter here; it belongs to the
+      // "other starters — trade only" list in Trainer Hints instead.
+      .filter((g) => !lockedStartersByGame?.[g.id]?.includes(pokemonId))
       .map((gameMeta) => ({ gameMeta, areas: getEncountersForGame(dataset, pokemonId, gameMeta.id)?.filter(area => isAreaOwned(gameMeta.id, area.area, ownedDlcs)) ?? null }))
       .filter((r): r is { gameMeta: (typeof GAMES)[number]; areas: EncounterArea[] } => !!r.areas?.length);
-  }, [dataset, pokemonId, ownedGames, ownedDlcs]);
+  }, [dataset, pokemonId, ownedGames, ownedDlcs, lockedStartersByGame]);
 
   // Areas reachable with the badges/milestones marked so far, per game.
   const applied = useMemo(() => {
@@ -84,10 +90,12 @@ export const PokemonEncountersSection: React.FC<PokemonEncountersSectionProps> =
   }
 
   if (rows.length === 0) {
+    const starterLocked = ownedGames.some((g) => lockedStartersByGame?.[g]?.includes(pokemonId));
     return (
       <div className="p-4 rounded-xl bg-[#0B0F17] border border-slate-800 text-center text-xs text-slate-400">
-        No recorded wild encounters for this Pokémon in your owned games — it may be obtained via
-        evolution, special events, or transfer only.
+        {starterLocked
+          ? 'This starter can no longer be obtained in that game — picking another starter consumes its only gift. Trade with a trainer who chose it (see “Other starters — receivable by trade only” in Trainer Hints).'
+          : 'No recorded wild encounters for this Pokémon in your owned games — it may be obtained via evolution, special events, or transfer only.'}
       </div>
     );
   }
