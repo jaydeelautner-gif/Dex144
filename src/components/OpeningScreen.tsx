@@ -343,7 +343,7 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
     : null;
 
   return (
-    <div className="dex-login w-full min-h-[calc(100vh-1rem)] flex items-center justify-center p-2 sm:p-4 md:p-6 lg:p-8 select-text relative">
+    <div className="dex-login w-full h-screen overflow-hidden flex justify-center p-0.5 sm:p-2 lg:p-2.5 select-text relative">
       {/* 1. Early-Style Pokédex Opening Animation Overlay */}
       {showPokedexAnimation && (
         <PokedexOpeningAnimation onComplete={handleAnimationComplete} />
@@ -355,7 +355,7 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
       )}
 
       {/* 3. The Opened Early-Style Pokédex Unit with Outer Red Chassis & Recessed Screen Edge */}
-      <div className="relative w-full max-w-7xl rounded-[2.5rem] sm:rounded-[3.2rem] bg-gradient-to-b from-[#DC2626] via-[#B91C1C] to-[#881337] border-4 sm:border-8 border-[#7F1D1D] shadow-[0_25px_80px_rgba(0,0,0,0.95),0_0_60px_rgba(220,38,38,0.35)] p-4 sm:p-6 md:p-8 flex flex-col gap-5 overflow-hidden">
+      <div className="relative w-full max-w-[1800px] flex-1 min-h-0 rounded-xl sm:rounded-[2.4rem] lg:rounded-[3rem] bg-gradient-to-b from-[#DC2626] via-[#B91C1C] to-[#881337] border sm:border-4 lg:border-8 border-[#7F1D1D] shadow-[0_25px_80px_rgba(0,0,0,0.95),0_0_60px_rgba(220,38,38,0.35)] p-2 sm:p-5 lg:p-7 flex flex-col gap-4 sm:gap-5 flex-1 min-h-0 overflow-hidden">
         {/* Left Knuckle Hinges (Authentic Pokédex Lid Hinge Collars) */}
         <div className="absolute left-0 inset-y-16 w-3 sm:w-4 flex flex-col justify-between py-6 pointer-events-none z-20">
           {[...Array(8)].map((_, i) => (
@@ -473,7 +473,7 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
         {/* ========================================================================= */}
         {/* POKÉDEX RECESSED SCREEN EDGE (The Screen Edge Around The Login Screen)   */}
         {/* ========================================================================= */}
-        <div className="relative rounded-2xl sm:rounded-3xl bg-[#0B0F19] border-4 sm:border-8 border-[#1E293B] shadow-[inset_0_4px_35px_rgba(0,0,0,0.95),0_12px_28px_rgba(0,0,0,0.6)] p-4 sm:p-6 md:p-8 flex flex-col gap-6 overflow-hidden">
+        <div className="relative flex-1 min-h-0 rounded-xl sm:rounded-3xl bg-[#0B0F19] border sm:border-4 lg:border-8 border-[#1E293B] shadow-[inset_0_4px_35px_rgba(0,0,0,0.95),0_12px_28px_rgba(0,0,0,0.6)] p-3 sm:p-6 md:p-8 flex flex-col gap-6 overflow-hidden">
           {/* 4 Corner Screws */}
           <div className="absolute top-2.5 left-2.5 w-3.5 h-3.5 rounded-full bg-slate-700 border border-slate-500 shadow-inner flex items-center justify-center text-[9px] text-slate-400 font-bold select-none z-20">+</div>
           <div className="absolute top-2.5 right-2.5 w-3.5 h-3.5 rounded-full bg-slate-700 border border-slate-500 shadow-inner flex items-center justify-center text-[9px] text-slate-400 font-bold select-none z-20">+</div>
@@ -505,7 +505,7 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
           <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.22)_50%)] bg-[length:100%_4px] pointer-events-none opacity-40 z-0" />
 
           {/* Main Content inside the Screen: Left Column (Showcase & Lookup) on Tablets/Desktop | Right Column (Login) */}
-          <div className="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-6 lg:gap-8 items-start">
+          <div className="relative z-10 flex-1 min-h-0 overflow-y-auto grid grid-cols-1 md:grid-cols-12 gap-6 lg:gap-8 items-start pr-1">
         {/* ========================================================= */}
         {/* LEFT COLUMN: Random Registered PokéPet & Public Lookup (Tablets & Desktop) */}
         {/* ========================================================= */}

@@ -1656,15 +1656,15 @@ export function App() {
     handleOpenAuth();
   };
 
-  const handleSignOut = async () => {
+  const handleSignOut = () => {
+    // Sign out locally immediately (signOutUser clears the cached session and
+    // notifies listeners synchronously), play the closing animation and land
+    // on the closed Pokédex cover. The cloud sign-out call is best-effort:
+    // if the network is down or slow it must never block the UI or re-open
+    // the dex — the session is already gone locally and the queued syncs
+    // stay saved for the next password login.
     setDexPhase('closing');
-    try {
-      await signOutUser();
-    } catch {
-      setDexPhase('open');
-      setToast({ message: 'Could not log out. Please try again.', type: 'error' });
-      return;
-    }
+    signOutUser().catch(() => {});
     setTrainerName('Guest');
     setMyFriendCode(undefined);
     setIncomingRequests([]);
@@ -2143,9 +2143,9 @@ export function App() {
 
   return (
     <DexFrame>
-    <div className="min-h-screen bg-[#0B0F17] text-slate-100 flex flex-col">
+    <div className="h-full bg-[#0B0F17] text-slate-100 flex flex-col overflow-hidden">
       {/* Sticky App Header */}
-      <header className="sticky top-0 z-30 h-14 bg-[#0B0F17]/95 backdrop-blur-md border-b border-slate-800/80 px-4 sm:px-6 flex items-center justify-between gap-4">
+      <header className="shrink-0 z-30 h-14 bg-[#0B0F17]/95 backdrop-blur-md border-b border-slate-800/80 px-4 sm:px-6 flex items-center justify-between gap-4">
         {/* Brand */}
         <div className="flex items-center gap-3 shrink-0">
           <button
@@ -2293,7 +2293,7 @@ export function App() {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-[1440px] w-full mx-auto px-3 sm:px-6 py-4 sm:py-6 flex flex-col gap-6 pb-24 md:pb-8">
+      <main className="flex-1 min-h-0 overflow-y-auto max-w-[1440px] w-full mx-auto px-3 sm:px-6 py-4 sm:py-6 flex flex-col gap-6 pb-24 md:pb-8">
         {fullPagePokemon ? (
           <PokemonFullPageView
             pokemon={fullPagePokemon}
@@ -3051,7 +3051,7 @@ export function App() {
       {/* Mobile Bottom Navigation Bar (< md) for Phone Users */}
       <nav
         aria-label="Mobile Bottom Navigation"
-        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-[#0B0F17]/95 backdrop-blur-lg border-t border-slate-800/90 px-1 py-1.5 flex items-center justify-around shadow-2xl pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+        className="md:hidden absolute bottom-0 inset-x-0 z-40 bg-[#0B0F17]/95 backdrop-blur-lg border-t border-slate-800/90 px-1 py-1.5 flex items-center justify-around shadow-2xl pb-[max(0.5rem,env(safe-area-inset-bottom))]"
       >
         <button
           type="button"

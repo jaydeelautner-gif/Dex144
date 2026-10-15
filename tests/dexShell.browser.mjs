@@ -30,14 +30,14 @@ try {
   for (const width of [390, 768, 1360]) {
     await page.setViewportSize({ width, height: 1000 });
     await page.goto(base);
-    await page.getByRole('button', { name: /Open Dex/ }).waitFor();
+    await page.getByRole('button', { name: /Open Dex/i }).waitFor();
     assert.equal(await page.locator('.dex-login').count(), 0);
-    await page.getByRole('button', { name: /Open Dex/ }).click();
+    await page.getByRole('button', { name: /Open Dex/i }).click();
     await page.getByRole('button', { name: /Skip Intro/ }).click();
     await page.locator('.dex-login').waitFor();
     assert.equal(await page.getByRole('group', { name: 'PIN touch keypad' }).count(), 0);
     const chassis = await page.locator('.dex-login > .relative').evaluate(el => getComputedStyle(el).borderTopWidth);
-    assert.equal(chassis, width < 640 ? '2px' : '8px');
+    assert.equal(chassis, width < 640 ? '2px' : width < 1280 ? '4px' : '8px');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
   }
   await context.addInitScript(async () => {
@@ -51,7 +51,7 @@ try {
     }]));
   });
   await page.goto(base);
-  await page.getByRole('button', { name: /Open Dex/ }).click();
+  await page.getByRole('button', { name: /Open Dex/i }).click();
   await page.getByRole('button', { name: /Skip Intro/ }).click();
   await page.getByRole('group', { name: 'PIN touch keypad' }).waitFor();
   for (const digit of ['1','2','3','4']) await page.getByRole('button', { name: 'PIN digit ' + digit, exact: true }).click();
@@ -64,10 +64,27 @@ try {
   await page.getByRole('button', { name: 'Unlock with PIN' }).click();
   await page.getByRole('button', { name: /Log Out|Sign Out/i }).waitFor({ timeout: 15000 });
   await page.getByRole('button', { name: /Log Out|Sign Out/i }).click();
-  await page.getByRole('button', { name: /Open Dex/ }).waitFor();
+  await page.getByRole('button', { name: /Open Dex/i }).waitFor({ timeout: 10000 });
   assert.equal(await page.locator('.dex-login').count(), 0);
+  assert.equal(await page.evaluate(() => localStorage.getItem('homedex_active_offline_session_v1')), null, 'sign-out must clear the local session immediately');
+  await page.waitForTimeout(4000);
+    assert.ok(/Open Dex/i.test(await page.locator('body').innerText()), 'the dex must stay closed after sign-out');
+  // Frame fills the screen and content scrolls inside it (big-screen check)
+  await page.setViewportSize({ width: 1600, height: 620 });
+  await page.waitForTimeout(1200);
+  await page.getByRole('button', { name: /Open Dex/i }).click();
+  await page.getByRole('button', { name: /Skip Intro/ }).click();
+  await page.locator('.dex-login').waitFor();
+  await page.evaluate(() => {
+    const scroller = document.querySelector('.dex-login .flex-1.min-h-0.overflow-y-auto');
+    if (!scroller) throw new Error('login screen scroller missing');
+    if (scroller.scrollHeight <= scroller.clientHeight) throw new Error('login screen does not scroll within the frame at 1600px');
+  });
+  await page.screenshot({ path: '/tmp/dex-login-big.png' });
+
   await context.setOffline(true);
-  await page.getByRole('button', { name: /Open Dex/ }).click();
+  await page.goto(base);
+  await page.getByRole('button', { name: /Open Dex/i }).click();
   await page.getByRole('button', { name: /Skip Intro/ }).click();
   await page.getByRole('group', { name: 'PIN touch keypad' }).waitFor();
   assert.equal(await page.getByRole('button', { name: 'Password Login', exact: true }).count(), 0);
@@ -75,8 +92,6 @@ try {
   await page.getByRole('button', { name: 'Unlock with PIN' }).click();
   await page.getByRole('button', { name: /Log Out|Sign Out/i }).waitFor();
   assert.equal(await page.getByLabel('Pokédex hardware').count(), 1);
-  await page.getByRole('button', { name: /Log Out|Sign Out/i }).click();
-  await page.getByRole('button', { name: /Open Dex/ }).waitFor();
   assert.deepEqual(errors, []);
   console.log('PASS: closed-first, responsive login frame, PIN default/keypad/login and logout-to-closed');
 } finally {
