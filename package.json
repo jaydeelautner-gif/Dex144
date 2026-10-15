@@ -15,7 +15,8 @@
     "test:evolution": "tsx tests/pokepetEvolution.test.ts",
     "test:offline": "node tests/offline.browser.mjs",
     "fetch:offline-fonts": "node scripts/fetchOfflineFonts.mjs",
-    "generate:offline-media": "tsx scripts/prepareOfflineMedia.ts"
+    "generate:offline-media": "tsx scripts/prepareOfflineMedia.ts",
+    "generate:area-unlocks": "node scripts/generateAreaUnlocks.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

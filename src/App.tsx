@@ -2653,6 +2653,9 @@ export function App() {
                 onToggleTracking={toggleTracking}
                 onReset={resetGameProgress}
                 onCompleteAll={completeAllMilestones}
+                dex={dex}
+                caughtSet={caughtSet}
+                onSelectPokemon={(p) => setSelectedPokemon(p)}
               />
             )}
             {/* ── END GAME PROGRESS TRACKING TAB ── */}

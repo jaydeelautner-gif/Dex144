@@ -1,11 +1,16 @@
-import { useState } from 'react';
-import type { GameId } from '../data/pokemonData';
+import { useMemo, useState } from 'react';
+import { ChevronDown, ChevronRight, Lock, MapPin, Loader2 } from 'lucide-react';
+import type { GameId, PokemonEntry } from '../data/pokemonData';
 import {
   GAME_META,
+  GAME_ID_TO_TRACKABLE,
   getOwnedTrackableGames,
   milestonesFor,
 } from '../data/milestones';
 import type { ProgressState } from '../hooks/useGameProgress';
+import { useGameAreas, getAreaSpecies } from '../utils/gameAreas';
+import { prettifyAreaName } from '../data/encountersData';
+import { PokemonSprite } from './PokemonSprite';
 
 interface Props {
   progress: ProgressState;
@@ -15,6 +20,9 @@ interface Props {
   onToggleTracking: (gameId: GameId) => void;
   onReset: (gameId: GameId) => void;
   onCompleteAll: (gameId: GameId, milestoneIds: string[]) => void;
+  dex: PokemonEntry[];
+  caughtSet: Set<number>;
+  onSelectPokemon: (pokemon: PokemonEntry) => void;
 }
 
 export function GameProgressTracker({
@@ -25,6 +33,9 @@ export function GameProgressTracker({
   onToggleTracking,
   onReset,
   onCompleteAll,
+  dex,
+  caughtSet,
+  onSelectPokemon,
 }: Props) {
   const availableGames = getOwnedTrackableGames(ownedGames);
   const [activeGame, setActiveGame] = useState<GameId>(
@@ -32,7 +43,25 @@ export function GameProgressTracker({
   );
 
   const milestones = milestonesFor(activeGame);
-  const completed = new Set(progress[activeGame] ?? []);
+  const completed = useMemo(
+    () => new Set(progress[activeGame] ?? []),
+    [progress, activeGame]
+  );
+
+  // Locations unlocked by the badges/milestones marked complete for this game.
+  const { areas, dataset: encounterDataset, loading: areasLoading } = useGameAreas(
+    activeGame,
+    completed
+  );
+  const [openArea, setOpenArea] = useState<string | null>(null);
+  const [showLockedAreas, setShowLockedAreas] = useState(false);
+  const visibleAreas = showLockedAreas ? areas : areas.filter((a) => a.unlocked);
+  const unlockedCount = areas.filter((a) => a.unlocked).length;
+  const dexById = useMemo(() => new Map(dex.map((p) => [p.id, p])), [dex]);
+  const areaSpecies = useMemo(
+    () => (openArea ? getAreaSpecies(encounterDataset, activeGame, openArea) : []),
+    [openArea, encounterDataset, activeGame]
+  );
   const pct = milestones.length
     ? Math.round((completed.size / milestones.length) * 100)
     : 0;
@@ -164,6 +193,127 @@ export function GameProgressTracker({
           );
         })}
       </ul>
+
+      {/* Unlocked areas — click a route to see its encounters */}
+      <section className="flex flex-col gap-3 pt-3 border-t border-slate-800/80">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-bold text-slate-100 flex items-center gap-1.5">
+              <MapPin className="w-4 h-4 text-amber-400" />
+              Areas Unlocked by {meta.short} Progress
+            </h3>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              {unlockedCount} of {areas.length} recorded locations unlocked. Tick badges above to reveal more.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowLockedAreas((v) => !v)}
+            className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-[11px] text-slate-300 cursor-pointer"
+          >
+            {showLockedAreas ? 'Show unlocked only' : 'Show locked too'}
+          </button>
+        </div>
+
+        {areasLoading ? (
+          <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 flex items-center gap-2 text-xs text-slate-400">
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
+            Loading verified locations…
+          </div>
+        ) : visibleAreas.length === 0 ? (
+          <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 text-center text-xs text-slate-400">
+            {areas.length === 0
+              ? 'No recorded wild locations for this game yet.'
+              : 'No areas unlocked yet — tick a badge above, or choose “Show locked too”.'}
+          </div>
+        ) : (
+          <ul className="flex flex-col gap-1.5 max-h-[420px] overflow-y-auto pr-1">
+            {visibleAreas.map((area) => {
+              const isOpen = openArea === area.area;
+              return (
+                <li key={area.area} className="rounded-xl border border-slate-800/80 bg-slate-900/40 overflow-hidden">
+                  <button
+                    type="button"
+                    aria-expanded={isOpen}
+                    onClick={() => setOpenArea(isOpen ? null : area.area)}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left cursor-pointer hover:bg-slate-900/80"
+                  >
+                    {isOpen ? (
+                      <ChevronDown className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    ) : (
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                    )}
+                    {area.unlocked ? (
+                      <MapPin className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    ) : (
+                      <Lock className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                    )}
+                    <span className={`text-xs flex-1 truncate ${area.unlocked ? 'text-slate-100' : 'text-slate-500'}`}>
+                      {prettifyAreaName(area.area)}
+                    </span>
+                    <span
+                      className={`text-[10px] font-mono px-1.5 py-0.5 rounded border shrink-0 ${
+                        area.unlocked
+                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                          : 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+                      }`}
+                    >
+                      {area.unlockLabel}
+                    </span>
+                  </button>
+
+                  {isOpen && (
+                    <div className="px-3 pb-3 border-t border-slate-800/70 pt-2.5">
+                      {!area.unlocked && (
+                        <p className="text-[11px] text-rose-300 mb-2">
+                          Locked — reach {area.unlockLabel} to catch here. Preview only.
+                        </p>
+                      )}
+                      {areaSpecies.length === 0 ? (
+                        <p className="text-[11px] text-slate-400">No species records for this location.</p>
+                      ) : (
+                        <>
+                          <p className="text-[11px] text-slate-400 mb-2">
+                            {areaSpecies.length} catchable species · click one for full details
+                          </p>
+                          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                            {areaSpecies.map((row) => {
+                              const mon = dexById.get(row.pokemonId);
+                              if (!mon) return null;
+                              const caught = caughtSet.has(row.pokemonId);
+                              return (
+                                <button
+                                  key={row.pokemonId}
+                                  type="button"
+                                  onClick={() => onSelectPokemon(mon)}
+                                  title={`${mon.name} — ${row.methods.join(', ')} · Lv ${row.minLevel}-${row.maxLevel}${row.maxChance > 0 ? ` · up to ${row.maxChance}%` : ''}`}
+                                  className={`p-2 rounded-xl border flex flex-col items-center gap-1 transition-colors cursor-pointer ${
+                                    caught
+                                      ? 'bg-emerald-500/5 border-emerald-500/25 hover:border-emerald-400/60'
+                                      : 'bg-slate-950/60 border-slate-800 hover:border-amber-400/60'
+                                  }`}
+                                >
+                                  <PokemonSprite id={row.pokemonId} name={mon.name} size="sm" />
+                                  <span className="text-[10px] text-slate-300 truncate w-full text-center">
+                                    {mon.name}
+                                  </span>
+                                  <span className="text-[9px] font-mono text-slate-500">
+                                    Lv {row.minLevel}-{row.maxLevel}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
 
       <div className="flex items-center gap-2 pt-2 border-t border-slate-800/80">
         <button
