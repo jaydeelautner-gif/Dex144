@@ -1,7 +1,7 @@
 import type { PokemonInstance } from '../data/pokemonInventoryData';
 import { evolvedAwaySpecies } from '../utils/pokepetEvolution';
 import { reacquisitionHint } from '../utils/reacquisition';
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Trophy, Sparkles, Check, X, ArrowLeftRight } from 'lucide-react';
 import type { GameId, PokemonEntry, DlcId, GameCatchesMap } from '../data/pokemonData';
 import {
@@ -22,6 +22,8 @@ import {
   findAlternateAcquisitionLabel,
   normalizeStarterChoiceId,
 } from '../utils/starterAlternates';
+import { weatherForGame, areasForWeather, speciesForWeather, WEATHER_CONDITIONS } from '../utils/gameAreas';
+import { prettifyAreaName } from '../data/encountersData';
 
 interface MilestoneUnlocksPanelProps {
   progress: ProgressState;
@@ -212,6 +214,26 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
     out.sort((a, b) => a.p.id - b.p.id);
     return out.slice(0, MAX_STARTING_GRID);
   };
+
+  // Weather spawn filter: only meaningful where weather affects spawn rates.
+  const [weather, setWeather] = useState<string>('');
+  const [weatherArea, setWeatherArea] = useState<string>('');
+
+  const weatherOptions = useMemo(
+    () => (activeGameId ? weatherForGame(encounters, activeGameId) : []),
+    [encounters, activeGameId]
+  );
+  const weatherAreas = useMemo(
+    () => (activeGameId && weather ? areasForWeather(encounters, activeGameId, weather) : []),
+    [encounters, activeGameId, weather]
+  );
+  const dexById = useMemo(() => new Map(dex.map((p) => [p.id, p])), [dex]);
+  const weatherSpawns = useMemo(
+    () => (activeGameId && weather && weatherArea
+      ? speciesForWeather(encounters, activeGameId, weatherArea, weather, (pid) => !caughtSet.has(pid))
+      : []),
+    [encounters, activeGameId, weather, weatherArea, caughtSet]
+  );
 
   const rows = useMemo<PanelRow[]>(() => {
     const dexById = new Map(dex.map((p) => [p.id, p]));
@@ -439,6 +461,82 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Weather filter: find uncaught spawns under a specific weather in an area */}
+      {!!weatherOptions.length && activeGameId && (
+        <section className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-3 flex flex-col gap-2.5">
+          <div>
+            <h3 className="text-sm font-bold text-slate-100">Weather spawn filter</h3>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              In this game the weather changes which Pokémon appear. Pick a condition and an area to see the uncaught Pokémon you can find.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="flex flex-col gap-1 text-[11px] text-slate-300">
+              Weather
+              <select
+                value={weather}
+                onChange={(e) => { setWeather(e.target.value); setWeatherArea(''); }}
+                className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-slate-100 cursor-pointer min-w-44"
+              >
+                <option value="">Any weather</option>
+                {weatherOptions.map((id) => (
+                  <option key={id} value={id}>
+                    {WEATHER_CONDITIONS.find((w) => w.id === id)?.label ?? id}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-[11px] text-slate-300">
+              Area
+              <select
+                value={weatherArea}
+                onChange={(e) => setWeatherArea(e.target.value)}
+                disabled={!weather}
+                className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-slate-100 cursor-pointer min-w-56 disabled:opacity-50"
+              >
+                <option value="">{weather ? 'Choose an area…' : 'Pick a weather first'}</option>
+                {weatherAreas.map((area) => (
+                  <option key={area} value={area}>{prettifyAreaName(area)}</option>
+                ))}
+              </select>
+            </label>
+            {!!weatherSpawns.length && (
+              <span className="text-[11px] font-mono text-sky-300 pb-1.5">
+                {weatherSpawns.length} uncaught species
+              </span>
+            )}
+          </div>
+
+          {weather && weatherArea && (
+            weatherSpawns.length === 0 ? (
+              <p className="text-[11px] text-slate-400">
+                No uncaught Pokémon spawn here in this weather (you may already have them all).
+              </p>
+            ) : (
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                {weatherSpawns.map((row) => {
+                  const mon = dexById.get(row.pokemonId);
+                  if (!mon) return null;
+                  return (
+                    <button
+                      key={row.pokemonId}
+                      type="button"
+                      onClick={() => onSelectPokemon(mon)}
+                      title={`${mon.name} — ${row.methods.join(', ')} · Lv ${row.minLevel}-${row.maxLevel}${row.maxChance > 0 ? ` · up to ${row.maxChance}%` : ''}`}
+                      className="p-2 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-sky-400/60 flex flex-col items-center gap-1 transition-colors cursor-pointer"
+                    >
+                      <PokemonSprite id={row.pokemonId} name={mon.name} size="sm" />
+                      <span className="text-[10px] text-slate-300 truncate w-full text-center">{mon.name}</span>
+                      <span className="text-[9px] font-mono text-slate-500">Lv {row.minLevel}-{row.maxLevel}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )
+          )}
+        </section>
+      )}
 
       {!!reacquireIds.length && activeGameId && (
         <section className="rounded-xl border border-amber-500/30 p-3 flex flex-col gap-2">

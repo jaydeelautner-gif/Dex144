@@ -148,3 +148,112 @@ export function areaUnlockMilestone(gameId: GameId, area: string): string | null
   if (!group) return null;
   return AREA_UNLOCKS[group]?.[area] ?? null;
 }
+
+/** Weather conditions recorded for wild spawns, with player-facing labels. */
+export const WEATHER_CONDITIONS: { id: string; label: string }[] = [
+  { id: 'weather-normal', label: 'Any weather' },
+  { id: 'weather-intense-sun', label: 'Intense sun' },
+  { id: 'weather-overcast', label: 'Overcast' },
+  { id: 'weather-raining', label: 'Rain' },
+  { id: 'weather-thunderstorm', label: 'Thunderstorm' },
+  { id: 'weather-rainstorm', label: 'Rainstorm' },
+  { id: 'weather-drought', label: 'Drought' },
+  { id: 'weather-snowing', label: 'Snowing' },
+  { id: 'weather-snowstorm', label: 'Snowstorm' },
+  { id: 'weather-sandstorm', label: 'Sandstorm' },
+  { id: 'weather-fog', label: 'Fog' },
+];
+
+const WEATHER_IDS = new Set(WEATHER_CONDITIONS.map((w) => w.id));
+
+/** Weather options actually present in a game's data, in display order. */
+export function weatherForGame(dataset: EncounterDataset | null, gameId: GameId): string[] {
+  if (!dataset) return [];
+  const group = (GAME_ID_TO_TRACKABLE as Record<string, string | undefined>)[gameId];
+  const members = group ? GROUP_MEMBER_GAMES[group] ?? [] : [];
+  const found = new Set<string>();
+  for (const byGame of Object.values(dataset)) {
+    for (const member of members) {
+      const rows = byGame[member];
+      if (!rows) continue;
+      for (const list of Object.values(rows)) {
+        for (const row of list) {
+          for (const cond of row.cd ?? []) if (WEATHER_IDS.has(cond)) found.add(cond);
+        }
+      }
+    }
+  }
+  return WEATHER_CONDITIONS.map((w) => w.id).filter((id) => found.has(id));
+}
+
+/**
+ * Areas in a game that spawn at least one species under the given weather.
+ * Used to populate the area picker for the weather filter.
+ */
+export function areasForWeather(
+  dataset: EncounterDataset | null,
+  gameId: GameId,
+  weatherId: string
+): string[] {
+  if (!dataset) return [];
+  const group = (GAME_ID_TO_TRACKABLE as Record<string, string | undefined>)[gameId];
+  const members = group ? GROUP_MEMBER_GAMES[group] ?? [] : [];
+  const areas = new Set<string>();
+  for (const byGame of Object.values(dataset)) {
+    for (const member of members) {
+      const rows = byGame[member];
+      if (!rows) continue;
+      for (const [area, list] of Object.entries(rows)) {
+        if (list.some((row) => (row.cd ?? []).includes(weatherId))) areas.add(area);
+      }
+    }
+  }
+  return [...areas].sort((a, b) => prettifyAreaName(a).localeCompare(prettifyAreaName(b)));
+}
+
+export interface WeatherSpawnRow {
+  pokemonId: number;
+  methods: string[];
+  minLevel: number;
+  maxLevel: number;
+  maxChance: number;
+}
+
+/**
+ * Uncaught species obtainable in one area under one weather condition.
+ * The weather must apply to the specific encounter row, so a species that only
+ * spawns in other weather is correctly excluded.
+ */
+export function speciesForWeather(
+  dataset: EncounterDataset | null,
+  gameId: GameId,
+  area: string,
+  weatherId: string,
+  isUncaught: (pokemonId: number) => boolean
+): WeatherSpawnRow[] {
+  if (!dataset) return [];
+  const group = (GAME_ID_TO_TRACKABLE as Record<string, string | undefined>)[gameId];
+  const members = group ? GROUP_MEMBER_GAMES[group] ?? [] : [];
+  const rows: WeatherSpawnRow[] = [];
+  for (const [idStr, byGame] of Object.entries(dataset)) {
+    const pokemonId = Number(idStr);
+    if (!isUncaught(pokemonId)) continue;
+    let minLevel = Infinity;
+    let maxLevel = 0;
+    let maxChance = 0;
+    const methods = new Set<string>();
+    for (const member of members) {
+      const list = byGame[member]?.[area];
+      if (!list) continue;
+      for (const row of list) {
+        if (!(row.cd ?? []).includes(weatherId)) continue;
+        methods.add(prettyEncounterMethod(row.m));
+        minLevel = Math.min(minLevel, row.l[0]);
+        maxLevel = Math.max(maxLevel, row.l[1]);
+        maxChance = Math.max(maxChance, row.c);
+      }
+    }
+    if (methods.size > 0) rows.push({ pokemonId, methods: [...methods], minLevel, maxLevel, maxChance });
+  }
+  return rows.sort((a, b) => b.maxChance - a.maxChance || a.pokemonId - b.pokemonId);
+}
