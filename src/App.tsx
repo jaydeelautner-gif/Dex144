@@ -2395,7 +2395,7 @@ export function App() {
           <>
             {/* Top Global KPI Progress Strip */}
             <section
-              style={{display: activeTab === 'home' && !homePanels.nationalDex && !homePanels.livingDex && !homePanels.runningTotal ? 'none' : undefined}}
+              style={{display: activeTab === 'register' || (activeTab === 'home' && !homePanels.nationalDex && !homePanels.livingDex && !homePanels.runningTotal) ? 'none' : undefined}}
               aria-label="Global Progress Summary"
               className={`grid grid-cols-1 gap-4 ${activeTab !== 'home' || [homePanels.nationalDex,homePanels.livingDex,homePanels.runningTotal].filter(Boolean).length === 3 ? 'sm:grid-cols-3' : [homePanels.nationalDex,homePanels.livingDex,homePanels.runningTotal].filter(Boolean).length === 2 ? 'sm:grid-cols-2' : ''}`}
             >
