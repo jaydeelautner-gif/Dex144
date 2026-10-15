@@ -42,7 +42,7 @@ import {
   type CachedAuthAccount,
 } from '../utils/offlineAuth';
 import { usePWAInstall } from '../utils/usePWAInstall';
-import { type User } from '../firebase';
+import { auth, type User } from '../firebase';
 
 interface OfflineSettingsCardProps {
   dex: PokemonEntry[];
@@ -396,6 +396,13 @@ export const OfflineSettingsCard: React.FC<OfflineSettingsCardProps> = ({
           </span>
         </button>
       </div>
+
+      {syncQueue.length > 0 && (!user || auth.currentUser?.uid !== user.uid) && (
+        <div role="status" className="p-3 rounded-xl border border-amber-500/40 bg-amber-950/30 text-amber-200 text-xs leading-relaxed">
+          <strong className="block mb-1">Password login is needed to upload offline changes</strong>
+          Quick PIN unlocks this device locally. To upload pending changes, connect to the internet and sign in with your account password. Your offline changes stay saved on this device while waiting to sync. Do not clear device storage.
+        </div>
+      )}
 
       {/* Package updates are separate from personal-data cloud sync. */}
       <div role="status" aria-live="polite" className="-mt-3 p-3 rounded-xl border border-slate-800 bg-slate-900/60 flex flex-wrap justify-between gap-3 text-xs">

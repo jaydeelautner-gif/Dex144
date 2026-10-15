@@ -914,6 +914,9 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
                     Quick-Entry PIN
                   </strong>
                   Enter your configured PIN to quickly unlock this device without re-entering your full password.
+                  <span className="block mt-2 text-amber-200">
+                    To upload offline changes to the cloud, connect to the internet and use Password Login. PIN unlocks this device locally; your pending changes remain saved until you can sync.
+                  </span>
                   <span className="block mt-1 text-[11px] text-purple-300/80">
                     * For device security, PIN quick entry cannot be used to log in for the first time on a new device.
                   </span>
