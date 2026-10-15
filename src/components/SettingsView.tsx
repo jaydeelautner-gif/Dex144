@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Settings,
   Sun,
@@ -65,6 +65,7 @@ interface SettingsViewProps {
   onRescueAll: () => void;
   user?: User | null;
   onSyncSuccess?: (syncedCount: number) => void;
+  openOfflineSectionRequest?: number;
   onToggleOwnedGame: (gameId: GameId) => void;
   onSetAllOwnedGames: (games: GameId[]) => void;
   onToggleOwnedDlc: (dlcId: DlcId) => void;
@@ -127,12 +128,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onOpenPublicPreview,
   user,
   onSyncSuccess,
+  openOfflineSectionRequest = 0,
   onImportProgress,
   onResetAllProgress,
   onNavigateToTracker,
 }) => {
   const [confirmReset, setConfirmReset] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabId>('games');
+  const [activeTab, setActiveTab] = useState<TabId>(openOfflineSectionRequest ? 'storage' : 'games');
+  useEffect(() => { if(openOfflineSectionRequest) setActiveTab('storage'); },[openOfflineSectionRequest]);
   const [showExportSection, setShowExportSection] = useState(true);
   const [isResetConsentModalOpen, setIsResetConsentModalOpen] = useState(false);
   const [hasPositiveConsent, setHasPositiveConsent] = useState(false);

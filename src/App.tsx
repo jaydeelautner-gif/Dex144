@@ -1,3 +1,4 @@
+import { OfflineUpdateNotice } from './components/OfflineUpdateNotice';
 import { applyEvolutionAcquisitionHints } from './utils/reacquisition';
 import { useEncounterDataset } from './data/encountersData';
 import { EvolvePokepetModal } from './components/EvolvePokepetModal';
@@ -588,6 +589,7 @@ export function App() {
 
   // Live sync status indicator state
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('synced');
+  const [offlineSettingsRequest, setOfflineSettingsRequest] = useState(0);
   const [pendingWrites, setPendingWrites] = useState<number>(0);
 
   // Keep the sync indicator in step with auth, network, and the offline queue
@@ -1957,7 +1959,7 @@ export function App() {
 
           {authReady && user ? (
             <div className="flex items-center gap-2">
-              <div className="hidden sm:flex flex-col items-end leading-tight">
+              <div className="flex flex-col items-end leading-tight">
                 <span
                   className={`text-[11px] font-mono font-semibold ${
                     syncStatus === 'synced'
@@ -1977,6 +1979,7 @@ export function App() {
                     ? `Pending (${pendingWrites})`
                     : 'Offline'}
                 </span>
+                <OfflineUpdateNotice onOpenSettings={() => { setFullPagePokemon(null); setSelectedPokemon(null); setOfflineSettingsRequest(n => n + 1); setActiveTab('settings'); }} />
                 <span className="text-[10px] text-slate-400 font-mono truncate max-w-[120px]">
                   {user.email || user.displayName || 'Trainer'}
                 </span>
@@ -1991,6 +1994,7 @@ export function App() {
               </button>
             </div>
           ) : (
+            <div className="flex flex-col items-end">
             <button
               type="button"
               onClick={() => handleOpenAuth()}
@@ -1999,6 +2003,8 @@ export function App() {
               <LogIn className="w-3.5 h-3.5 text-amber-400" />
               <span>Sign In / Sync</span>
             </button>
+            <OfflineUpdateNotice onOpenSettings={() => { setFullPagePokemon(null); setSelectedPokemon(null); setOfflineSettingsRequest(n => n + 1); setActiveTab('settings'); }} />
+            </div>
           )}
         </div>
       </header>
@@ -2677,6 +2683,7 @@ export function App() {
             {/* TAB 6: SETTINGS */}
             {activeTab === 'settings' && (
               <SettingsView
+                openOfflineSectionRequest={offlineSettingsRequest}
                 dex={dex}
                 caughtSet={caughtSet}
                 shinySet={shinySet}

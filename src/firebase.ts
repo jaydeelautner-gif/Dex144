@@ -915,11 +915,12 @@ export async function drainOfflineSyncQueue(): Promise<{ processed: number; fail
           await savePokepetToUniversalDatabase(
             action.payload.instance,
             action.payload.ownerId,
-            action.payload.trainerName
+            action.payload.trainerName,
+            false
           );
           break;
         case 'DELETE_POKEPET':
-          await deletePokepetFromUniversalDatabase(action.payload.pokeId);
+          await deletePokepetFromUniversalDatabase(action.payload.pokeId, false);
           break;
         case 'SAVE_POKEPET_SUBCOLLECTION':
           await writePokepetToSubcollection(action.payload.uid, action.payload.item);
@@ -934,7 +935,7 @@ export async function drainOfflineSyncQueue(): Promise<{ processed: number; fail
           await writeDeleteRescueItemFromSubcollection(action.payload.uid, action.payload.rescueId);
           break;
         default:
-          console.warn('Unknown offline action type:', action.type);
+          throw new Error(`Unknown offline action type retained for retry: ${action.type}`);
       }
       processed++;
     } catch (err) {
@@ -945,7 +946,10 @@ export async function drainOfflineSyncQueue(): Promise<{ processed: number; fail
   }
 
   try {
-    localStorage.setItem('homedex_offline_sync_queue', JSON.stringify(remaining));
+    const attempted = new Set(queue.map(action => action.id));
+    const latest = JSON.parse(localStorage.getItem('homedex_offline_sync_queue') || '[]');
+    const appended = Array.isArray(latest) ? latest.filter(action => !attempted.has(action.id)) : [];
+    localStorage.setItem('homedex_offline_sync_queue', JSON.stringify([...remaining, ...appended]));
   } catch {
     // ignore
   }
@@ -1321,7 +1325,8 @@ export async function generateUniqueSiteWidePokeId(existingLocalIds?: Set<string
 export async function savePokepetToUniversalDatabase(
   item: SerializedPokemonInstance,
   ownerId: string,
-  trainerName: string
+  trainerName: string,
+  queueOnFailure = true
 ): Promise<void> {
   const cleanPokeId = item.pokeId.trim().toUpperCase();
   const docRef = doc(db, 'registeredPokepets', cleanPokeId);
@@ -1352,6 +1357,7 @@ export async function savePokepetToUniversalDatabase(
   };
 
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    if(!queueOnFailure) throw new Error('Offline; registration remains pending.');
     enqueueOfflineActionHelper({
       type: 'REGISTER_POKEPET',
       payload: { instance: item, ownerId, trainerName },
@@ -1360,8 +1366,14 @@ export async function savePokepetToUniversalDatabase(
   }
 
   try {
-    await setDoc(docRef, payload);
+    const existing = await getDoc(docRef);
+    if(existing.exists()) {
+      if(existing.data().ownerId !== ownerId || existing.data().pokemonId !== item.pokemonId) throw new Error('Registry identity changed; queued write requires review.');
+      const {createdAt, ...mutable} = payload;
+      await updateDoc(docRef, mutable);
+    } else await setDoc(docRef, payload);
   } catch (error) {
+    if(!queueOnFailure) throw error;
     enqueueOfflineActionHelper({
       type: 'REGISTER_POKEPET',
       payload: { instance: item, ownerId, trainerName },
@@ -1445,11 +1457,12 @@ export async function persistPokepetEvolution(
   });
 }
 
-export async function deletePokepetFromUniversalDatabase(pokeId: string): Promise<void> {
+export async function deletePokepetFromUniversalDatabase(pokeId: string, queueOnFailure = true): Promise<void> {
   const cleanPokeId = pokeId.trim().toUpperCase();
   const docRef = doc(db, 'registeredPokepets', cleanPokeId);
 
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    if(!queueOnFailure) throw new Error('Offline; deletion remains pending.');
     enqueueOfflineActionHelper({
       type: 'DELETE_POKEPET',
       payload: { pokeId: cleanPokeId },
@@ -1460,6 +1473,7 @@ export async function deletePokepetFromUniversalDatabase(pokeId: string): Promis
   try {
     await deleteDoc(docRef);
   } catch (error) {
+    if(!queueOnFailure) throw error;
     enqueueOfflineActionHelper({
       type: 'DELETE_POKEPET',
       payload: { pokeId: cleanPokeId },

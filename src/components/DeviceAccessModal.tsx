@@ -1,3 +1,4 @@
+import { QRCodeSVG } from 'qrcode.react';
 import React, { useState } from 'react';
 import {
   X,
@@ -30,9 +31,7 @@ export const DeviceAccessModal: React.FC<DeviceAccessModalProps> = ({ isOpen, on
   if (!isOpen) return null;
 
   const currentUrl = typeof window !== 'undefined' ? window.location.href : 'https://homedex.app';
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&data=${encodeURIComponent(
-    currentUrl
-  )}`;
+
 
   const handleCopyLink = async () => {
     try {
@@ -83,12 +82,7 @@ export const DeviceAccessModal: React.FC<DeviceAccessModalProps> = ({ isOpen, on
         {/* QR Code & Share URL Card */}
         <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-[#0B0F17] border border-slate-800 flex flex-col sm:flex-row items-center gap-4">
           <div className="w-32 h-32 bg-white rounded-xl p-1.5 shrink-0 shadow-lg flex items-center justify-center overflow-hidden">
-            <img
-              src={qrCodeUrl}
-              alt="Scan to open HomeDex on your phone"
-              className="w-full h-full object-contain"
-              loading="lazy"
-            />
+            <QRCodeSVG value={currentUrl} size={240} marginSize={2} title="Scan to open HomeDex on your phone" className="w-full h-full" />
           </div>
           <div className="flex flex-col gap-2 w-full text-center sm:text-left">
             <div>

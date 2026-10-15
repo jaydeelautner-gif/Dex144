@@ -1,3 +1,4 @@
+import { useOfflineUpdateStatus, applyDownloadedOfflineUpdate } from '../utils/offlineUpdates';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Wifi,
@@ -54,6 +55,7 @@ export const OfflineSettingsCard: React.FC<OfflineSettingsCardProps> = ({
   onSyncSuccess,
 }) => {
   const isOnline = useOnlineStatus();
+  const updateStatus = useOfflineUpdateStatus();
   const { isInstalled, isIOS, isIPad } = usePWAInstall();
 
   const [packageMeta, setPackageMeta] = useState<OfflinePackageMeta | null>(null);
@@ -79,6 +81,7 @@ export const OfflineSettingsCard: React.FC<OfflineSettingsCardProps> = ({
   // Download state
   const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  useEffect(() => () => { abortControllerRef.current?.abort(); }, []);
 
   // Refresh status
   const refreshStatus = async () => {
@@ -116,7 +119,7 @@ export const OfflineSettingsCard: React.FC<OfflineSettingsCardProps> = ({
     setPersistentStorage(res);
     if (res.persisted) {
       setSyncMessage({
-        text: 'Persistent WebApp storage granted! iOS Safari will not evict your offline Pokédex data.',
+        text: 'Persistent storage requested/granted by this browser. Keep a backup: storage pressure, device settings or manual clearing can still remove local data.',
         type: 'success',
       });
     } else {
@@ -202,11 +205,14 @@ export const OfflineSettingsCard: React.FC<OfflineSettingsCardProps> = ({
 
       if (result.success) {
         setSyncMessage({
-          text: `Full package downloaded to device storage! ${result.cachedCount} species specifications & official artwork sprites are ready for 100% offline access.`,
+          text: `Offline package verified: app pages, encounter data, all bundled datasets, fonts and normal/shiny/form artwork for ${result.cachedCount} species saved. Reload if prompted before disconnecting. Cloud-only operations still require internet.`,
           type: 'success',
         });
+      } else if (!abortController.signal.aborted) {
+        setSyncMessage({text:`Download incomplete: ${result.failedCount} artwork groups failed. Successfully saved files are kept for retry; an older complete package remains active.`,type:'error'});
       }
-      refreshStatus();
+      await refreshStatus();
+      await updateStatus.refresh(true);
     } catch (err: any) {
       if (err.name !== 'AbortError') {
         setSyncMessage({
@@ -223,8 +229,7 @@ export const OfflineSettingsCard: React.FC<OfflineSettingsCardProps> = ({
   const handleCancelDownload = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-      setDownloadProgress(null);
+      // Keep progress until active requests settle, preventing overlapping downloads.
       setSyncMessage({
         text: 'Offline package download paused/cancelled.',
         type: 'info',
@@ -339,6 +344,21 @@ export const OfflineSettingsCard: React.FC<OfflineSettingsCardProps> = ({
         </button>
       </div>
 
+      {/* Package updates are separate from personal-data cloud sync. */}
+      <div role="status" aria-live="polite" className="-mt-3 p-3 rounded-xl border border-slate-800 bg-slate-900/60 flex flex-wrap justify-between gap-3 text-xs">
+        <div>
+          <strong className={updateStatus.updateNeeded || updateStatus.reloadNeeded ? 'text-amber-300' : 'text-slate-300'}>
+            {updateStatus.reloadNeeded ? 'Update downloaded — reload to apply' : updateStatus.updateNeeded ? 'Update needed' : 'No known offline package update'}
+          </strong>
+          <p className="text-slate-400 mt-1">{!isOnline ? 'Offline — showing the last known update status. Reconnect to check for newer data.' : 'Checks app code, every site data file and artwork catalog against the deployed release.'}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button type="button" disabled={!isOnline || updateStatus.checking} onClick={() => { void updateStatus.refresh(true); }} className="text-sky-300 disabled:opacity-40">Check for updates</button>
+          {updateStatus.reloadNeeded ? <button type="button" onClick={() => { void applyDownloadedOfflineUpdate(); }} className="px-3 py-2 bg-amber-500 text-slate-950 rounded-lg font-bold">Reload update</button>
+            : updateStatus.updateNeeded && <button type="button" disabled={!isOnline || !!downloadProgress} onClick={handleStartDownload} className="px-3 py-2 bg-amber-500 text-slate-950 rounded-lg font-bold disabled:opacity-40">Update offline package</button>}
+        </div>
+      </div>
+
       {/* Sync Message Notification */}
       {syncMessage && (
         <div
@@ -391,7 +411,7 @@ export const OfflineSettingsCard: React.FC<OfflineSettingsCardProps> = ({
             </div>
             <p className="text-xs text-slate-300 leading-relaxed max-w-xl">
               {isInstalled
-                ? 'HomeDex is running as an installed WebApp on your device. All data and sprites are stored in isolated local storage for offline use.'
+                ? 'HomeDex is installed. Download/update the complete package below and reload if prompted before disconnecting.'
                 : 'HomeDex runs in any web browser on computers, phones, and tablets. You can also install or add it to your Home Screen for a dedicated window and offline storage.'}
             </p>
           </div>
@@ -402,7 +422,7 @@ export const OfflineSettingsCard: React.FC<OfflineSettingsCardProps> = ({
           {persistentStorage.persisted ? (
             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-mono font-bold">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span>Storage Lock: Protected</span>
+              <span>Persistence Granted</span>
             </div>
           ) : (
             <button
@@ -439,19 +459,21 @@ export const OfflineSettingsCard: React.FC<OfflineSettingsCardProps> = ({
                 Download Required Data to Device Storage
               </h3>
               <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                Downloads all 1,025 Pokémon species specifications, origin game availability, item
-                requirements, and official artwork sprites to local CacheStorage on your computer, phone, or tablet.
+                Downloads every app page and bundled dataset (species, games, encounters, evolutions, items, forms and hints), fonts/icons, and normal/shiny/form/gender artwork. Allow several hundred MB of device storage. Registrations/settings remain in their existing local storage; cloud lookups, sign-in and signed-in atomic evolution still require internet.
               </p>
             </div>
           </div>
 
           <div className="space-y-2 border-t border-slate-800/80 pt-3">
             <div className="flex items-center justify-between text-xs font-mono">
-              <span className="text-slate-400">Cached Artwork Sprites:</span>
+              <span className="text-slate-400">Species with Complete Artwork:</span>
               <span className="font-bold text-slate-200">
                 {packageMeta?.cachedSpeciesCount || 0} / {packageMeta?.totalSpeciesCount || 1025}
               </span>
             </div>
+            <div className="flex items-center justify-between text-xs font-mono"><span className="text-slate-400">Verified Files / Artwork Groups:</span><span className="text-slate-200">{packageMeta?.cachedAssetCount || 0} / {packageMeta?.totalAssetCount || '—'}</span></div>
+            {packageMeta?.hasPartialDownload && <p className="text-xs text-amber-300">An interrupted download is saved. Retry to resume, or clear its cached files.</p>}
+            {!!packageMeta?.missingCount && <p className="text-xs text-amber-300">Incomplete: {packageMeta.missingCount} files/groups need downloading again.</p>}
             {packageMeta?.totalBytes ? (
               <div className="flex items-center justify-between text-xs font-mono">
                 <span className="text-slate-400">Estimated WebApp Storage Used:</span>
@@ -476,7 +498,7 @@ export const OfflineSettingsCard: React.FC<OfflineSettingsCardProps> = ({
               <div className="flex items-center justify-between text-xs font-mono">
                 <span className="text-amber-300 font-bold flex items-center gap-1.5">
                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  Saving to Device Storage...
+                  {downloadProgress.phase === 'site-data' ? 'Verifying app & data files…' : 'Saving artwork variants…'}
                 </span>
                 <span className="text-amber-400 font-bold">
                   {downloadProgress.current} / {downloadProgress.total} (
@@ -493,7 +515,7 @@ export const OfflineSettingsCard: React.FC<OfflineSettingsCardProps> = ({
               </div>
 
               <div className="flex items-center justify-between text-[11px] text-slate-400">
-                <span>{formatBytes(downloadProgress.bytes)} saved to CacheStorage</span>
+                <span>{formatBytes(downloadProgress.bytes)} saved · {downloadProgress.failedCount || 0} failed</span>
                 <button
                   type="button"
                   onClick={handleCancelDownload}
@@ -526,7 +548,7 @@ export const OfflineSettingsCard: React.FC<OfflineSettingsCardProps> = ({
                 </span>
               </button>
 
-              {packageMeta?.cachedSpeciesCount && packageMeta.cachedSpeciesCount > 0 ? (
+              {packageMeta?.hasPartialDownload || (packageMeta?.cachedSpeciesCount ?? 0) > 0 ? (
                 <button
                   type="button"
                   onClick={handleClearCache}
