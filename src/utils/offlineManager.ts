@@ -143,6 +143,6 @@ export async function flushOfflineSyncQueue(
 export {
   SPRITE_CACHE_NAME, OFFLINE_DATA_KEY, OFFLINE_PACKAGE_METADATA_KEY,
   getOfflinePackageMetadata, saveOfflinePackageMetadata, downloadFullOfflinePackage,
-  clearOfflinePackage, getCachedSpriteObjectUrl,
+  clearOfflinePackage, getCachedSpriteObjectUrl, isArtworkAvailableOnDevice,
   type OfflinePackageMeta, type DownloadProgress,
 } from './offlinePackage';

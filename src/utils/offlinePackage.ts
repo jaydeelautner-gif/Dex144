@@ -182,6 +182,7 @@ async function performDownload(
     // a first install, publish the core/data even if some images need retry.
     if(!failures || !previous) {
       await (await caches.open(ACTIVE_CACHE)).put(pointer(),new Response(JSON.stringify({cacheName,meta}),{headers:{'content-type':'application/json'}}));
+      invalidateInstalledCache();
       saveOfflinePackageMetadata(meta);
     }
     if(!failures) {
@@ -197,15 +198,54 @@ async function performDownload(
   }
 }
 export async function clearOfflinePackage(): Promise<void> {
+  invalidateInstalledCache();
+  objectUrlCache.clear();
   if(typeof caches!=='undefined') for(const name of await caches.keys()) if(name.startsWith(PACKAGE_PREFIX) || name===SPRITE_CACHE_NAME || name===ACTIVE_CACHE || name==='homedex-viewed-images-v2' || name==='dex-data-v1' || name.startsWith('homedex-site-')) await caches.delete(name);
   localStorage.removeItem(OFFLINE_DATA_KEY); localStorage.removeItem(OFFLINE_PACKAGE_METADATA_KEY);
   window.dispatchEvent(new Event(PACKAGE_EVENT));
 }
-export async function getCachedSpriteObjectUrl(source:string):Promise<string|null> {
-  if(typeof caches==='undefined' || !source) return null;
+/** Resolves an installed package's cache once, invalidated when it changes. */
+let installedCacheName: string | null | undefined;
+async function installedCache(): Promise<Cache | null> {
+  if (typeof caches === 'undefined') return null;
+  if (installedCacheName === undefined) {
+    const a = await active();
+    installedCacheName = a?.cacheName ?? null;
+  }
+  if (!installedCacheName) return null;
+  if (!(await caches.has(installedCacheName))) { installedCacheName = null; return null; }
+  return caches.open(installedCacheName);
+}
+/** Called when a package is installed/cleared so the next lookup re-resolves. */
+export function invalidateInstalledCache(): void { installedCacheName = undefined; }
+
+/** Object URLs already created this session, keyed by the cached source. */
+const objectUrlCache = new Map<string, string | null>();
+
+/**
+ * Device-first sprite lookup: once the offline package is installed, artwork is
+ * served from the downloaded cache (blob URL) instead of the network. Returns
+ * null when nothing is cached, so the caller can fall back to a remote URL.
+ */
+export async function getCachedSpriteObjectUrl(source: string): Promise<string | null> {
+  if (!source) return null;
+  if (objectUrlCache.has(source)) return objectUrlCache.get(source) ?? null;
   try {
-    const a=await active();
-    const r=(a?await (await caches.open(a.cacheName)).match(source):undefined) ?? await (await caches.open(SPRITE_CACHE_NAME)).match(source);
-    return await imageValid(r)?URL.createObjectURL(await r!.blob()):null;
-  } catch { return null; }
+    const cache = await installedCache();
+    let response = cache ? await cache.match(source) : undefined;
+    if (!response) {
+      // Pre-download caches from older installs.
+      response = await (await caches.open(SPRITE_CACHE_NAME)).match(source);
+    }
+    const blobUrl = (await imageValid(response)) ? URL.createObjectURL(await response!.blob()) : null;
+    objectUrlCache.set(source, blobUrl);
+    return blobUrl;
+  } catch {
+    return null;
+  }
+}
+
+/** True when artwork is served from the downloaded package (device-first). */
+export async function isArtworkAvailableOnDevice(): Promise<boolean> {
+  return (await installedCache()) !== null;
 }
