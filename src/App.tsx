@@ -124,6 +124,7 @@ import {
   type UserDexProfileData,
   type SerializedPokemonInstance,
   type FriendRequest,
+  parseHomePanels,
 } from './firebase';
 
 type MainWorkspaceTab =
@@ -321,7 +322,7 @@ function isExclusiveLabel(label: string): boolean {
 }
 
 export function App() {
-  const { homePanels, toggleHomePanel, resetHomePanels } = useHomePanels();
+  const { homePanels, toggleHomePanel, resetHomePanels, setCloudHomePanels } = useHomePanels();
   const baseDex = useMemo(() => buildInitialNationalDex(), []);
   const { dataset: acquisitionDataset } = useEncounterDataset();
 
@@ -628,6 +629,9 @@ export function App() {
   const isApplyingRemoteRef = useRef<boolean>(false);
   // Set once the user flips the public toggle so a remote sync can't revert it.
   const localPublicTouchedRef = useRef<boolean>(false);
+  // Set when the user changes home panels locally; cleared once the change has
+  // been written to the cloud so other devices' layouts can arrive again.
+  const homePanelsTouchedRef = useRef<boolean>(false);
   const prevUserRef = useRef<User | null>(null);
 
   const handleTogglePublic = useCallback(async (nextVal: boolean) => {
@@ -860,6 +864,12 @@ export function App() {
           setOwnedGames(normalizeToCanonicalGames(remoteProfile.ownedGames ?? []));
           setGameCatches(migrateLegacyGameCatches(remoteProfile.gameCatches ?? {}));
           setOwnedDlcs(remoteProfile.ownedDlcs as DlcId[]);
+          // Home panel layout sync: adopt the cloud layout unless this device
+          // has a pending local change that hasn't been written back yet.
+          if (!homePanelsTouchedRef.current) {
+            const cloudPanels = parseHomePanels(remoteProfile.homePanels);
+            if (cloudPanels) setCloudHomePanels(cloudPanels);
+          }
           // The local toggle is authoritative for this device: only adopt the
           // cloud value once per session, otherwise a stale/absent remote flag
           // would silently revert a change the user just made.
@@ -905,6 +915,7 @@ export function App() {
             ownedGames,
             ownedDlcs,
             gameCatches,
+            homePanels,
           }).catch(() => {});
         }
         isInitialFetch = false;
@@ -1076,9 +1087,10 @@ export function App() {
           ownedGames,
           ownedDlcs,
           gameCatches,
+          homePanels,
           inventory: inventory as SerializedPokemonInstance[],
           rescueBin,
-        }).catch(() => {});
+        }).then(() => { homePanelsTouchedRef.current = false; }).catch(() => {});
       }, 350);
       return () => clearTimeout(timer);
     }
@@ -1092,6 +1104,7 @@ export function App() {
     ownedGames,
     gameCatches,
     ownedDlcs,
+    homePanels,
     trainerName,
     isPublic,
     inventory,
@@ -1656,6 +1669,15 @@ export function App() {
   const handleGoogleSignIn = async () => {
     handleOpenAuth();
   };
+
+  const handleToggleHomePanel = useCallback((id: Parameters<typeof toggleHomePanel>[0]) => {
+    homePanelsTouchedRef.current = true;
+    toggleHomePanel(id);
+  }, [toggleHomePanel]);
+  const handleResetHomePanels = useCallback(() => {
+    homePanelsTouchedRef.current = true;
+    resetHomePanels();
+  }, [resetHomePanels]);
 
   const handleSignOut = () => {
     // Sign out locally immediately (signOutUser clears the cached session and
@@ -3002,8 +3024,8 @@ export function App() {
             {activeTab === 'settings' && (
               <SettingsView
                 homePanels={homePanels}
-                onToggleHomePanel={toggleHomePanel}
-                onResetHomePanels={resetHomePanels}
+                onToggleHomePanel={handleToggleHomePanel}
+                onResetHomePanels={handleResetHomePanels}
                 openOfflineSectionRequest={offlineSettingsRequest}
                 dex={dex}
                 caughtSet={caughtSet}

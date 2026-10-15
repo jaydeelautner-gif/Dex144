@@ -146,6 +146,7 @@ export const MAX_DLC_ID_LENGTH = 40;
 export const MAX_INVENTORY_ITEMS_SIZE = 2000;
 
 import type { EvolutionRecord } from './data/pokemonInventoryData';
+import { normalizeHomePanels, type HomePanelVisibility } from './data/homePanels';
 import { sanitizeEvolutionHistory } from './utils/evolutionHistory';
 
 export interface SerializedPokemonInstance {
@@ -199,6 +200,8 @@ export interface UserDexProfileData {
   ownedGames: GameId[];
   ownedDlcs: string[];
   gameCatches: GameCatchesMap;
+  /** Home screen panel visibility, synced across a user's devices. */
+  homePanels?: HomePanelVisibility;
   /** Local cache only — not stored in the Firestore parent document. */
   inventory?: SerializedPokemonInstance[];
   /** Local cache only — not stored in the Firestore parent document. */
@@ -417,6 +420,16 @@ export function sanitizeBoxSelectedGames(entries: string[]): string[] {
     }
   }
   return Array.from(byPokemon.values()).slice(0, MAX_BOX_SELECTED_GAMES_SIZE);
+}
+
+/**
+ * Validates a cloud-provided home-panel visibility record. Returns null when
+ * the value is absent or not an object so callers can skip adoption instead of
+ * clobbering local state with defaults.
+ */
+export function parseHomePanels(value: unknown): HomePanelVisibility | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  return normalizeHomePanels(value);
 }
 
 export function sanitizeOwnedGames(games: string[]): GameId[] {
@@ -1040,6 +1053,7 @@ export async function saveUserDexProfile(
     ownedGames: string[];
     ownedDlcs: string[];
     gameCatches: GameCatchesMap;
+    homePanels?: HomePanelVisibility;
     inventory?: SerializedPokemonInstance[];
     rescueBin?: RescueBinItem[];
   }
@@ -1057,6 +1071,7 @@ export async function saveUserDexProfile(
   const ownedGames = sanitizeOwnedGames(payload.ownedGames);
   const ownedDlcs = sanitizeOwnedDlcs(payload.ownedDlcs);
   const gameCatches = sanitizeGameCatchesMap(payload.gameCatches);
+  const homePanels = normalizeHomePanels(payload.homePanels ?? null);
   const inventory = sanitizeInventory(payload.inventory);
   const rescueBin = sanitizeRescueBin(payload.rescueBin);
   const trainerName = sanitizeTrainerName(payload.trainerName);
@@ -1077,6 +1092,7 @@ export async function saveUserDexProfile(
     ownedGames,
     ownedDlcs,
     gameCatches,
+    homePanels,
     inventory,
     rescueBin,
     caughtCount: caughtIds.length,
@@ -1099,6 +1115,7 @@ export async function saveUserDexProfile(
     ownedGames,
     ownedDlcs,
     gameCatches,
+    homePanels,
     caughtCount: caughtIds.length,
     shinyCount: shinyIds.length,
   };

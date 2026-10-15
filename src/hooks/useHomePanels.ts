@@ -12,5 +12,7 @@ export function useHomePanels() {
   },[]);
   const toggleHomePanel=useCallback((id:HomePanelId)=>setHomePanels(prev=>({...prev,[id]:!prev[id]})),[]);
   const resetHomePanels=useCallback(()=>setHomePanels({...DEFAULT_HOME_PANELS}),[]);
-  return {homePanels,toggleHomePanel,resetHomePanels};
+  /** Adopt a cloud profile's panel layout (cross-device sync). */
+  const setCloudHomePanels=useCallback((next:HomePanelVisibility)=>setHomePanels(next),[]);
+  return {homePanels,toggleHomePanel,resetHomePanels,setCloudHomePanels};
 }
