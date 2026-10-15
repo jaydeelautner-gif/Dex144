@@ -28,8 +28,10 @@ import {
 import { canBeHomeGift } from '../data/homeGiftsData';
 import {
   isTransferToHomePermanentlyBlocked,
+  POKEBALLS,
   type PokemonInstance,
   type PokemonGender,
+  type PokeballId,
 } from '../data/pokemonInventoryData';
 import { generateUniqueSiteWidePokeId } from '../firebase';
 import { PokemonSprite } from './PokemonSprite';
@@ -107,6 +109,7 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
   const [gender, setGender] = useState<PokemonGender>('male');
   const [nickname, setNickname] = useState('');
   const [isShiny, setIsShiny] = useState(false);
+  const [ballType, setBallType] = useState<PokeballId | ''>('');
   const [isTraded, setIsTraded] = useState(false);
   const [isHomeGift, setIsHomeGift] = useState(false);
   const [storedInHome, setStoredInHome] = useState(true);
@@ -300,6 +303,7 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
     setLevel(50);
     setNickname('');
     setIsShiny(false);
+    setBallType('');
     setIsTraded(false);
     setIsHomeGift(false);
     setStoredInHome(true);
@@ -376,6 +380,7 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
         variantId: selectedVariantId,
         variantName,
         isShiny,
+        ballType: ballType || undefined,
         gameId: isHomeGift ? undefined : (targetGame as GameId),
         isHomeGift,
         isTraded,
@@ -664,6 +669,24 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
               </span>
             </div>
 
+            {/* Optional Poké Ball */}
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="pokepet-ball" className="text-xs font-bold text-slate-300">
+                Poké Ball (Optional)
+              </label>
+              <select
+                id="pokepet-ball"
+                value={ballType}
+                onChange={(e) => setBallType(e.target.value as PokeballId | '')}
+                className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm lg:text-xs font-semibold text-slate-200 focus:outline-none focus:border-amber-400 cursor-pointer"
+              >
+                <option value="">Not specified</option>
+                {POKEBALLS.map((ball) => (
+                  <option key={ball.id} value={ball.id}>{ball.name}</option>
+                ))}
+              </select>
+            </div>
+
             {/* Nickname */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
@@ -903,20 +926,21 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
 
             {/* Shiny Toggle */}
             <div className="grid grid-cols-1 gap-3 pt-2 border-t border-slate-800">
-              <label className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 cursor-pointer select-none">
+              <label className={`flex items-center gap-2.5 p-3 rounded-xl border cursor-pointer select-none ${
+                isShiny
+                  ? 'bg-amber-950/25 border-amber-500/50'
+                  : 'bg-slate-900/90 border-slate-800 hover:border-amber-500/50'
+              }`}>
                 <input
                   type="checkbox"
                   checked={isShiny}
                   onChange={(e) => setIsShiny(e.target.checked)}
                   className="w-5 h-5 lg:w-4 lg:h-4 rounded text-amber-500 bg-slate-950 border-slate-700 focus:ring-0 cursor-pointer"
                 />
-                <div className="flex flex-col">
-                  <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Shiny Pokepet</span>
-                  </span>
-                  <span className="text-[10px] text-slate-400">Registers shiny artwork in Pokédex</span>
-                </div>
+                <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  Shiny Pokepet
+                </span>
               </label>
             </div>
 
@@ -936,7 +960,11 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
                   </p>
                 </div>
               ) : (
-                <label className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 cursor-pointer select-none">
+                <label className={`flex items-center gap-2.5 p-3 rounded-xl border cursor-pointer select-none ${
+                  isHomeGift || storedInHome
+                    ? 'bg-emerald-950/25 border-emerald-500/50'
+                    : 'bg-slate-900/90 border-slate-800 hover:border-emerald-500/50'
+                }`}>
                   <input
                     type="checkbox"
                     checked={isHomeGift || storedInHome}
@@ -950,17 +978,10 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
                     }}
                     className="w-5 h-5 lg:w-4 lg:h-4 rounded text-emerald-500 bg-slate-950 border-slate-700 focus:ring-0 cursor-pointer"
                   />
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
-                      <Box className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>Stored in Pokémon HOME</span>
-                    </span>
-                    <span className="text-[10px] text-slate-400">
-                      {isHomeGift
-                        ? 'HOME gifts are automatically stored in Pokémon HOME.'
-                        : 'Unlocks pokepet to be added to the Living Dex. If untagged, marked as ineligible for living dex and classed as stored in console.'}
-                    </span>
-                  </div>
+                  <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
+                    <Box className="w-3.5 h-3.5 text-emerald-400" />
+                    Stored in Pokémon HOME
+                  </span>
                 </label>
               )}
 

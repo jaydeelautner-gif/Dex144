@@ -58,8 +58,10 @@ import {
 } from './data/pokemonData';
 import {
   type PokemonInstance,
+  type PokeballId,
   type RescueBinItem,
   RESCUE_BIN_RETENTION_MS,
+  sanitizePokeballId,
 } from './data/pokemonInventoryData';
 
 const app = initializeApp(firebaseConfig);
@@ -161,6 +163,7 @@ export interface SerializedPokemonInstance {
   variantId: string;
   variantName: string;
   isShiny: boolean;
+  ballType?: PokeballId;
   gameId?: string;
   isHomeGift: boolean;
   isTraded: boolean;
@@ -290,6 +293,8 @@ export function sanitizeInventory(raw: unknown): SerializedPokemonInstance[] {
       updatedAt,
     };
 
+    const ballType = sanitizePokeballId(rec.ballType);
+    if (ballType) inst.ballType = ballType;
     if (!isHomeGift && rec.gameId) {
       inst.gameId = String(rec.gameId).slice(0, 20);
     }
@@ -349,6 +354,7 @@ export function sanitizeRescueBin(raw: unknown): RescueBinItem[] {
       variantId: rawInst.variantId,
       variantName: rawInst.variantName,
       isShiny: Boolean(rawInst.isShiny),
+      ballType: sanitizePokeballId(rawInst.ballType),
       gameId: rawInst.gameId as GameId | undefined,
       isHomeGift: Boolean(rawInst.isHomeGift),
       isTraded: Boolean(rawInst.isTraded),
@@ -1238,7 +1244,12 @@ async function writePokepetToSubcollection(
   const docRef = doc(db, 'userDexProfiles', uid, 'inventory', clean.pokeId);
   await setDoc(
     docRef,
-    removeUndefinedProperties({ ...clean, ownerId: uid, updatedAt: Date.now() }),
+    removeUndefinedProperties({
+      ...clean,
+      ballType: clean.ballType ?? null,
+      ownerId: uid,
+      updatedAt: Date.now(),
+    }),
     { merge: true }
   );
 }
@@ -1391,6 +1402,7 @@ export async function getUserRegisteredPokepets(uid: string): Promise<Serialized
             variantId: String(data.variantId || `${data.pokemonId}:base`),
             variantName: String(data.variantName || 'Standard'),
             isShiny: Boolean(data.isShiny),
+            ballType: sanitizePokeballId(data.ballType),
             isHomeGift: Boolean(data.isHomeGift),
             isTraded: Boolean(data.isTraded),
             storedInHome: Boolean(data.storedInHome),
@@ -1477,6 +1489,7 @@ export async function savePokepetToUniversalDatabase(
     variantId: item.variantId,
     variantName: item.variantName,
     isShiny: item.isShiny,
+    ballType: sanitizePokeballId(item.ballType) ?? null,
     isHomeGift: item.isHomeGift,
     isTraded: item.isTraded,
     storedInHome: item.storedInHome,
@@ -1547,6 +1560,7 @@ export async function updatePokepetInUniversalDatabase(
       variantId: item.variantId,
       variantName: item.variantName,
       isShiny: item.isShiny,
+      ballType: sanitizePokeballId(item.ballType) ?? null,
       isHomeGift: item.isHomeGift,
       isTraded: item.isTraded,
       storedInHome: item.storedInHome,
@@ -1659,6 +1673,7 @@ export async function searchPokepetByPokeId(
         variantId: String(data.variantId || `${data.pokemonId}:base`),
         variantName: String(data.variantName || 'Standard'),
         isShiny: Boolean(data.isShiny),
+        ballType: sanitizePokeballId(data.ballType),
         gameId: data.gameId ? String(data.gameId) : undefined,
         isHomeGift: Boolean(data.isHomeGift),
         isTraded: Boolean(data.isTraded),
@@ -1888,6 +1903,7 @@ export async function fetchRandomRegisteredPokepet(): Promise<RandomRegisteredPo
                 variantId: String(d.variantId || `${d.pokemonId}:base`),
                 variantName: String(d.variantName || 'Standard'),
                 isShiny: Boolean(d.isShiny),
+                ballType: sanitizePokeballId(d.ballType),
                 gameId: d.gameId ? String(d.gameId) : undefined,
                 isHomeGift: Boolean(d.isHomeGift),
                 isTraded: Boolean(d.isTraded),
