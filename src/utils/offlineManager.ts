@@ -11,7 +11,19 @@ import {
 
 export const OFFLINE_SYNC_QUEUE_KEY = 'homedex_offline_sync_queue';
 
-export type SyncQueueAction =
+/** Failure metadata attached when an upload attempt is rejected. */
+export interface SyncFailureInfo {
+  failureReason?: string;
+  failureTitle?: string;
+  failureDetail?: string;
+  failureAction?: string;
+  failureRetryable?: boolean;
+  failureRaw?: string;
+  lastAttemptAt?: number;
+  attempts?: number;
+}
+
+export type SyncQueueAction = SyncFailureInfo & (
   | {
       id: string;
       type: 'REGISTER_POKEPET';
@@ -38,7 +50,8 @@ export type SyncQueueAction =
         uid: string;
         profileData: UserDexProfileData;
       };
-    };
+    }
+);
 
 /**
  * Hook to track browser online/offline status in real time.
@@ -146,3 +159,53 @@ export {
   clearOfflinePackage, getCachedSpriteObjectUrl, isArtworkAvailableOnDevice,
   type OfflinePackageMeta, type DownloadProgress,
 } from './offlinePackage';
+
+/** Removes one pending change by id (used to discard an unsyncable item). */
+export function removeOfflineAction(id: string): void {
+  try {
+    const queue = getOfflineSyncQueue().filter((a) => a.id !== id);
+    localStorage.setItem(OFFLINE_SYNC_QUEUE_KEY, JSON.stringify(queue));
+    window.dispatchEvent(new Event('homedex-sync-queue-changed'));
+  } catch { /* ignore */ }
+}
+
+/** Clears every pending change. Returns how many were discarded. */
+export function clearOfflineSyncQueueItems(): number {
+  try {
+    const count = getOfflineSyncQueue().length;
+    localStorage.removeItem(OFFLINE_SYNC_QUEUE_KEY);
+    window.dispatchEvent(new Event('homedex-sync-queue-changed'));
+    return count;
+  } catch { return 0; }
+}
+
+/** Human-readable description of one pending offline change. */
+export function describeSyncAction(action: SyncQueueAction): string {
+  const payload = (action as { payload?: Record<string, unknown> }).payload ?? {};
+  const type = String((action as { type?: string }).type || '');
+  switch (type) {
+    case 'REGISTER_POKEPET': {
+      const inst = payload.instance as { nickname?: string; pokemonId?: number; speciesName?: string } | undefined;
+      const name = inst?.nickname || inst?.speciesName || (inst?.pokemonId ? `PokéPet #${inst.pokemonId}` : 'a PokéPet');
+      return `Register ${name}`;
+    }
+    case 'DELETE_POKEPET':
+      return `Delete PokéPet (${String(payload.pokeId ?? '').slice(-6) || 'unknown ID'})`;
+    case 'SYNC_USER_PROFILE':
+      return 'Profile & dex progress';
+    default:
+      if (type.startsWith('SAVE_')) return 'Save PokéPet detail';
+      if (type.startsWith('DELETE_')) return 'Delete PokéPet detail';
+      return 'Unknown change';
+  }
+}
+
+/** Short relative time like "just now", "12m ago", "3h ago". */
+export function describeSyncAge(timestamp: number): string {
+  const mins = Math.max(0, Math.round((Date.now() - timestamp) / 60000));
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}

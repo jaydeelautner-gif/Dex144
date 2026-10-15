@@ -30,6 +30,9 @@ import {
   type OfflinePackageMeta,
   type DownloadProgress,
   type SyncQueueAction,
+  describeSyncAction,
+  describeSyncAge,
+  removeOfflineAction,
 } from '../utils/offlineManager';
 import {
   getCachedAuthAccounts,
@@ -63,6 +66,7 @@ export const OfflineSettingsCard: React.FC<OfflineSettingsCardProps> = ({
 
   const [packageMeta, setPackageMeta] = useState<OfflinePackageMeta | null>(null);
   const [syncQueue, setSyncQueue] = useState<SyncQueueAction[]>([]);
+  const [confirmClearFailed, setConfirmClearFailed] = useState(false);
   const [cachedAccounts, setCachedAccounts] = useState<CachedAuthAccount[]>([]);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [syncMessage, setSyncMessage] = useState<{
@@ -134,6 +138,17 @@ export const OfflineSettingsCard: React.FC<OfflineSettingsCardProps> = ({
     setConfirmPinInput('');
     setPinStatusMsg({ text: 'Quick-entry PIN removed from this device.', type: 'success' });
     refreshStatus();
+  };
+
+  // Actions the server has actively rejected, versus ones simply still waiting.
+  const failedQueue = React.useMemo(
+    () => syncQueue.filter((a) => Boolean(a.failureReason)),
+    [syncQueue]
+  );
+
+  /** Re-read the pending queue from device storage. */
+  const refreshQueue = async () => {
+    setSyncQueue(getOfflineSyncQueue());
   };
 
   // Refresh status
@@ -401,6 +416,104 @@ export const OfflineSettingsCard: React.FC<OfflineSettingsCardProps> = ({
         <div role="status" className="p-3 rounded-xl border border-amber-500/40 bg-amber-950/30 text-amber-200 text-xs leading-relaxed">
           <strong className="block mb-1">Password login is needed to upload offline changes</strong>
           Quick PIN unlocks this device locally. To upload pending changes, connect to the internet and sign in with your account password. Your offline changes stay saved on this device while waiting to sync. Do not clear device storage.
+        </div>
+      )}
+
+      {/* Failed uploads: say WHY, show WHAT, then offer to discard. */}
+      {failedQueue.length > 0 && (
+        <div role="alert" className="p-4 rounded-xl border border-rose-500/50 bg-rose-950/40 text-rose-100 text-xs flex flex-col gap-3">
+          <div>
+            <strong className="block text-sm text-rose-200">
+              {failedQueue.length} change{failedQueue.length > 1 ? 's' : ''} could not be uploaded
+            </strong>
+            <p className="mt-1 text-rose-200/90">
+              {failedQueue[0].failureDetail ?? 'The server rejected these changes.'}
+            </p>
+            <p className="mt-1 text-rose-200/80">{failedQueue[0].failureAction ?? ''}</p>
+          </div>
+
+          {/* What the failed data contains */}
+          <details className="rounded-lg bg-black/30 border border-rose-500/30 px-3 py-2">
+            <summary className="cursor-pointer font-bold text-rose-200">
+              Show the {failedQueue.length} change{failedQueue.length > 1 ? 's' : ''} that failed
+            </summary>
+            <ul className="mt-2 flex flex-col gap-1.5">
+              {failedQueue.map((action) => (
+                <li key={action.id} className="rounded-lg bg-slate-900/70 border border-slate-800 px-2.5 py-1.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-semibold text-slate-100 truncate">{describeSyncAction(action)}</span>
+                    <span className="shrink-0 font-mono text-[10px] text-slate-500">
+                      {describeSyncAge(action.timestamp)}
+                    </span>
+                  </div>
+                  <div className="mt-0.5 text-[11px] text-rose-300/90">
+                    {action.failureTitle ?? 'Upload failed'}
+                    {action.attempts ? ` · ${action.attempts} attempt${action.attempts > 1 ? 's' : ''}` : ''}
+                  </div>
+                  {action.failureRaw && (
+                    <div className="mt-0.5 font-mono text-[10px] text-slate-500 break-words">{action.failureRaw}</div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </details>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={isSyncing || !isOnline || !user}
+              onClick={handleManualSync}
+              className="px-3 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+            >
+              Try uploading again
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmClearFailed(true)}
+              className="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 text-xs font-bold cursor-pointer"
+            >
+              Clear unsyncable changes…
+            </button>
+          </div>
+
+          {/* Confirmation: only after the contents above have been shown. */}
+          {confirmClearFailed && (
+            <div className="p-3 rounded-lg bg-slate-950/80 border border-amber-500/40 text-amber-200">
+              <p className="mb-2">
+                This permanently discards the {failedQueue.length} saved change{failedQueue.length > 1 ? 's' : ''} listed above on
+                <strong> this device only</strong>. Anything already uploaded stays in the cloud. This cannot be undone.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    failedQueue.forEach((a) => removeOfflineAction(a.id));
+                    setConfirmClearFailed(false);
+                    setSyncMessage({ text: `Discarded ${failedQueue.length} unsyncable offline change${failedQueue.length > 1 ? 's' : ''}.`, type: 'info' });
+                    void refreshQueue();
+                  }}
+                  className="px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black cursor-pointer"
+                >
+                  Yes, clear {failedQueue.length} change{failedQueue.length > 1 ? 's' : ''}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmClearFailed(false)}
+                  className="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 text-xs font-bold cursor-pointer"
+                >
+                  Keep them
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Everything else is healthy — reassure that reconnection uploads by itself. */}
+      {failedQueue.length === 0 && syncQueue.length > 0 && isOnline && user && (
+        <div role="status" className="p-3 rounded-xl border border-sky-500/40 bg-sky-950/30 text-sky-200 text-xs">
+          {syncQueue.length} change{syncQueue.length > 1 ? 's' : ''} waiting to upload. They are saved on this device and upload
+          automatically as soon as the connection and sign-in allow it.
         </div>
       )}
 

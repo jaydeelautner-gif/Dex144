@@ -150,6 +150,7 @@ import { normalizeHomePanels, type HomePanelVisibility } from './data/homePanels
 import { normalizeAvatar, type TrainerAvatarConfig } from './components/TrainerAvatar';
 import { MILESTONE_INDEX } from './data/milestones';
 import { sanitizeEvolutionHistory } from './utils/evolutionHistory';
+import { diagnoseSyncFailure } from './utils/syncDiagnostics';
 
 export interface SerializedPokemonInstance {
   pokeId: string;
@@ -1011,7 +1012,20 @@ export async function drainOfflineSyncQueue(): Promise<{ processed: number; fail
     } catch (err) {
       console.warn('Failed to drain action:', action.type, err);
       failed++;
-      remaining.push(action);
+      // Remember why, so the UI can explain it instead of showing a bare
+      // "insufficient permissions" or silently retrying forever.
+      const diagnosis = diagnoseSyncFailure(err, action.type);
+      remaining.push({
+        ...action,
+        failureReason: diagnosis.reason,
+        failureTitle: diagnosis.title,
+        failureDetail: diagnosis.detail,
+        failureAction: diagnosis.action,
+        failureRetryable: diagnosis.retryable,
+        failureRaw: diagnosis.raw,
+        lastAttemptAt: Date.now(),
+        attempts: (action.attempts ?? 0) + 1,
+      });
     }
   }
 
@@ -1034,8 +1048,24 @@ export async function drainOfflineSyncQueue(): Promise<{ processed: number; fail
 }
 
 if (typeof window !== 'undefined') {
-  window.addEventListener('online', () => {
-    drainOfflineSyncQueue().catch(() => {});
+  // Automatic upload when the device reconnects. A short delay lets the
+  // auth session and Firestore connection settle first, otherwise the very
+  // first write after a reconnect can be rejected while the SDK re-handshakes.
+  let autoDrainTimer: ReturnType<typeof setTimeout> | null = null;
+  const scheduleAutoDrain = () => {
+    if (autoDrainTimer) clearTimeout(autoDrainTimer);
+    autoDrainTimer = setTimeout(() => {
+      drainOfflineSyncQueue().catch(() => {});
+    }, 1200);
+  };
+  window.addEventListener('online', scheduleAutoDrain);
+  // A phone or tablet that was backgrounded for a while can come back to a
+  // connection without ever firing 'online'; catching focus covers that.
+  window.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && navigator.onLine) scheduleAutoDrain();
+  });
+  window.addEventListener('focus', () => {
+    if (navigator.onLine) scheduleAutoDrain();
   });
 }
 
@@ -1164,9 +1194,20 @@ export async function saveUserDexProfile(
     await writeProfileMetadataToFirestore(uid, metadata);
   } catch (error) {
     console.warn('Firestore metadata save failed, queued for retry:', error);
+    const diagnosis = diagnoseSyncFailure(error, 'SYNC_USER_PROFILE');
     enqueueOfflineActionHelper({
       type: 'SYNC_USER_PROFILE',
       payload: { uid, metadata },
+      // Record the cause immediately so the UI can explain it, rather than
+      // showing an indefinitely "pending" change with no reason given.
+      ...(diagnosis.retryable ? {} : {
+        failureReason: diagnosis.reason,
+        failureTitle: diagnosis.title,
+        failureDetail: diagnosis.detail,
+        failureAction: diagnosis.action,
+        failureRetryable: diagnosis.retryable,
+        failureRaw: diagnosis.raw,
+      }),
     });
   }
 }
