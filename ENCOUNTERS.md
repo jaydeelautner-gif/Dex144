@@ -49,9 +49,19 @@ Then commit the updated `public/data/encounters.json`.
 `summarizeEncountersForGame(dataset, pokemonId, gameId)` in
 `src/data/encountersData.ts` derives the per-game "Where to find" text
 straight from the bundle (top areas + method + level range + chance%). The
-detail drawer, full-page view and Catch Hub suggestion cards all prefer this
-real, verified summary and only fall back to the curated availability text
-when a species×game pair has no bundle rows (e.g. Colosseum/XD).
+Catch Hub suggestion cards prefer this real, verified summary and only fall
+back to curated availability text when a species×game pair has no bundle
+rows (e.g. Colosseum/XD).
+
+`scripts/generateEncounterCoverage.mjs` emits
+`src/data/encounterCoverage.generated.ts` (species → games with verified
+rows). `computeAvailabilityForPokemon` uses it to correct hand-curated
+"unavailable" verdicts the verified data contradicts (e.g. Charmander in
+Sword — Postwick gift + Max Raid dens), and labels each game's starter
+species as a starter gift. The old fake rotating location arrays
+(KANTO_LOCATIONS-style) are fully removed; the Pokemon detail drawer and
+full-page "Your Owned Games" cards are gone, replaced by the per-owned-game
+"Wild Encounters (Exact Data)" section.
 
 ## Milestone gates (badge → wild catchability)
 

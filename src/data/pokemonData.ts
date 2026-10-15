@@ -1593,89 +1593,6 @@ export function computeHomeTransferInfo(id: number, name: string): PokemonHomeTr
   };
 }
 
-const KANTO_LOCATIONS = [
-  'Viridian Forest & Route 2',
-  'Mt. Moon Caverns & Route 4',
-  'Rock Tunnel & Route 10 Power Plant',
-  'Kanto Safari Zone (Fuchsia City)',
-  'Seafoam Islands & Cinnabar Mansion',
-  'Cerulean Cave & Sevii Five Isle Meadow',
-];
-
-const JOHTO_LOCATIONS = [
-  'Route 32, Union Cave & Slowpoke Well',
-  'Ilex Forest & National Park (Goldenrod)',
-  'Ecruteak Burned Tower & Route 38',
-  'Lake of Rage & Ice Path (Blackthorn)',
-  'Johto Safari Zone (Cianwood Cliffside)',
-  'Mt. Silver Foothills & Kanto Route 26',
-];
-
-const HOENN_LOCATIONS = [
-  'Route 102 & Petalburg Woods',
-  'Route 110 & New Mauville',
-  'Route 113 Ash Grass & Fallarbor Outskirts',
-  'Route 119 Tall Grass & Weather Institute River',
-  'Hoenn Safari Zone (North-East Expansion)',
-  'Mt. Pyre Summit & Exterior Slopes',
-  'Meteor Falls Inner Caverns',
-  'Shoal Cave & Mossdeep Sea Routes',
-];
-
-const SINNOH_LOCATIONS = [
-  'Route 205 & Eterna Forest',
-  'Mt. Coronet & Wayward Cave',
-  'Great Marsh (Pastoria Safari) & Route 212',
-  'Iron Island & Canalave Harbor',
-  'Lake Acuity Snowfront & Route 216',
-  'Grand Underground Spacious Cave & Hideaways',
-];
-
-const UNOVA_LOCATIONS = [
-  'Pinwheel Forest & Castelia Sewers',
-  'Relic Castle & Desert Resort (Route 4)',
-  'Chargestone Cave & Mistralton Cave',
-  'Dragonspiral Tower & Moor of Icirrus',
-  'Giant Chasm & Abundant Shrine',
-  'Unova Route 12, Village Bridge & White Forest',
-];
-
-const KALOS_LOCATIONS = [
-  'Santalune Forest & Kalos Route 4',
-  'Connecting Cave & Glittering Cave',
-  'Reflection Cave & Kalos Route 11',
-  'Frost Cavern & Kalos Route 16',
-  'Pokémon Village & Terminus Cave',
-  'Kiloude City Friend Safari',
-];
-
-const ALOLA_LOCATIONS = [
-  'Melemele Meadow & Verdant Cavern',
-  'Brooklet Hill & Lush Jungle (Akala Island)',
-  'Mount Hokulani & Blush Mountain (Ula’ula Island)',
-  'Haina Desert & Tapu Village',
-  'Vast Poni Canyon & Exeggutor Island',
-  'Ultra Space Wilds (Ultra Warp Ride)',
-];
-
-const GALAR_LOCATIONS = [
-  'Rolling Fields & Dappled Grove (Wild Area)',
-  'Galar Mine No. 2 & Motostoke Outskirts',
-  'Giant’s Mirror & Dusty Bowl (Wild Area)',
-  'Glimwood Tangle & Ballonlea Outskirts',
-  'Route 9 Circhester Bay & Route 10 Snowfields',
-  'Lake of Outrage & Hammerlocke Hills',
-];
-
-const PALDEA_LOCATIONS = [
-  'South Province (Area Two & Area Four)',
-  'West Province (Area One & Asado Desert)',
-  'East Province (Area Three & Tagtree Thicket)',
-  'Glaseado Mountain & Dalizapa Passage',
-  'Casseroya Lake & Socarrat Trail',
-  'North Province (Area One & Area Two Bamboo Grove)',
-];
-
 function getGenerationAndRegion(id: number): { generation: number; region: string } {
   for (const g of GENERATIONS) {
     if (id >= g.range[0] && id <= g.range[1]) {
@@ -1736,6 +1653,7 @@ import {
   ULTRASUN_EXCLUSIVES,
   ULTRAMOON_EXCLUSIVES,
 } from './pokemonAvailabilityData';
+import { ENCOUNTER_COVERED_GAMES } from './encounterCoverage.generated';
 
 // FIX: canonical list of games that participate in the "Switch era" for
 // DLC-requirement derivation. Used by buildInitialNationalDex.
@@ -1746,6 +1664,34 @@ const SWITCH_ERA_GAME_IDS: GameId[] = [
   'pla',
   'scarlet', 'violet',
 ];
+
+// Verified-data pointers: the hand-curated whereToFind rotating arrays are
+// gone; real locations live in the Wild Encounters (Exact Data) bundle.
+const WILD_DATA_POINTER = 'Catchable in-game — exact locations in Wild Encounters (Exact Data)';
+const EXACT_DATA_GUIDE = 'Catchable in the wild — exact locations in Wild Encounters (Exact Data)';
+const STARTER_GIFT_WHERE = 'Starter gift — chosen at the start of your journey';
+const STARTER_GIFT_GUIDE = 'Your starter gift — receive it at the beginning of the game';
+
+/** Starter species offered by each canonical game (starter gift). */
+const STARTER_SPECIES_BY_GAME: Partial<Record<string, number[]>> = {
+  red: [1, 4, 7], blue: [1, 4, 7], yellow: [1, 4, 7],
+  firered: [1, 4, 7], leafgreen: [1, 4, 7],
+  gold: [152, 155, 158], silver: [152, 155, 158], crystal: [152, 155, 158],
+  heartgold: [152, 155, 158], soulsilver: [152, 155, 158],
+  ruby: [252, 255, 258], sapphire: [252, 255, 258], emerald: [252, 255, 258],
+  omegaruby: [252, 255, 258], alphasapphire: [252, 255, 258],
+  diamond: [387, 390, 393], pearl: [387, 390, 393], platinum: [387, 390, 393],
+  bd: [387, 390, 393], sp: [387, 390, 393],
+  black: [495, 498, 501], white: [495, 498, 501],
+  black2: [495, 498, 501], white2: [495, 498, 501],
+  x: [650, 653, 656], y: [650, 653, 656],
+  sun: [722, 725, 728], moon: [722, 725, 728],
+  ultrasun: [722, 725, 728], ultramoon: [722, 725, 728],
+  lgp: [1, 4, 7], lge: [1, 4, 7],
+  sword: [810, 813, 816], shield: [810, 813, 816],
+  pla: [155, 501, 722],
+  scarlet: [906, 909, 912], violet: [906, 909, 912],
+};
 
 function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailability> {
   const result: Partial<Record<GameId, GameAvailability>> = {};
@@ -1770,9 +1716,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
             pokedexCompletionGuide = 'Trade with a Pokémon Blue player';
           } else {
             status = 'base';
-            whereToFind = KANTO_LOCATIONS[id % KANTO_LOCATIONS.length];
+            whereToFind = WILD_DATA_POINTER;
             versionExclusive = RED_EXCLUSIVES.has(id) ? 'Exclusive to Pokémon Red' : 'Available in Both Versions';
-            pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+            pokedexCompletionGuide = EXACT_DATA_GUIDE;
           }
         }
         break;
@@ -1786,9 +1732,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
             pokedexCompletionGuide = 'Trade with a Pokémon Red player';
           } else {
             status = 'base';
-            whereToFind = KANTO_LOCATIONS[id % KANTO_LOCATIONS.length];
+            whereToFind = WILD_DATA_POINTER;
             versionExclusive = BLUE_EXCLUSIVES.has(id) ? 'Exclusive to Pokémon Blue' : 'Available in Both Versions';
-            pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+            pokedexCompletionGuide = EXACT_DATA_GUIDE;
           }
         }
         break;
@@ -1796,9 +1742,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
       case 'yellow': {
         if (isGen1Available(id)) {
           status = 'base';
-          whereToFind = KANTO_LOCATIONS[id % KANTO_LOCATIONS.length];
+          whereToFind = WILD_DATA_POINTER;
           versionExclusive = 'Yellow Edition';
-          pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+          pokedexCompletionGuide = EXACT_DATA_GUIDE;
         }
         break;
       }
@@ -1811,9 +1757,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
             pokedexCompletionGuide = 'Trade with a Pokémon Silver player';
           } else {
             status = 'base';
-            whereToFind = JOHTO_LOCATIONS[id % JOHTO_LOCATIONS.length];
+            whereToFind = WILD_DATA_POINTER;
             versionExclusive = GOLD_EXCLUSIVES.has(id) ? 'Exclusive to Pokémon Gold' : 'Available in Both Versions';
-            pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+            pokedexCompletionGuide = EXACT_DATA_GUIDE;
           }
         }
         break;
@@ -1827,9 +1773,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
             pokedexCompletionGuide = 'Trade with a Pokémon Gold player';
           } else {
             status = 'base';
-            whereToFind = JOHTO_LOCATIONS[id % JOHTO_LOCATIONS.length];
+            whereToFind = WILD_DATA_POINTER;
             versionExclusive = SILVER_EXCLUSIVES.has(id) ? 'Exclusive to Pokémon Silver' : 'Available in Both Versions';
-            pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+            pokedexCompletionGuide = EXACT_DATA_GUIDE;
           }
         }
         break;
@@ -1837,9 +1783,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
       case 'crystal': {
         if (isGen2Available(id)) {
           status = 'base';
-          whereToFind = JOHTO_LOCATIONS[id % JOHTO_LOCATIONS.length];
+          whereToFind = WILD_DATA_POINTER;
           versionExclusive = 'Crystal Edition';
-          pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+          pokedexCompletionGuide = EXACT_DATA_GUIDE;
         }
         break;
       }
@@ -1852,9 +1798,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
             pokedexCompletionGuide = 'Trade with a Pokémon Sapphire player';
           } else {
             status = 'base';
-            whereToFind = HOENN_LOCATIONS[id % HOENN_LOCATIONS.length];
+            whereToFind = WILD_DATA_POINTER;
             versionExclusive = RUBY_EXCLUSIVES.has(id) ? 'Exclusive to Pokémon Ruby' : 'Available in Both Versions';
-            pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+            pokedexCompletionGuide = EXACT_DATA_GUIDE;
           }
         }
         break;
@@ -1868,9 +1814,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
             pokedexCompletionGuide = 'Trade with a Pokémon Ruby player';
           } else {
             status = 'base';
-            whereToFind = HOENN_LOCATIONS[id % HOENN_LOCATIONS.length];
+            whereToFind = WILD_DATA_POINTER;
             versionExclusive = SAPPHIRE_EXCLUSIVES.has(id) ? 'Exclusive to Pokémon Sapphire' : 'Available in Both Versions';
-            pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+            pokedexCompletionGuide = EXACT_DATA_GUIDE;
           }
         }
         break;
@@ -1878,9 +1824,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
       case 'emerald': {
         if (isGen3Available(id)) {
           status = 'base';
-          whereToFind = HOENN_LOCATIONS[id % HOENN_LOCATIONS.length];
+          whereToFind = WILD_DATA_POINTER;
           versionExclusive = 'Emerald Edition';
-          pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+          pokedexCompletionGuide = EXACT_DATA_GUIDE;
         }
         break;
       }
@@ -1893,9 +1839,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
             pokedexCompletionGuide = 'Trade with a Pokémon LeafGreen player';
           } else {
             status = 'base';
-            whereToFind = KANTO_LOCATIONS[id % KANTO_LOCATIONS.length];
+            whereToFind = WILD_DATA_POINTER;
             versionExclusive = FIRERED_EXCLUSIVES.has(id) ? 'Exclusive to Pokémon FireRed' : 'Available in Both Versions';
-            pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+            pokedexCompletionGuide = EXACT_DATA_GUIDE;
           }
         }
         break;
@@ -1909,9 +1855,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
             pokedexCompletionGuide = 'Trade with a Pokémon FireRed player';
           } else {
             status = 'base';
-            whereToFind = KANTO_LOCATIONS[id % KANTO_LOCATIONS.length];
+            whereToFind = WILD_DATA_POINTER;
             versionExclusive = LEAFGREEN_EXCLUSIVES.has(id) ? 'Exclusive to Pokémon LeafGreen' : 'Available in Both Versions';
-            pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+            pokedexCompletionGuide = EXACT_DATA_GUIDE;
           }
         }
         break;
@@ -1953,9 +1899,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
             pokedexCompletionGuide = 'Trade with a Pokémon Pearl player';
           } else {
             status = 'base';
-            whereToFind = SINNOH_LOCATIONS[id % SINNOH_LOCATIONS.length];
+            whereToFind = WILD_DATA_POINTER;
             versionExclusive = DIAMOND_EXCLUSIVES.has(id) ? 'Exclusive to Pokémon Diamond' : 'Available in Both Versions';
-            pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+            pokedexCompletionGuide = EXACT_DATA_GUIDE;
           }
         }
         break;
@@ -1969,9 +1915,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
             pokedexCompletionGuide = 'Trade with a Pokémon Diamond player';
           } else {
             status = 'base';
-            whereToFind = SINNOH_LOCATIONS[id % SINNOH_LOCATIONS.length];
+            whereToFind = WILD_DATA_POINTER;
             versionExclusive = PEARL_EXCLUSIVES.has(id) ? 'Exclusive to Pokémon Pearl' : 'Available in Both Versions';
-            pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+            pokedexCompletionGuide = EXACT_DATA_GUIDE;
           }
         }
         break;
@@ -1979,9 +1925,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
       case 'platinum': {
         if (id <= 493) {
           status = 'base';
-          whereToFind = SINNOH_LOCATIONS[id % SINNOH_LOCATIONS.length];
+          whereToFind = WILD_DATA_POINTER;
           versionExclusive = 'Platinum Edition';
-          pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+          pokedexCompletionGuide = EXACT_DATA_GUIDE;
         }
         break;
       }
@@ -1994,9 +1940,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
             pokedexCompletionGuide = 'Trade with a Pokémon SoulSilver player';
           } else {
             status = 'base';
-            whereToFind = JOHTO_LOCATIONS[id % JOHTO_LOCATIONS.length];
+            whereToFind = WILD_DATA_POINTER;
             versionExclusive = HEARTGOLD_EXCLUSIVES.has(id) ? 'Exclusive to Pokémon HeartGold' : 'Available in Both Versions';
-            pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+            pokedexCompletionGuide = EXACT_DATA_GUIDE;
           }
         }
         break;
@@ -2010,9 +1956,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
             pokedexCompletionGuide = 'Trade with a Pokémon HeartGold player';
           } else {
             status = 'base';
-            whereToFind = JOHTO_LOCATIONS[id % JOHTO_LOCATIONS.length];
+            whereToFind = WILD_DATA_POINTER;
             versionExclusive = SOULSILVER_EXCLUSIVES.has(id) ? 'Exclusive to Pokémon SoulSilver' : 'Available in Both Versions';
-            pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+            pokedexCompletionGuide = EXACT_DATA_GUIDE;
           }
         }
         break;
@@ -2026,9 +1972,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
             pokedexCompletionGuide = 'Trade with a Pokémon White player';
           } else {
             status = 'base';
-            whereToFind = UNOVA_LOCATIONS[id % UNOVA_LOCATIONS.length];
+            whereToFind = WILD_DATA_POINTER;
             versionExclusive = BLACK_EXCLUSIVES.has(id) ? 'Exclusive to Pokémon Black' : 'Available in Both Versions';
-            pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+            pokedexCompletionGuide = EXACT_DATA_GUIDE;
           }
         }
         break;
@@ -2042,9 +1988,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
             pokedexCompletionGuide = 'Trade with a Pokémon Black player';
           } else {
             status = 'base';
-            whereToFind = UNOVA_LOCATIONS[id % UNOVA_LOCATIONS.length];
+            whereToFind = WILD_DATA_POINTER;
             versionExclusive = WHITE_EXCLUSIVES.has(id) ? 'Exclusive to Pokémon White' : 'Available in Both Versions';
-            pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+            pokedexCompletionGuide = EXACT_DATA_GUIDE;
           }
         }
         break;
@@ -2058,9 +2004,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
             pokedexCompletionGuide = 'Trade with a Pokémon White 2 player';
           } else {
             status = 'base';
-            whereToFind = UNOVA_LOCATIONS[id % UNOVA_LOCATIONS.length];
+            whereToFind = WILD_DATA_POINTER;
             versionExclusive = BLACK2_EXCLUSIVES.has(id) ? 'Exclusive to Pokémon Black 2' : 'Available in Both Versions';
-            pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+            pokedexCompletionGuide = EXACT_DATA_GUIDE;
           }
         }
         break;
@@ -2074,9 +2020,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
             pokedexCompletionGuide = 'Trade with a Pokémon Black 2 player';
           } else {
             status = 'base';
-            whereToFind = UNOVA_LOCATIONS[id % UNOVA_LOCATIONS.length];
+            whereToFind = WILD_DATA_POINTER;
             versionExclusive = WHITE2_EXCLUSIVES.has(id) ? 'Exclusive to Pokémon White 2' : 'Available in Both Versions';
-            pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+            pokedexCompletionGuide = EXACT_DATA_GUIDE;
           }
         }
         break;
@@ -2090,9 +2036,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
             pokedexCompletionGuide = 'Trade with a Pokémon Y player';
           } else {
             status = 'base';
-            whereToFind = KALOS_LOCATIONS[id % KALOS_LOCATIONS.length];
+            whereToFind = WILD_DATA_POINTER;
             versionExclusive = X_EXCLUSIVES.has(id) ? 'Exclusive to Pokémon X' : 'Available in Both Versions';
-            pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+            pokedexCompletionGuide = EXACT_DATA_GUIDE;
           }
         }
         break;
@@ -2106,9 +2052,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
             pokedexCompletionGuide = 'Trade with a Pokémon X player';
           } else {
             status = 'base';
-            whereToFind = KALOS_LOCATIONS[id % KALOS_LOCATIONS.length];
+            whereToFind = WILD_DATA_POINTER;
             versionExclusive = Y_EXCLUSIVES.has(id) ? 'Exclusive to Pokémon Y' : 'Available in Both Versions';
-            pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+            pokedexCompletionGuide = EXACT_DATA_GUIDE;
           }
         }
         break;
@@ -2122,9 +2068,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
             pokedexCompletionGuide = 'Trade with an Alpha Sapphire player';
           } else {
             status = 'base';
-            whereToFind = HOENN_LOCATIONS[id % HOENN_LOCATIONS.length];
+            whereToFind = WILD_DATA_POINTER;
             versionExclusive = OMEGARUBY_EXCLUSIVES.has(id) ? 'Exclusive to Pokémon Omega Ruby' : 'Available in Both Versions';
-            pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+            pokedexCompletionGuide = EXACT_DATA_GUIDE;
           }
         }
         break;
@@ -2138,9 +2084,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
             pokedexCompletionGuide = 'Trade with an Omega Ruby player';
           } else {
             status = 'base';
-            whereToFind = HOENN_LOCATIONS[id % HOENN_LOCATIONS.length];
+            whereToFind = WILD_DATA_POINTER;
             versionExclusive = ALPHASAPPHIRE_EXCLUSIVES.has(id) ? 'Exclusive to Pokémon Alpha Sapphire' : 'Available in Both Versions';
-            pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+            pokedexCompletionGuide = EXACT_DATA_GUIDE;
           }
         }
         break;
@@ -2154,9 +2100,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
             pokedexCompletionGuide = 'Trade with a Pokémon Moon player';
           } else {
             status = 'base';
-            whereToFind = ALOLA_LOCATIONS[id % ALOLA_LOCATIONS.length];
+            whereToFind = WILD_DATA_POINTER;
             versionExclusive = SUN_EXCLUSIVES.has(id) ? 'Exclusive to Pokémon Sun' : 'Available in Both Versions';
-            pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+            pokedexCompletionGuide = EXACT_DATA_GUIDE;
           }
         }
         break;
@@ -2170,9 +2116,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
             pokedexCompletionGuide = 'Trade with a Pokémon Sun player';
           } else {
             status = 'base';
-            whereToFind = ALOLA_LOCATIONS[id % ALOLA_LOCATIONS.length];
+            whereToFind = WILD_DATA_POINTER;
             versionExclusive = MOON_EXCLUSIVES.has(id) ? 'Exclusive to Pokémon Moon' : 'Available in Both Versions';
-            pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+            pokedexCompletionGuide = EXACT_DATA_GUIDE;
           }
         }
         break;
@@ -2186,9 +2132,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
             pokedexCompletionGuide = 'Trade with an Ultra Moon player';
           } else {
             status = 'base';
-            whereToFind = ALOLA_LOCATIONS[id % ALOLA_LOCATIONS.length];
+            whereToFind = WILD_DATA_POINTER;
             versionExclusive = ULTRASUN_EXCLUSIVES.has(id) ? 'Exclusive to Pokémon Ultra Sun' : 'Available in Both Versions';
-            pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+            pokedexCompletionGuide = EXACT_DATA_GUIDE;
           }
         }
         break;
@@ -2202,9 +2148,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
             pokedexCompletionGuide = 'Trade with an Ultra Sun player';
           } else {
             status = 'base';
-            whereToFind = ALOLA_LOCATIONS[id % ALOLA_LOCATIONS.length];
+            whereToFind = WILD_DATA_POINTER;
             versionExclusive = ULTRAMOON_EXCLUSIVES.has(id) ? 'Exclusive to Pokémon Ultra Moon' : 'Available in Both Versions';
-            pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+            pokedexCompletionGuide = EXACT_DATA_GUIDE;
           }
         }
         break;
@@ -2218,9 +2164,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
             pokedexCompletionGuide = "Trade with a Let's Go Eevee player (or transfer from Pokémon GO)";
           } else {
             status = 'base';
-            whereToFind = KANTO_LOCATIONS[id % KANTO_LOCATIONS.length];
+            whereToFind = WILD_DATA_POINTER;
             versionExclusive = LGP_EXCLUSIVES.has(id) ? "Exclusive to Let's Go, Pikachu!" : 'Available in Both Versions';
-            pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+            pokedexCompletionGuide = EXACT_DATA_GUIDE;
           }
         }
         break;
@@ -2234,9 +2180,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
             pokedexCompletionGuide = "Trade with a Let's Go Pikachu player (or transfer from Pokémon GO)";
           } else {
             status = 'base';
-            whereToFind = KANTO_LOCATIONS[id % KANTO_LOCATIONS.length];
+            whereToFind = WILD_DATA_POINTER;
             versionExclusive = LGE_EXCLUSIVES.has(id) ? "Exclusive to Let's Go, Eevee!" : 'Available in Both Versions';
-            pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+            pokedexCompletionGuide = EXACT_DATA_GUIDE;
           }
         }
         break;
@@ -2268,9 +2214,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
               pokedexCompletionGuide = 'Trade with a Pokémon Shield player';
             } else {
               status = 'base';
-              whereToFind = GALAR_LOCATIONS[id % GALAR_LOCATIONS.length];
+              whereToFind = WILD_DATA_POINTER;
               versionExclusive = SWORD_EXCLUSIVES.has(id) ? 'Exclusive to Pokémon Sword' : 'Available in Both Versions';
-              pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+              pokedexCompletionGuide = EXACT_DATA_GUIDE;
             }
           } else if (SWSH_ISLE_OF_ARMOR_SPECIES.has(id)) {
             if (SHIELD_EXCLUSIVES.has(id)) {
@@ -2320,9 +2266,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
               pokedexCompletionGuide = 'Trade with a Pokémon Sword player';
             } else {
               status = 'base';
-              whereToFind = GALAR_LOCATIONS[id % GALAR_LOCATIONS.length];
+              whereToFind = WILD_DATA_POINTER;
               versionExclusive = SHIELD_EXCLUSIVES.has(id) ? 'Exclusive to Pokémon Shield' : 'Available in Both Versions';
-              pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+              pokedexCompletionGuide = EXACT_DATA_GUIDE;
             }
           } else if (SWSH_ISLE_OF_ARMOR_SPECIES.has(id)) {
             if (SWORD_EXCLUSIVES.has(id)) {
@@ -2371,9 +2317,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
             pokedexCompletionGuide = 'Trade with a Shining Pearl player';
           } else {
             status = 'base';
-            whereToFind = SINNOH_LOCATIONS[id % SINNOH_LOCATIONS.length];
+            whereToFind = WILD_DATA_POINTER;
             versionExclusive = BD_EXCLUSIVES.has(id) ? 'Exclusive to Brilliant Diamond' : 'Available in Both Versions';
-            pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+            pokedexCompletionGuide = EXACT_DATA_GUIDE;
           }
         }
         break;
@@ -2387,9 +2333,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
             pokedexCompletionGuide = 'Trade with a Brilliant Diamond player';
           } else {
             status = 'base';
-            whereToFind = SINNOH_LOCATIONS[id % SINNOH_LOCATIONS.length];
+            whereToFind = WILD_DATA_POINTER;
             versionExclusive = SP_EXCLUSIVES.has(id) ? 'Exclusive to Shining Pearl' : 'Available in Both Versions';
-            pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+            pokedexCompletionGuide = EXACT_DATA_GUIDE;
           }
         }
         break;
@@ -2413,9 +2359,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
               pokedexCompletionGuide = 'Trade with a Pokémon Violet player';
             } else {
               status = 'base';
-              whereToFind = PALDEA_LOCATIONS[id % PALDEA_LOCATIONS.length];
+              whereToFind = WILD_DATA_POINTER;
               versionExclusive = SCARLET_EXCLUSIVES.has(id) ? 'Exclusive to Pokémon Scarlet' : 'Available in Both Versions';
-              pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+              pokedexCompletionGuide = EXACT_DATA_GUIDE;
             }
           } else if (SV_TEAL_MASK_SPECIES.has(id)) {
             if (VIOLET_EXCLUSIVES.has(id)) {
@@ -2465,9 +2411,9 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
               pokedexCompletionGuide = 'Trade with a Pokémon Scarlet player';
             } else {
               status = 'base';
-              whereToFind = PALDEA_LOCATIONS[id % PALDEA_LOCATIONS.length];
+              whereToFind = WILD_DATA_POINTER;
               versionExclusive = VIOLET_EXCLUSIVES.has(id) ? 'Exclusive to Pokémon Violet' : 'Available in Both Versions';
-              pokedexCompletionGuide = `Catchable in the wild at ${whereToFind}`;
+              pokedexCompletionGuide = EXACT_DATA_GUIDE;
             }
           } else if (SV_TEAL_MASK_SPECIES.has(id)) {
             if (SCARLET_EXCLUSIVES.has(id)) {
@@ -2507,6 +2453,30 @@ function computeAvailabilityForPokemon(id: number): Record<GameId, GameAvailabil
         }
         break;
       }
+    }
+
+    // ── Verified-encounter correction (PokéAPI + Serebii bundle) ──
+    // When the bundle has verified rows for this species in this game, a
+    // hand-curated "unavailable" verdict without a version-exclusive claim
+    // is wrong — the species IS obtainable in that game.
+    const coveredGames = ENCOUNTER_COVERED_GAMES[id];
+    if (
+      status === 'unavailable' &&
+      versionExclusive === 'Both Versions' &&
+      coveredGames?.includes(game.id)
+    ) {
+      status = 'base';
+      whereToFind = WILD_DATA_POINTER;
+      pokedexCompletionGuide = EXACT_DATA_GUIDE;
+    }
+    // Starter gifts: this game's own starter species.
+    if (
+      status === 'base' &&
+      whereToFind === WILD_DATA_POINTER &&
+      STARTER_SPECIES_BY_GAME[game.id]?.includes(id)
+    ) {
+      whereToFind = STARTER_GIFT_WHERE;
+      pokedexCompletionGuide = STARTER_GIFT_GUIDE;
     }
 
     result[game.id] = {

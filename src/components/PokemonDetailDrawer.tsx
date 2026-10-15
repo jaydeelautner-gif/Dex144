@@ -6,7 +6,6 @@ import {
   ChevronLeft,
   ChevronRight,
   AlertTriangle,
-  MapPin,
   Maximize2,
   CreditCard,
   Plus,
@@ -35,7 +34,6 @@ import {
   type PokemonInstance,
 } from '../data/pokemonInventoryData';
 import { getEvolutionFamilyForPokemon } from '../data/pokemonEvolutionData';
-import { useEncounterDataset, summarizeEncountersForGame } from '../data/encountersData';
 import { getItemInfoForPokemon } from '../data/pokemonItemsData';
 import { PokemonSprite } from './PokemonSprite';
 import { GameLogoBadge, PokemonHomeLogoBadge } from './GameLogoBadge';
@@ -80,9 +78,6 @@ export const PokemonDetailDrawer: React.FC<PokemonDetailDrawerProps> = ({
 }) => {
   const [previewShiny, setPreviewShiny] = useState(false);
   const [revealedDrawerPokeIds, setRevealedDrawerPokeIds] = useState<Set<string>>(() => new Set());
-  // Correct, verified per-game encounter summaries (PokéAPI / Serebii bundle).
-  const { dataset: encounterDataset } = useEncounterDataset();
-
   if (!pokemon) return null;
 
   const prevPokemon = pokemon.id > 1 ? dex[pokemon.id - 2] : dex[dex.length - 1];
@@ -93,12 +88,6 @@ export const PokemonDetailDrawer: React.FC<PokemonDetailDrawerProps> = ({
 
   // User Requirement: If a user has not marked a game as owned, hide it from the user on the Pokemon’s page.
   const userOwnedEncounterGames = GAMES.filter((g) => ownedGames.includes(g.id));
-
-  const isExclusiveLabel = (exclusiveText: string) =>
-    exclusiveText &&
-    exclusiveText !== 'None' &&
-    (exclusiveText.toLowerCase().includes('exclusive') ||
-      exclusiveText.toLowerCase().includes('only'));
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/75 backdrop-blur-xs animate-fade-in">
@@ -491,68 +480,6 @@ export const PokemonDetailDrawer: React.FC<PokemonDetailDrawerProps> = ({
             </div>
           );
         })()}
-
-        {/* Available Encounter Games (Owned Games Only) */}
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-slate-100">
-              Your Owned Games ({userOwnedEncounterGames.length} Marked)
-            </h3>
-            <span className="text-[10px] font-mono text-slate-400">Unowned games hidden</span>
-          </div>
-
-          {userOwnedEncounterGames.length === 0 ? (
-            <div className="p-4 rounded-xl bg-[#0B0F17] border border-slate-800 text-center text-xs text-slate-400">
-              No owned games marked. Configure your owned games in Settings to see wild encounter locations and completion guides.
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2.5">
-              {userOwnedEncounterGames.map((gameMeta) => {
-                const avail = pokemon.availability[gameMeta.id];
-                if (!avail) return null;
-                const hasExclusivity = isExclusiveLabel(avail.versionExclusive);
-
-                return (
-                  <div
-                    key={gameMeta.id}
-                    className="p-3.5 rounded-xl bg-[#0B0F17] border border-slate-800 flex flex-col gap-2 text-xs"
-                  >
-                    <div className="flex items-center justify-between gap-2 border-b border-slate-800/70 pb-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <GameLogoBadge gameId={gameMeta.id} size="xs" />
-                        <span className="font-bold text-slate-100 truncate">{gameMeta.title}</span>
-                      </div>
-                      {hasExclusivity && (
-                        <span className="font-mono text-[10px] text-amber-300 font-bold bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/30 shrink-0">
-                          ★ {avail.versionExclusive}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="text-slate-300 flex items-start gap-1.5 leading-snug">
-                      <MapPin className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
-                      <div>
-                        <strong className="text-slate-400">Where to find:</strong>{' '}
-                        {summarizeEncountersForGame(encounterDataset, pokemon.id, gameMeta.id) ?? avail.whereToFind}
-                      </div>
-                    </div>
-
-                    {avail.pokedexCompletionGuide && (
-                      <div className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-[11px] leading-relaxed flex flex-col gap-0.5">
-                        <span className="font-bold text-amber-400 font-mono text-[10px] uppercase">
-                          How to Complete Your {gameMeta.shortTitle} Pokédex:
-                        </span>
-                        <span className="text-slate-300">
-                          {avail.pokedexCompletionGuide}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
 
         {/* Accurate Wild Encounter Data (PokéAPI bundle) */}
         <PokemonEncountersSection pokemonId={pokemon.id} ownedGames={userOwnedEncounterGames.map((g) => g.id)} />

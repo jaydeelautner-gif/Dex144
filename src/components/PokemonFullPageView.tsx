@@ -39,7 +39,6 @@ import {
   type PokemonInstance,
 } from '../data/pokemonInventoryData';
 import { getEvolutionFamilyForPokemon } from '../data/pokemonEvolutionData';
-import { useEncounterDataset, summarizeEncountersForGame } from '../data/encountersData';
 import { getItemInfoForPokemon } from '../data/pokemonItemsData';
 import { PokemonSprite } from './PokemonSprite';
 import { GameLogoBadge, PokemonHomeLogoBadge } from './GameLogoBadge';
@@ -91,8 +90,6 @@ export const PokemonFullPageView: React.FC<PokemonFullPageViewProps> = ({
   const [previewShiny, setPreviewShiny] = useState(false);
   const [revealedFullPagePokeIds, setRevealedFullPagePokeIds] = useState<Set<string>>(() => new Set());
   const [consentModalInstance, setConsentModalInstance] = useState<PokemonInstance | null>(null);
-  // Correct, verified per-game encounter summaries (PokéAPI / Serebii bundle).
-  const { dataset: encounterDataset } = useEncounterDataset();
   const [hasPositiveConsent, setHasPositiveConsent] = useState(false);
 
   const prevPokemon = pokemon.id > 1 ? dex[pokemon.id - 2] : dex[dex.length - 1];
@@ -623,95 +620,6 @@ export const PokemonFullPageView: React.FC<PokemonFullPageViewProps> = ({
           </div>
         )}
       </div>
-
-      {/* Owned Games Encounter & Exclusivity Information */}
-      <section className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 flex flex-col gap-4 shadow-xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
-          <div>
-            <span className="text-xs font-mono font-bold text-amber-400 uppercase tracking-wider">
-              GAME AVAILABILITY & POKÉDEX COMPLETION
-            </span>
-            <h2 className="text-xl font-bold text-slate-100 mt-0.5">
-              Your Owned Games ({userOwnedEncounterGames.length} Marked)
-            </h2>
-          </div>
-          <p className="text-xs text-slate-400 max-w-md">
-            Showing only games you have marked as owned. Individual game versions are separated to clearly show version exclusives and completion guides.
-          </p>
-        </div>
-
-        {userOwnedEncounterGames.length === 0 ? (
-          <div className="p-8 rounded-2xl bg-[#0B0F17] border border-slate-800/80 text-center flex flex-col items-center gap-3">
-            <Gamepad2 className="w-8 h-8 text-slate-500" />
-            <div className="text-sm font-bold text-slate-200">No Owned Games Marked</div>
-            <p className="text-xs text-slate-400 max-w-md">
-              Unowned games are hidden from this Pokémon's page. To view catch locations, version-exclusive status, and Pokédex completion guides for your games, select your owned games in Settings.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {userOwnedEncounterGames.map((gameMeta) => {
-              const avail = pokemon.availability[gameMeta.id];
-              if (!avail) return null;
-              const isCatchable = avail.status === 'base' || avail.status === 'dlc';
-              const hasExclusivity = isExclusiveLabel(avail.versionExclusive);
-
-              return (
-                <div
-                  key={gameMeta.id}
-                  className={`p-4 rounded-xl border flex flex-col justify-between gap-3 shadow-md ${
-                    isCatchable
-                      ? 'bg-[#0B0F17] border-slate-800 hover:border-slate-700'
-                      : 'bg-slate-950/70 border-slate-800/70'
-                  }`}
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/70 pb-2.5">
-                    <div className="flex items-center gap-2">
-                      <GameLogoBadge gameId={gameMeta.id} size="sm" />
-                      <div>
-                        <span className="font-extrabold text-sm text-slate-100 block">
-                          {gameMeta.title}
-                        </span>
-                        <span className="text-[10px] text-slate-500 font-mono">
-                          {gameMeta.platform} • Gen {gameMeta.generation}
-                        </span>
-                      </div>
-                    </div>
-                    {hasExclusivity && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-400/20 text-amber-300 border border-amber-400/40">
-                        ★ {avail.versionExclusive}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Encounter or Location Details */}
-                  <div className="text-xs flex flex-col gap-1.5">
-                    <div className="flex items-start gap-1.5 text-slate-300">
-                      <MapPin className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
-                      <div className="leading-relaxed">
-                        <strong className="text-slate-200">Where to Find:</strong>{' '}
-                        <span>{summarizeEncountersForGame(encounterDataset, pokemon.id, gameMeta.id) ?? avail.whereToFind}</span>
-                      </div>
-                    </div>
-
-                    {/* How to complete your Pokédex in this owned game */}
-                    {avail.pokedexCompletionGuide && (
-                      <div className="p-2.5 rounded-lg bg-slate-900/90 border border-slate-800 text-[11px] leading-relaxed flex flex-col gap-0.5">
-                        <span className="font-bold text-amber-400 font-mono text-[10px] uppercase">
-                          How to Complete Your {gameMeta.shortTitle} Pokédex:
-                        </span>
-                        <span className="text-slate-300 font-medium">
-                          {avail.pokedexCompletionGuide}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
 
       {/* Accurate Wild Encounter Data (PokéAPI bundle) */}
       <section className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 shadow-xl">
