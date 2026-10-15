@@ -41,6 +41,7 @@ import { useOfflineUpdateStatus } from '../utils/offlineUpdates';
 import { PokemonSprite } from './PokemonSprite';
 import { GameLogoBadge } from './GameLogoBadge';
 import { playGameboyPowerOnSound, primeGameboyAudio } from '../utils/gameboySound';
+import { PokedexOpeningAnimation } from './PokedexOpeningAnimation';
 
 interface OpeningScreenProps {
   dex: PokemonEntry[];
@@ -78,6 +79,19 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
   const [cachedAccounts, setCachedAccounts] = useState<CachedAuthAccount[]>([]);
   const [isSubmittingAuth, setIsSubmittingAuth] = useState<boolean>(false);
   const [authErrorMessage, setAuthErrorMessage] = useState<string | null>(null);
+
+  // Pokédex Opening Animation state
+  const [showPokedexAnimation, setShowPokedexAnimation] = useState<boolean>(true);
+  const [bootScanlineActive, setBootScanlineActive] = useState<boolean>(false);
+
+  const handleAnimationComplete = useCallback(() => {
+    setShowPokedexAnimation(false);
+    setBootScanlineActive(true);
+    const timer = setTimeout(() => {
+      setBootScanlineActive(false);
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Load cached accounts on mount
   useEffect(() => {
@@ -251,62 +265,169 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
     : null;
 
   return (
-    <div className="flex-1 flex flex-col justify-between p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
-      {/* Top Device State & Update Bar (Minimal, strictly non-actionable before login) */}
-      <div className="w-full pb-4 sm:pb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80">
-        <div className="flex items-center gap-2.5">
-          <div
-            className="w-7 h-7 rounded-full border border-purple-500/50 shadow-md relative overflow-hidden flex items-center justify-center shrink-0"
-            style={{
-              background:
-                'linear-gradient(180deg, #7C3AED 0%, #6D28D9 48%, #1E1B4B 48%, #0F172A 52%, #F8FAFC 52%, #E2E8F0 100%)',
-            }}
-          >
-            <div className="absolute top-0.5 left-0.5 w-2 h-2 rounded-full bg-pink-500 border border-pink-300 opacity-90 pointer-events-none" />
-            <div className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-pink-500 border border-pink-300 opacity-90 pointer-events-none" />
-            <span className="absolute top-0 text-[7px] font-black text-white font-mono pointer-events-none">
-              M
-            </span>
-          </div>
-          <span className="font-bold text-sm tracking-tight text-slate-200">
-            HomeDex <span className="text-amber-400 font-mono text-xs">Gateway</span>
-          </span>
-        </div>
+    <div className="w-full min-h-[calc(100vh-1rem)] flex items-center justify-center p-2 sm:p-4 md:p-6 lg:p-8 select-text relative">
+      {/* 1. Early-Style Pokédex Opening Animation Overlay */}
+      {showPokedexAnimation && (
+        <PokedexOpeningAnimation onComplete={handleAnimationComplete} />
+      )}
 
-        {/* Minimal, non-actionable device status indicator */}
-        <div
-          aria-label="Device Status Indicator"
-          className="flex items-center gap-3 px-3 py-1.5 rounded-full bg-slate-900/90 border border-slate-800 text-[11px] font-mono pointer-events-none select-none cursor-default shadow-sm"
-        >
-          {/* Network State */}
-          <div className="flex items-center gap-1.5">
-            <span
-              className={`w-2 h-2 rounded-full ${
-                isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
-              }`}
+      {/* 2. CRT Screen Boot Scanline Flash Effect */}
+      {bootScanlineActive && (
+        <div className="fixed inset-0 pointer-events-none z-30 bg-gradient-to-b from-transparent via-cyan-400/15 to-transparent animate-pulse" />
+      )}
+
+      {/* 3. The Opened Early-Style Pokédex Unit with Outer Red Chassis & Recessed Screen Edge */}
+      <div className="relative w-full max-w-7xl rounded-[2.5rem] sm:rounded-[3.2rem] bg-gradient-to-b from-[#DC2626] via-[#B91C1C] to-[#881337] border-4 sm:border-8 border-[#7F1D1D] shadow-[0_25px_80px_rgba(0,0,0,0.95),0_0_60px_rgba(220,38,38,0.35)] p-4 sm:p-6 md:p-8 flex flex-col gap-5 overflow-hidden">
+        {/* Left Knuckle Hinges (Authentic Pokédex Lid Hinge Collars) */}
+        <div className="absolute left-0 inset-y-16 w-3 sm:w-4 flex flex-col justify-between py-6 pointer-events-none z-20">
+          {[...Array(8)].map((_, i) => (
+            <div
+              key={i}
+              className="w-full h-8 sm:h-12 rounded-r-md bg-gradient-to-r from-[#450A0A] via-[#7F1D1D] to-[#991B1B] border-y border-r border-[#300] shadow-md"
             />
-            <span className={isOnline ? 'text-emerald-300 font-medium' : 'text-amber-300 font-medium'}>
-              {isOnline ? 'Online · Connected' : 'Offline Mode · Local Storage'}
-            </span>
+          ))}
+        </div>
+
+        {/* Top Rim Highlight */}
+        <div className="absolute inset-x-0 top-0 h-2 bg-white/25 rounded-t-[2.5rem] sm:rounded-t-[3.2rem] pointer-events-none" />
+
+        {/* Top Pokédex Sensor Header Bar */}
+        <div className="w-full pb-3 sm:pb-4 flex flex-wrap items-center justify-between gap-4 border-b-2 border-red-950/70 pt-1">
+          <div className="flex items-center gap-3.5">
+            {/* Big Cobalt Blue Optical Sensor Dome */}
+            <div className="relative w-12 h-12 sm:w-16 sm:h-16 rounded-full p-1 bg-gradient-to-br from-slate-100 via-slate-300 to-slate-500 border-2 border-slate-600 shadow-xl flex items-center justify-center shrink-0">
+              <div className="w-full h-full rounded-full bg-gradient-to-br from-cyan-400 via-sky-600 to-blue-900 shadow-[inset_0_0_12px_rgba(6,182,212,0.9)] relative overflow-hidden flex items-center justify-center animate-pulse">
+                <div className="absolute top-1 left-2 w-4 h-2 rounded-full bg-white/80 rotate-[-35deg] blur-[0.4px]" />
+                <div className="w-4 h-4 rounded-full bg-cyan-300/80 blur-[0.8px] shadow-[0_0_10px_#22d3ee]" />
+              </div>
+            </div>
+
+            {/* Three Round Signal Indicator LEDs (Red, Yellow, Green) */}
+            <div className="flex items-center gap-2 sm:gap-2.5">
+              <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full p-0.5 bg-gradient-to-b from-slate-300 to-slate-500 border border-slate-600 shadow-md">
+                <div
+                  className="w-full h-full rounded-full bg-rose-500 border border-rose-300 shadow-[0_0_8px_rgba(244,63,94,0.9)] animate-pulse"
+                  title="Pokédex Terminal Power: Active"
+                />
+              </div>
+              <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full p-0.5 bg-gradient-to-b from-slate-300 to-slate-500 border border-slate-600 shadow-md">
+                <div
+                  className="w-full h-full rounded-full bg-amber-400 border border-amber-200 shadow-[0_0_8px_rgba(251,191,36,0.9)]"
+                  title="Storage Buffer: Ready"
+                />
+              </div>
+              <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full p-0.5 bg-gradient-to-b from-slate-300 to-slate-500 border border-slate-600 shadow-md">
+                <div
+                  className={`w-full h-full rounded-full border shadow-[0_0_8px_rgba(52,211,153,0.9)] ${
+                    isOnline
+                      ? 'bg-emerald-400 border-emerald-200 animate-pulse'
+                      : 'bg-slate-600 border-slate-500 opacity-40'
+                  }`}
+                  title={isOnline ? 'Link Cable Network: Connected' : 'Network: Offline Mode'}
+                />
+              </div>
+            </div>
+
+            <div className="h-6 w-px bg-red-950/80 hidden sm:block mx-1" />
+
+            {/* Pokédex Model Stencil */}
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <span className="font-black text-base sm:text-lg tracking-widest text-slate-100 font-sans uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                  POKÉDEX
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-black bg-red-950/80 text-red-200 border border-red-500/60 uppercase tracking-wider shadow-inner">
+                  HANDY909
+                </span>
+              </div>
+              <span className="text-[10px] font-mono tracking-widest text-red-200/80 uppercase font-semibold">
+                SILPH CO. • LIVING DEX TERMINAL
+              </span>
+            </div>
           </div>
 
-          <span className="text-slate-600">|</span>
+          {/* Right Controls: Replay Pokédex Opening Animation + Minimal Non-Actionable Device Status */}
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            {/* Replay Pokédex Opening Animation Button */}
+            <button
+              type="button"
+              onClick={() => setShowPokedexAnimation(true)}
+              className="px-3 py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-xs font-mono text-amber-300 hover:text-amber-200 transition cursor-pointer flex items-center gap-1.5 shadow-md group"
+              title="Replay Early Style Pokédex Opening Animation (5s)"
+            >
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+              <span>Replay Intro</span>
+            </button>
 
-          {/* Update State */}
-          <div className="flex items-center gap-1 text-slate-400">
-            <span>
-              {updateStatus.updateNeeded
-                ? 'Update available (login to apply)'
-                : updateStatus.checking
-                ? 'Checking update status...'
-                : 'App v4.2.0 · Ready'}
-            </span>
+            {/* Minimal, non-actionable device status indicator */}
+            <div
+              aria-label="Device Status Indicator"
+              className="flex items-center gap-2.5 sm:gap-3 px-3.5 py-1.5 rounded-full bg-slate-900/90 border border-slate-800 text-[11px] font-mono pointer-events-none select-none cursor-default shadow-md"
+            >
+              {/* Network State */}
+              <div className="flex items-center gap-1.5">
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
+                  }`}
+                />
+                <span className={isOnline ? 'text-emerald-300 font-medium' : 'text-amber-300 font-medium'}>
+                  {isOnline ? 'Online' : 'Offline'}
+                </span>
+              </div>
+
+              <span className="text-slate-600">|</span>
+
+              {/* Update State */}
+              <div className="flex items-center gap-1 text-slate-400">
+                <span>
+                  {updateStatus.updateNeeded
+                    ? 'Update available (login to apply)'
+                    : updateStatus.checking
+                    ? 'Checking updates...'
+                    : 'App v4.2.0 · Ready'}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Main Split Body: Left Hand Side (Showcase & Lookup) | Right Hand Side (Email/Password Login) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 my-auto py-6">
+        {/* ========================================================================= */}
+        {/* POKÉDEX RECESSED SCREEN EDGE (The Screen Edge Around The Login Screen)   */}
+        {/* ========================================================================= */}
+        <div className="relative rounded-2xl sm:rounded-3xl bg-[#0B0F19] border-4 sm:border-8 border-[#1E293B] shadow-[inset_0_4px_35px_rgba(0,0,0,0.95),0_12px_28px_rgba(0,0,0,0.6)] p-4 sm:p-6 md:p-8 flex flex-col gap-6 overflow-hidden">
+          {/* 4 Corner Screws */}
+          <div className="absolute top-2.5 left-2.5 w-3.5 h-3.5 rounded-full bg-slate-700 border border-slate-500 shadow-inner flex items-center justify-center text-[9px] text-slate-400 font-bold select-none z-20">+</div>
+          <div className="absolute top-2.5 right-2.5 w-3.5 h-3.5 rounded-full bg-slate-700 border border-slate-500 shadow-inner flex items-center justify-center text-[9px] text-slate-400 font-bold select-none z-20">+</div>
+          <div className="absolute bottom-2.5 left-2.5 w-3.5 h-3.5 rounded-full bg-slate-700 border border-slate-500 shadow-inner flex items-center justify-center text-[9px] text-slate-400 font-bold select-none z-20">+</div>
+          <div className="absolute bottom-2.5 right-2.5 w-3.5 h-3.5 rounded-full bg-slate-700 border border-slate-500 shadow-inner flex items-center justify-center text-[9px] text-slate-400 font-bold select-none z-20">+</div>
+
+          {/* Screen Top Status Banner with hardware LEDs */}
+          <div className="relative z-10 flex items-center justify-between border-b border-slate-800/80 pb-3">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse border border-rose-300 shadow-[0_0_6px_#f43f5e]" />
+                <span className="text-[10px] font-mono font-bold text-rose-300 uppercase tracking-widest">
+                  SCREEN PWR
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 border border-cyan-200 shadow-[0_0_6px_#22d3ee]" />
+                <span className="text-[10px] font-mono font-bold text-cyan-300 uppercase tracking-widest">
+                  LCD 60HZ ACTIVE
+                </span>
+              </div>
+            </div>
+            <div className="text-[10px] font-mono text-slate-400 tracking-wider hidden sm:block">
+              DISPLAY CHASSIS v4.2 • DEXTER NATIONAL LIVING DEX VIEWPORT
+            </div>
+          </div>
+
+          {/* CRT scanline overlay across LCD screen */}
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.22)_50%)] bg-[length:100%_4px] pointer-events-none opacity-40 z-0" />
+
+          {/* Main Content inside the Screen: Left Column (Showcase & Lookup) | Right Column (Email/Password Login) */}
+          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
         {/* ========================================================= */}
         {/* LEFT COLUMN: Random Registered PokéPet & Public Lookup   */}
         {/* ========================================================= */}
@@ -764,11 +885,62 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
           </div>
         </div>
       </div>
+      {/* End of Main Content Grid */}
 
-      {/* Bottom Footer note */}
-      <div className="w-full pt-4 border-t border-slate-800/80 text-center text-xs text-slate-500">
-        <span>HomeDex National Living Dex System • All rights reserved</span>
+      {/* Screen Frame Bottom Footer Bar */}
+      <div className="relative z-10 flex items-center justify-between pt-2 border-t border-slate-800/80 text-[11px] font-mono text-slate-500">
+        <span>POKÉDEX DISPLAY v4.2 • LIQUID CRYSTAL MATRIX</span>
+        <span>SECURITY LEVEL: ENCRYPTED GUEST GATEWAY</span>
       </div>
     </div>
-  );
+    {/* End of Recessed Screen Edge */}
+
+    {/* Bottom Hardware Controls on Red Pokédex Chassis */}
+    <div className="relative z-10 flex flex-wrap items-center justify-between gap-4 pt-2 px-2 border-t-2 border-red-950/70 text-slate-900 select-none">
+      {/* Directional D-Pad */}
+      <div className="flex items-center gap-3">
+        <div className="relative w-12 h-12 flex items-center justify-center">
+          <div className="absolute w-12 h-4 bg-slate-900 border border-slate-700 rounded-sm shadow-md" />
+          <div className="absolute w-4 h-12 bg-slate-900 border border-slate-700 rounded-sm shadow-md" />
+          <div className="relative w-3.5 h-3.5 rounded-full bg-slate-950 shadow-inner" />
+        </div>
+        <div className="flex flex-col text-[10px] font-mono text-red-200/90 font-bold uppercase tracking-widest">
+          <span>CONTROLLER</span>
+          <span className="text-[9px] text-red-300/60 font-semibold">KANTO GEN-1</span>
+        </div>
+      </div>
+
+      {/* Serial Stencil */}
+      <div className="text-center hidden md:block">
+        <span className="text-[10px] font-mono font-bold text-red-200/80 tracking-widest uppercase">
+          • SILPH CO. LIVING DEX SYSTEM •
+        </span>
+      </div>
+
+      {/* Action Buttons & Speaker Slits */}
+      <div className="flex items-center gap-5 sm:gap-6">
+        <div className="flex items-center gap-2.5">
+          <div className="flex flex-col items-center gap-1">
+            <div className="w-9 h-3 rounded-full bg-sky-500 shadow-md border border-sky-300" />
+            <span className="text-[8px] font-mono font-bold text-red-200">KEY-A</span>
+          </div>
+          <div className="flex flex-col items-center gap-1">
+            <div className="w-9 h-3 rounded-full bg-rose-500 shadow-md border border-rose-300" />
+            <span className="text-[8px] font-mono font-bold text-red-200">KEY-B</span>
+          </div>
+        </div>
+
+        {/* Speaker Slots */}
+        <div className="flex flex-col gap-1 w-14 sm:w-16">
+          <div className="h-1 bg-black/40 rounded-full shadow-inner" />
+          <div className="h-1 bg-black/40 rounded-full shadow-inner" />
+          <div className="h-1 bg-black/40 rounded-full shadow-inner" />
+          <div className="h-1 bg-black/40 rounded-full shadow-inner" />
+        </div>
+      </div>
+    </div>
+    {/* End of Pokédex Chassis */}
+  </div>
+</div>
+);
 };

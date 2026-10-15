@@ -97,3 +97,60 @@ export function playGameboyPowerOnSound(): void {
     console.warn('Game Boy sound effect could not play:', err);
   }
 }
+
+/**
+ * Plays a classic Pokédex mechanical opening sound:
+ * A subtle servo latch click followed by a dual retro boot chirp.
+ */
+export function playPokedexOpenSound(): void {
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime + 0.02;
+
+    // Latch click (quick low click)
+    const oscClick = ctx.createOscillator();
+    const gainClick = ctx.createGain();
+    oscClick.type = 'triangle';
+    oscClick.frequency.setValueAtTime(140, now);
+    oscClick.frequency.exponentialRampToValueAtTime(40, now + 0.04);
+    gainClick.gain.setValueAtTime(0.3, now);
+    gainClick.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+    oscClick.connect(gainClick);
+    gainClick.connect(ctx.destination);
+    oscClick.start(now);
+    oscClick.stop(now + 0.06);
+
+    // Mechanical servo glide
+    const oscServo = ctx.createOscillator();
+    const gainServo = ctx.createGain();
+    oscServo.type = 'sawtooth';
+    oscServo.frequency.setValueAtTime(220, now + 0.05);
+    oscServo.frequency.exponentialRampToValueAtTime(440, now + 0.22);
+    gainServo.gain.setValueAtTime(0.001, now + 0.05);
+    gainServo.gain.linearRampToValueAtTime(0.08, now + 0.12);
+    gainServo.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+    oscServo.connect(gainServo);
+    gainServo.connect(ctx.destination);
+    oscServo.start(now + 0.05);
+    oscServo.stop(now + 0.26);
+
+    // Boot chirp (classic electronic Dexter blip)
+    const chirpTime = now + 0.26;
+    const oscChirp = ctx.createOscillator();
+    const gainChirp = ctx.createGain();
+    oscChirp.type = 'square';
+    oscChirp.frequency.setValueAtTime(587.33, chirpTime); // D5
+    oscChirp.frequency.setValueAtTime(880.0, chirpTime + 0.06); // A5
+    gainChirp.gain.setValueAtTime(0.001, chirpTime);
+    gainChirp.gain.linearRampToValueAtTime(0.12, chirpTime + 0.02);
+    gainChirp.gain.exponentialRampToValueAtTime(0.001, chirpTime + 0.18);
+    oscChirp.connect(gainChirp);
+    gainChirp.connect(ctx.destination);
+    oscChirp.start(chirpTime);
+    oscChirp.stop(chirpTime + 0.2);
+  } catch {
+    // ignore
+  }
+}
