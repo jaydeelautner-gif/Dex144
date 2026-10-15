@@ -21,7 +21,8 @@
     "test:preferences": "tsx tests/dlcHomePreferences.test.ts && npm run build && node tests/preferences.browser.mjs",
     "test:catchability": "tsx tests/catchability.test.ts",
     "test:starter-lock": "tsx tests/starterLock.test.ts",
-    "test:offline-patch": "node tests/offlinePatch.browser.mjs"
+    "test:offline-patch": "node tests/offlinePatch.browser.mjs",
+    "test:auth-gateway": "npm run build && node tests/authGateway.browser.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

@@ -30,6 +30,7 @@ import {
   RefreshCw,
   Trophy,
   UserCircle,
+  KeyRound,
 } from 'lucide-react';
 import {
   buildInitialNationalDex,
@@ -619,9 +620,12 @@ export function App() {
   const [cloudLoaded, setCloudLoaded] = useState<boolean>(false);
   const [authErrorMsg, setAuthErrorMsg] = useState<string | null>(null);
   const isApplyingRemoteRef = useRef<boolean>(false);
+  // Set once the user flips the public toggle so a remote sync can't revert it.
+  const localPublicTouchedRef = useRef<boolean>(false);
   const prevUserRef = useRef<User | null>(null);
 
   const handleTogglePublic = useCallback(async (nextVal: boolean) => {
+    localPublicTouchedRef.current = true;
     setIsPublic(nextVal);
     try {
       localStorage.setItem(LS_PUBLIC_KEY, String(nextVal));
@@ -850,7 +854,16 @@ export function App() {
           setOwnedGames(normalizeToCanonicalGames(remoteProfile.ownedGames ?? []));
           setGameCatches(migrateLegacyGameCatches(remoteProfile.gameCatches ?? {}));
           setOwnedDlcs(remoteProfile.ownedDlcs as DlcId[]);
-          setIsPublic(Boolean(remoteProfile.isPublic));
+          // The local toggle is authoritative for this device: only adopt the
+          // cloud value once per session, otherwise a stale/absent remote flag
+          // would silently revert a change the user just made.
+          if (isInitialFetch) {
+            const cloudPublic = typeof remoteProfile.isPublic === 'boolean' ? remoteProfile.isPublic : null;
+            if (cloudPublic !== null && !localPublicTouchedRef.current) setIsPublic(cloudPublic);
+          } else if (localPublicTouchedRef.current && isPublic) {
+            // Keep this device's choice in sync without fighting the local state.
+            updateUserPublicProfileStatus(user.uid, isPublic).catch(() => {});
+          }
           if (remoteProfile.trainerName && remoteProfile.trainerName !== 'Guest') {
             setTrainerName(remoteProfile.trainerName);
           }
@@ -2430,15 +2443,38 @@ export function App() {
 
             {/* TAB 1: REGISTER POKÉMON */}
             {activeTab === 'register' && (
-              <RegisterPokemonView
-                dex={dex}
-                ownedGames={ownedGames}
-                inventory={inventory}
-                initialPokemonId={registerTargetPokemonId}
-                onSaveNewInstance={handleSaveNewInstance}
-                onOpenPokemonPage={(p) => setFullPagePokemon(p)}
-                onNavigateToInventory={() => navigateToProfile('inventory')}
-              />
+              // Registration is invite-only: an account is required, and a guest
+              // can only browse public showcases and look up POKEIDs.
+              user ? (
+                <RegisterPokemonView
+                  dex={dex}
+                  ownedGames={ownedGames}
+                  inventory={inventory}
+                  initialPokemonId={registerTargetPokemonId}
+                  onSaveNewInstance={handleSaveNewInstance}
+                  onOpenPokemonPage={(p) => setFullPagePokemon(p)}
+                  onNavigateToInventory={() => navigateToProfile('inventory')}
+                />
+              ) : (
+                <section className="bg-[#0F1522] border border-amber-500/50 rounded-2xl p-6 sm:p-10 flex flex-col items-center text-center gap-3">
+                  <div className="p-3 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-400">
+                    <KeyRound className="w-6 h-6" />
+                  </div>
+                  <h2 className="text-lg font-bold text-slate-100">Registration is invite-only</h2>
+                  <p className="text-xs sm:text-sm text-slate-300 max-w-lg leading-relaxed">
+                    Registering PokéPets requires an account, and new accounts need an invite code.
+                    Without one you can still browse the community showcase, view other trainers'
+                    public profiles, and look up any POKEID.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenAuth('Sign in or use an invite code to register PokéPets.')}
+                    className="mt-1 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs cursor-pointer shadow-lg shadow-amber-500/20"
+                  >
+                    Sign In / Have an Invite Code?
+                  </button>
+                </section>
+              )
             )}
 
             {/* TAB 2: POKÉDEX TRACKER */}
@@ -3020,6 +3056,7 @@ export function App() {
           onClick={() => {
             setFullPagePokemon(null);
             setActiveTab('register');
+            if (!user) handleOpenAuth('Registering PokéPets requires an account with an invite code.');
           }}
           className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors cursor-pointer ${
             activeTab === 'register' && !fullPagePokemon
