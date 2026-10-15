@@ -27,6 +27,12 @@ const CURATED_IN_GAME_WAYS: Record<string, Record<number, { how: string; dlcId?:
     813: { how: 'Max Raid Dens on the Isle of Armor', dlcId: 'swsh-isle-of-armor' },
     816: { how: 'Max Raid Dens on the Isle of Armor', dlcId: 'swsh-isle-of-armor' },
   },
+  // In Legends: Arceus, starters return via Space-Time Distortions and postgame gift.
+  pla: {
+    155: { how: 'Space-Time Distortions in Crimson Mirelands / Post-game gift' },
+    501: { how: 'Space-Time Distortions in Alabaster Icelands / Post-game gift' },
+    722: { how: 'Space-Time Distortions in Coronet Highlands / Post-game gift' },
+  },
 };
 
 /** Standard evolution chains for every starter line, keyed by the base

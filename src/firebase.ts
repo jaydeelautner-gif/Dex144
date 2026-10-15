@@ -23,6 +23,11 @@ import {
   saveLocallyCachedProfile,
   getLocallyCachedProfile,
   getCachedAccountByUid,
+  setAccountPin,
+  removeAccountPin,
+  hasPinSet,
+  verifyAccountPin,
+  isFirstLoginOnDevice,
   type CachedAuthAccount,
 } from './utils/offlineAuth';
 
@@ -32,6 +37,7 @@ import {
   collection,
   query,
   where,
+  limit,
   getDocs,
   doc,
   getDoc,
@@ -655,6 +661,31 @@ export async function signInWithEmail(email: string, pass: string): Promise<User
     throw onlineError;
   }
 }
+
+/**
+ * Sign in using quick-entry PIN on an offline-ready device.
+ * Enforces: Cannot be used for the first time on a device.
+ */
+export async function signInWithPin(emailOrUid: string, pin: string): Promise<User> {
+  const verifyResult = await verifyAccountPin(emailOrUid, pin);
+  if (!verifyResult.success || !verifyResult.account) {
+    throw new Error(verifyResult.error || 'PIN authentication failed.');
+  }
+
+  const offlineUser = createOfflineUser(verifyResult.account);
+  currentSessionUser = offlineUser;
+  setActiveOfflineUid(offlineUser.uid);
+  authListeners.forEach((cb) => cb(offlineUser));
+  return offlineUser;
+}
+
+export {
+  setAccountPin,
+  removeAccountPin,
+  hasPinSet,
+  verifyAccountPin,
+  isFirstLoginOnDevice,
+};
 
 export async function signOutUser(): Promise<void> {
   clearActiveOfflineUid();
@@ -1593,6 +1624,208 @@ export async function searchSpecimenByPokeId(
     };
   }
   return null;
+}
+
+export interface RandomRegisteredPokepetResult {
+  pokepet: SerializedPokemonInstance;
+  trainerName: string;
+}
+
+export const FALLBACK_SHOWCASE_PETS: RandomRegisteredPokepetResult[] = [
+  {
+    pokepet: {
+      pokeId: 'ID8F3K9L2M4P',
+      pokemonId: 6, // Charizard
+      nickname: 'Blaze',
+      level: 88,
+      gender: 'male',
+      variantId: '6:base',
+      variantName: 'Standard',
+      isShiny: true,
+      gameId: 'firered',
+      isHomeGift: false,
+      isTraded: false,
+      storedInHome: true,
+      isInLivingBox: true,
+      notes: 'Faithful champion partner from the Kanto region.',
+      createdAt: 1672531199000,
+      updatedAt: 1672531199000,
+    },
+    trainerName: 'Red (Kanto Champion)',
+  },
+  {
+    pokepet: {
+      pokeId: 'ID4M7K2P9Q1V',
+      pokemonId: 445, // Garchomp
+      nickname: 'Mach',
+      level: 92,
+      gender: 'female',
+      variantId: '445:base',
+      variantName: 'Standard',
+      isShiny: false,
+      gameId: 'platinum',
+      isHomeGift: false,
+      isTraded: false,
+      storedInHome: true,
+      isInLivingBox: true,
+      notes: 'Ace Pokémon of the Sinnoh Pokémon League.',
+      createdAt: 1672531199000,
+      updatedAt: 1672531199000,
+    },
+    trainerName: 'Cynthia (Sinnoh Champion)',
+  },
+  {
+    pokepet: {
+      pokeId: 'ID3X9P8L5K2Z',
+      pokemonId: 25, // Pikachu
+      nickname: 'Sparky',
+      level: 100,
+      gender: 'male',
+      variantId: '25:base',
+      variantName: 'Standard',
+      isShiny: false,
+      gameId: 'yellow',
+      isHomeGift: false,
+      isTraded: false,
+      storedInHome: true,
+      isInLivingBox: true,
+      notes: 'Never enters a Poké Ball. Partner from Pallet Town.',
+      createdAt: 1672531199000,
+      updatedAt: 1672531199000,
+    },
+    trainerName: 'Ash Ketchum (World Monarch)',
+  },
+  {
+    pokepet: {
+      pokeId: 'ID7V2N4C8X1K',
+      pokemonId: 376, // Metagross
+      nickname: 'Titan',
+      level: 85,
+      gender: 'genderless',
+      variantId: '376:base',
+      variantName: 'Standard',
+      isShiny: true,
+      gameId: 'emerald',
+      isHomeGift: false,
+      isTraded: false,
+      storedInHome: true,
+      isInLivingBox: true,
+      notes: 'Rare shiny Steel/Psychic titan found in the Hoenn League.',
+      createdAt: 1672531199000,
+      updatedAt: 1672531199000,
+    },
+    trainerName: 'Steven Stone (Hoenn Champion)',
+  },
+  {
+    pokepet: {
+      pokeId: 'ID9B6J2T5Y8W',
+      pokemonId: 448, // Lucario
+      nickname: 'Aura',
+      level: 82,
+      gender: 'male',
+      variantId: '448:base',
+      variantName: 'Standard',
+      isShiny: false,
+      gameId: 'diamond',
+      isHomeGift: false,
+      isTraded: false,
+      storedInHome: true,
+      isInLivingBox: true,
+      notes: 'Hatched from an egg gifted on Iron Island.',
+      createdAt: 1672531199000,
+      updatedAt: 1672531199000,
+    },
+    trainerName: 'Riley',
+  },
+  {
+    pokepet: {
+      pokeId: 'ID2W8M5X9P4T',
+      pokemonId: 887, // Dragapult
+      nickname: 'Phantom',
+      level: 86,
+      gender: 'female',
+      variantId: '887:base',
+      variantName: 'Standard',
+      isShiny: true,
+      gameId: 'sword',
+      isHomeGift: false,
+      isTraded: false,
+      storedInHome: true,
+      isInLivingBox: true,
+      notes: 'Stealth Bomber Pokémon raised in the Galar Wild Area.',
+      createdAt: 1672531199000,
+      updatedAt: 1672531199000,
+    },
+    trainerName: 'Leon (Galar Champion)',
+  },
+];
+
+export async function fetchRandomRegisteredPokepet(): Promise<RandomRegisteredPokepetResult> {
+  // If online, attempt to fetch a random pet from the universal database
+  if (typeof navigator !== 'undefined' && navigator.onLine) {
+    try {
+      await ensureSignedInUser().catch(() => {});
+      const q = query(collection(db, 'registeredPokepets'), limit(40));
+      const snap = await getDocs(q);
+      const list: RandomRegisteredPokepetResult[] = [];
+      snap.forEach((docSnap) => {
+        if (docSnap.exists()) {
+          const d = docSnap.data();
+          const cleanPokeId = String(d.pokeId || docSnap.id).trim().toUpperCase();
+          if (cleanPokeId.startsWith('ID') && cleanPokeId.length === 12 && d.pokemonId) {
+            list.push({
+              pokepet: {
+                pokeId: cleanPokeId,
+                pokemonId: Number(d.pokemonId),
+                nickname: d.nickname ? String(d.nickname) : undefined,
+                level: Number(d.level || 50),
+                gender: String(d.gender || 'genderless'),
+                variantId: String(d.variantId || `${d.pokemonId}:base`),
+                variantName: String(d.variantName || 'Standard'),
+                isShiny: Boolean(d.isShiny),
+                gameId: d.gameId ? String(d.gameId) : undefined,
+                isHomeGift: Boolean(d.isHomeGift),
+                isTraded: Boolean(d.isTraded),
+                storedInHome: Boolean(d.storedInHome),
+                isInLivingBox: Boolean(d.isInLivingBox),
+                notes: d.notes ? String(d.notes) : undefined,
+                createdAt: d.createdAt?.toMillis ? d.createdAt.toMillis() : Date.now(),
+                updatedAt: d.updatedAt?.toMillis ? d.updatedAt.toMillis() : Date.now(),
+              },
+              trainerName: String(d.trainerName || 'Registered Trainer'),
+            });
+          }
+        }
+      });
+      if (list.length > 0) {
+        return list[Math.floor(Math.random() * list.length)];
+      }
+    } catch (err) {
+      console.warn('Could not query registeredPokepets for random pet:', err);
+    }
+  }
+
+  // Check local storage for any cached inventory/pets
+  try {
+    const rawInv = localStorage.getItem('homedex_v4_inventory');
+    if (rawInv) {
+      const parsed = JSON.parse(rawInv);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const localPet = parsed[Math.floor(Math.random() * parsed.length)];
+        if (localPet && localPet.pokeId && localPet.pokemonId) {
+          return {
+            pokepet: localPet,
+            trainerName: localPet.trainerName || 'Local Trainer',
+          };
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  // Fallback to random iconic specimen
+  return FALLBACK_SHOWCASE_PETS[Math.floor(Math.random() * FALLBACK_SHOWCASE_PETS.length)];
 }
 
 // -------------------- FRIENDS SYSTEM --------------------

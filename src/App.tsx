@@ -80,6 +80,8 @@ import { OfflineIndicator } from './components/OfflineIndicator';
 import { AuthModal } from './components/AuthModal';
 import { DeviceAccessModal } from './components/DeviceAccessModal';
 import { FriendsView } from './components/FriendsView';
+import { OpeningScreen } from './components/OpeningScreen';
+import { playGameboyPowerOnSound } from './utils/gameboySound';
 
 import {
   auth,
@@ -616,6 +618,15 @@ export function App() {
   const [cloudLoaded, setCloudLoaded] = useState<boolean>(false);
   const [authErrorMsg, setAuthErrorMsg] = useState<string | null>(null);
   const isApplyingRemoteRef = useRef<boolean>(false);
+  const prevUserRef = useRef<User | null>(null);
+
+  // Play Game Boy power-on sound effect when user logs in and site loads
+  useEffect(() => {
+    if (!prevUserRef.current && user) {
+      playGameboyPowerOnSound();
+    }
+    prevUserRef.current = user;
+  }, [user]);
 
   // Live sync status indicator state
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('synced');
@@ -1882,7 +1893,131 @@ export function App() {
     ? trainerName.trim()
     : 'Guest';
 
-  // Shared Public Stats View
+  // Unauthenticated Guest Flow: Opening Screen with Random PokéPet, Public Lookups, and Login
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-[#0B0F17] text-slate-100 flex flex-col">
+        {sharedProfileUid ? (
+          <main className="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 py-6">
+            <div className="mb-4 flex items-center justify-between pb-3 border-b border-slate-800/80">
+              <span className="text-xs font-mono text-amber-400 font-bold uppercase tracking-wider">
+                Public Living Dex Showcase (Guest Mode)
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  window.history.replaceState({}, '', window.location.pathname);
+                  setSharedProfileUid(null);
+                  setSharedProfileData(null);
+                }}
+                className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-bold text-slate-200 transition cursor-pointer"
+              >
+                ← Return to Welcome Screen
+              </button>
+            </div>
+            {sharedProfileLoading ? (
+              <div className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-12 text-center">
+                <p className="text-sm font-mono-tabular text-slate-300">
+                  Loading Public Living Dex Showcase...
+                </p>
+              </div>
+            ) : sharedProfileError || !sharedProfileData ? (
+              <div className="bg-[#0F1522] border border-rose-500/40 rounded-2xl p-8 flex flex-col items-center gap-4 text-center">
+                <p className="text-base font-bold text-rose-300">
+                  {sharedProfileError || 'Profile unavailable'}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.history.replaceState({}, '', window.location.pathname);
+                    setSharedProfileUid(null);
+                    setSharedProfileData(null);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs cursor-pointer"
+                >
+                  ← Return to Welcome Screen
+                </button>
+              </div>
+            ) : (
+              <PublicStatsPageView
+                dex={dex}
+                trainerName={sharedProfileData.trainerName || 'Guest'}
+                caughtSet={new Set(sharedProfileData.caughtIds)}
+                shinySet={new Set(sharedProfileData.shinyIds)}
+                livingSet={new Set(sharedProfileData.livingIds)}
+                caughtVariantsSet={new Set(sharedProfileData.caughtVariants)}
+                boxSelectedVariantsMap={parseBoxSelectedVariants(
+                  sharedProfileData.boxSelectedVariants || []
+                )}
+                boxSelectedGamesMap={parseBoxSelectedGames(
+                  sharedProfileData.boxSelectedGames || []
+                )}
+                ownedGames={normalizeToCanonicalGames(sharedProfileData.ownedGames || DEFAULT_OWNED_GAMES)}
+                ownedDlcs={(sharedProfileData.ownedDlcs as DlcId[]) || []}
+                gameCatches={sharedProfileData.gameCatches || createEmptyGameCatchesMap()}
+                shareUrl={window.location.href}
+                inventory={(sharedProfileData.inventory as PokemonInstance[]) || []}
+                onExitPublicView={() => {
+                  window.history.replaceState({}, '', window.location.pathname);
+                  setSharedProfileUid(null);
+                  setSharedProfileData(null);
+                }}
+              />
+            )}
+          </main>
+        ) : (
+          <OpeningScreen
+            dex={dex}
+            onSuccessfulLogin={() => {
+              // Handled by auth listener & login transition effect
+            }}
+            onOpenTrainerCard={(inst, tName) => {
+              const mapped: PokemonInstance = {
+                pokeId: inst.pokeId,
+                pokemonId: inst.pokemonId,
+                nickname: inst.nickname || '',
+                level: inst.level,
+                gender: (inst.gender as 'male' | 'female' | 'genderless') || 'genderless',
+                variantId: inst.variantId,
+                variantName: inst.variantName,
+                isShiny: inst.isShiny,
+                gameId: inst.gameId as GameId | undefined,
+                isHomeGift: inst.isHomeGift,
+                isTraded: inst.isTraded,
+                storedInHome: inst.storedInHome,
+                isInLivingBox: inst.isInLivingBox,
+                livingBoxNumber: inst.livingBoxNumber,
+                livingBoxSlot: inst.livingBoxSlot,
+                notes: inst.notes,
+                ownerId: inst.ownerId,
+                ownerEmail: inst.ownerEmail,
+                trainerName: tName || inst.trainerName || 'Registered Trainer',
+                isRescued: Boolean(inst.isRescued),
+                createdAt: inst.createdAt,
+                updatedAt: inst.updatedAt,
+              };
+              setActiveTrainerCardInstance(mapped);
+            }}
+            onOpenPublicProfile={(uid) => {
+              setSharedProfileUid(uid);
+            }}
+          />
+        )}
+
+        {/* Dedicated Pokepet Trainer Card Modal for POKEID lookup */}
+        {activeTrainerCardInstance && (
+          <PokepetTrainerCardModal
+            instance={activeTrainerCardInstance}
+            pokemon={dex.find((p) => p.id === activeTrainerCardInstance.pokemonId) || null}
+            trainerName={activeTrainerCardInstance.trainerName || 'Registered Trainer'}
+            onClose={() => setActiveTrainerCardInstance(null)}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // Shared Public Stats View for Logged-In User
   if (sharedProfileUid) {
     return (
       <div className="min-h-screen bg-[#0B0F17] text-slate-100 flex flex-col">
@@ -1903,6 +2038,7 @@ export function App() {
                 onClick={() => {
                   window.history.replaceState({}, '', window.location.pathname);
                   setSharedProfileUid(null);
+                  setSharedProfileData(null);
                 }}
                 className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs cursor-pointer"
               >
@@ -1931,6 +2067,7 @@ export function App() {
               onExitPublicView={() => {
                 window.history.replaceState({}, '', window.location.pathname);
                 setSharedProfileUid(null);
+                setSharedProfileData(null);
               }}
             />
           )}
