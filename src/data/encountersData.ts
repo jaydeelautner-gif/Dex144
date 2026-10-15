@@ -168,6 +168,10 @@ export function prettyEncounterMethod(method: string): string {
     'bug-contest': 'Bug-Catching Contest',
     'grass-special': 'Grass (special)',
     'grass-dark': 'Grass (dark patch)',
+    'overworld-special': 'Overworld special spawn',
+    'overworld-flying-special': 'Flying overworld spawn',
+    'max-raid': 'Max Raid battles',
+    'island-scan': 'Island Scan',
   };
   return (
     map[method] ||
@@ -197,4 +201,98 @@ export function useEncounterDataset(): { dataset: EncounterDataset | null; loadi
   }, []);
 
   return { dataset, loading };
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// ENCOUNTER SUMMARY — correct, verified per-game "Where to find" text
+// ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Display names for area stems whose source spelling is concatenated
+ * (Serebii Pokearth SV/PLA pages, e.g. "crimsonmirelands"). PokéAPI areas
+ * already use hyphens and prettify generically.
+ */
+const AREA_DISPLAY_NAMES: Record<string, string> = {
+  // ── Hisui (Legends: Arceus) ──
+  obsidianfieldlands: 'Obsidian Fieldlands',
+  crimsonmirelands: 'Crimson Mirelands',
+  cobaltcoastlands: 'Cobalt Coastlands',
+  coronethighlands: 'Coronet Highlands',
+  alabastericelands: 'Alabaster Icelands',
+  // ── Paldea (Scarlet/Violet) ──
+  areazero: 'Area Zero',
+  greatcraterofpaldea: 'Great Crater of Paldea',
+  alfornadacavern: 'Alfornada Cavern',
+  asadodesert: 'Asado Desert',
+  casseroyalake: 'Casseroya Lake',
+  dalizapapassage: 'Dalizapa Passage',
+  eastpaldeansea: 'East Paldean Sea',
+  westpaldeansea: 'West Paldean Sea',
+  northpaldeansea: 'North Paldean Sea',
+  southpaldeansea: 'South Paldean Sea',
+  glaseadomountain: 'Glaseado Mountain',
+  inletgrotto: 'Inlet Grotto',
+  pocopath: 'Poco Path',
+  pokemonleague: 'Pokémon League',
+  socarrattrail: 'Socarrat Trail',
+  tagtreethicket: 'Tagtree Thicket',
+  eastprovinceareaone: 'East Province (Area One)',
+  eastprovinceareatwo: 'East Province (Area Two)',
+  eastprovinceareathree: 'East Province (Area Three)',
+  westprovinceareaone: 'West Province (Area One)',
+  westprovinceareatwo: 'West Province (Area Two)',
+  westprovinceareathree: 'West Province (Area Three)',
+  northprovinceareaone: 'North Province (Area One)',
+  northprovinceareatwo: 'North Province (Area Two)',
+  northprovinceareathree: 'North Province (Area Three)',
+  southprovinceareaone: 'South Province (Area One)',
+  southprovinceareatwo: 'South Province (Area Two)',
+  southprovinceareathree: 'South Province (Area Three)',
+  southprovinceareafour: 'South Province (Area Four)',
+  southprovinceareafive: 'South Province (Area Five)',
+  southprovinceareasix: 'South Province (Area Six)',
+};
+
+/** Human-readable location-area name (e.g. "kanto-route-1-area" → "Kanto Route 1"). */
+export function prettifyAreaName(area: string): string {
+  const curated = AREA_DISPLAY_NAMES[area];
+  if (curated) return curated;
+  return area
+    .replace(/-/g, ' ')
+    .replace(/\s+area$/, '')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .replace(/\bMt\b/g, 'Mt.')
+    .replace(/\bPok(e|é)mon\b/g, 'Pokémon')
+    .replace(/\bRoute\b (\d)/g, 'Route $1');
+}
+
+/**
+ * Correct, verified per-game encounter summary derived from the PokéAPI /
+ * Serebii-sourced bundle: the top areas with method, level range and
+ * encounter chance. Returns null when the bundle has no rows for this
+ * species × game (callers fall back to their curated text).
+ */
+export function summarizeEncountersForGame(
+  dataset: EncounterDataset | null,
+  pokemonId: number,
+  gameId: GameId
+): string | null {
+  if (!dataset) return null;
+  const raw = dataset[pokemonId]?.[gameId];
+  if (!raw) return null;
+  const areas = Object.entries(raw);
+  if (areas.length === 0) return null;
+
+  const parts = areas.slice(0, 3).map(([area, rows]) => {
+    const methods = [...new Set(rows.map((r) => prettyEncounterMethod(r.m)))];
+    const lvMin = Math.min(...rows.map((r) => r.l[0]));
+    const lvMax = Math.max(...rows.map((r) => r.l[1]));
+    const chance = Math.max(...rows.map((r) => r.c));
+    const lv = lvMin === lvMax ? `Lv ${lvMin}` : `Lv ${lvMin}–${lvMax}`;
+    const methodText =
+      methods.length > 1 ? `${methods.slice(0, 2).join(' / ')}…` : (methods[0] ?? 'Wild');
+    return `${prettifyAreaName(area)} — ${methodText} (${lv}${chance > 0 ? `, ${chance}%` : ''})`;
+  });
+  const more = areas.length - parts.length;
+  return more > 0 ? `${parts.join(' · ')} + ${more} more area${more === 1 ? '' : 's'}` : parts.join(' · ');
 }

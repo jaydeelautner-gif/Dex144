@@ -91,8 +91,10 @@ def parse_pla_txt(html, wanted_species):
     """Legends Arceus spawntable. Forward-scanning state machine: on a sprite
     row (all cells carry /legendsarceus/pokemon/small/N.png) collect the
     following rows until the level row, pulling Alpha flags, rate % and
-    level ranges from whichever cells match."""
-    out = []
+    level ranges from whichever cells match.
+    Returns rows KEYED BY SPECIES — the distributor must never hand a
+    species another column's rows."""
+    out = {}
     current_cond = []
     current_section = ''
 
@@ -178,7 +180,7 @@ def parse_pla_txt(html, wanted_species):
                     cd.append('pla-mass-outbreak')
                 rate = rates[k] if k < len(rates) else 0
                 lvl = levels[k] if k < len(levels) else (1, 100)
-                out.append({'m': 'walk', 'c': rate, 'l': [lvl[0], lvl[1]], 'v': ['pla'], 'cd': cd})
+                out.setdefault(sid, []).append({'m': 'walk', 'c': rate, 'l': [lvl[0], lvl[1]], 'v': ['pla'], 'cd': cd})
             i = j if j > i else i + 1
             continue
         i += 1
@@ -186,8 +188,10 @@ def parse_pla_txt(html, wanted_species):
 
 def parse_sv_txt(html, wanted_species):
     """Scarlet/Violet spawntable: column-aligned blocks with Level, Biomes,
-    Location (Land/Water), Time-of-day, Surrounding Spawns."""
-    out = []
+    Location (Land/Water), Time-of-day, Surrounding Spawns.
+    Returns rows KEYED BY SPECIES — the distributor must never hand a
+    species another column's rows."""
+    out = {}
     TIME = {'Morning': 'time-morning', 'Day': 'time-day', 'Evening': 'time-evening', 'Night': 'time-night'}
 
     def emit(cols):
@@ -202,7 +206,7 @@ def parse_sv_txt(html, wanted_species):
             if col.get('mass'):
                 cd_base.append('sv-mass')
             for loc in locs:
-                out.append({'m': 'surf' if loc == 'Water' else 'walk',
+                out.setdefault(sid, []).append({'m': 'surf' if loc == 'Water' else 'walk',
                             'c': 0,  # SV tables publish no percentages
                             'l': list(col.get('level', (1, 100))),
                             'v': ['scarlet', 'violet'],
@@ -313,6 +317,9 @@ def scrape_region(region, parser, report_name):
 
     # Phase 3: parse each unique txt ONCE per page (wanted = union of species
     # mapped to that marker on the page), then distribute rows per species.
+    # Keys are pre-computed once per parsed row and tracked in per-bucket sets —
+    # re-serializing a bucket per appended row is O(n²) and melts CPUs.
+    bucket_keys = defaultdict(set)
     for page, pokefilter in page_maps:
         by_table = defaultdict(set)
         for sid, table_ids in pokefilter.items():
@@ -323,12 +330,18 @@ def scrape_region(region, parser, report_name):
             if not txt:
                 continue
             parsed = parser(txt, sids)
-            for r in parsed:
-                for sid in sids:
+            # Parsers return rows KEYED BY SPECIES — each species only ever
+            # receives its own rows (never another column's).
+            for sid, rows in parsed.items():
+                if sid not in sids:
+                    continue
+                for r in rows:
+                    key = json.dumps(r, sort_keys=True)
+                    kkey = (sid, page)
                     per_species.setdefault(sid, {})
                     bucket = per_species[sid].setdefault(page, [])
-                    key = json.dumps(r, sort_keys=True)
-                    if key not in {json.dumps(x, sort_keys=True) for x in bucket}:
+                    if key not in bucket_keys[kkey]:
+                        bucket_keys[kkey].add(key)
                         bucket.append(r)
                         n += 1
     print(f'  {report_name}: {n} total rows')

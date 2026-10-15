@@ -35,6 +35,7 @@ import {
   type PokemonInstance,
 } from '../data/pokemonInventoryData';
 import { getEvolutionFamilyForPokemon } from '../data/pokemonEvolutionData';
+import { useEncounterDataset, summarizeEncountersForGame } from '../data/encountersData';
 import { getItemInfoForPokemon } from '../data/pokemonItemsData';
 import { PokemonSprite } from './PokemonSprite';
 import { GameLogoBadge, PokemonHomeLogoBadge } from './GameLogoBadge';
@@ -79,6 +80,8 @@ export const PokemonDetailDrawer: React.FC<PokemonDetailDrawerProps> = ({
 }) => {
   const [previewShiny, setPreviewShiny] = useState(false);
   const [revealedDrawerPokeIds, setRevealedDrawerPokeIds] = useState<Set<string>>(() => new Set());
+  // Correct, verified per-game encounter summaries (PokéAPI / Serebii bundle).
+  const { dataset: encounterDataset } = useEncounterDataset();
 
   if (!pokemon) return null;
 
@@ -529,7 +532,8 @@ export const PokemonDetailDrawer: React.FC<PokemonDetailDrawerProps> = ({
                     <div className="text-slate-300 flex items-start gap-1.5 leading-snug">
                       <MapPin className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
                       <div>
-                        <strong className="text-slate-400">Where to find:</strong> {avail.whereToFind}
+                        <strong className="text-slate-400">Where to find:</strong>{' '}
+                        {summarizeEncountersForGame(encounterDataset, pokemon.id, gameMeta.id) ?? avail.whereToFind}
                       </div>
                     </div>
 

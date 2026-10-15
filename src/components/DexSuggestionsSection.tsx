@@ -18,7 +18,7 @@ import {
 import type { PokemonEntry, GameId, DlcId } from '../data/pokemonData';
 import { GAMES } from '../data/pokemonData';
 import { MILESTONE_INDEX, GAME_ID_TO_TRACKABLE } from '../data/milestones';
-import { useEncounterDataset } from '../data/encountersData';
+import { useEncounterDataset, summarizeEncountersForGame } from '../data/encountersData';
 import {
   getUnchosenStarterLineIds,
   findAlternateAcquisitionLabel,
@@ -195,6 +195,8 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
         const primaryTitle = primaryMeta?.shortTitle || primaryAvail?.gameShortTitle || primaryGId.toUpperCase();
         const evoFamily = getEvolutionFamilyForPokemon(p.id);
         const stage = evoFamily.stages.find((s) => s.pokemonId === p.id);
+        // Correct, verified location from the encounter bundle when covered.
+        const realWhereToFind = summarizeEncountersForGame(encounters, p.id, primaryGId);
 
         list.push({
           pokemon: p,
@@ -204,7 +206,7 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
           badgeColor: 'amber',
           primaryGameId: primaryGId,
           primaryGameTitle: primaryTitle,
-          whereToFind: primaryAvail?.whereToFind || 'In-game catchable',
+          whereToFind: realWhereToFind || primaryAvail?.whereToFind || 'In-game catchable',
           versionExclusive: primaryAvail?.versionExclusive || 'Both Versions',
           requiresDlc: Boolean(primaryAvail?.requiresDlc),
           dlcName: primaryAvail?.dlcName,
@@ -227,6 +229,8 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
         const primaryTitle = primaryMeta?.shortTitle || primaryAvail?.gameShortTitle || primaryGId.toUpperCase();
         const evoFamily = getEvolutionFamilyForPokemon(p.id);
         const stage = evoFamily.stages.find((s) => s.pokemonId === p.id);
+        // Correct, verified location from the encounter bundle when covered.
+        const realWhereToFind = summarizeEncountersForGame(encounters, p.id, primaryGId);
 
         list.push({
           pokemon: p,
@@ -236,7 +240,7 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
           badgeColor: 'emerald',
           primaryGameId: primaryGId,
           primaryGameTitle: primaryTitle,
-          whereToFind: primaryAvail?.whereToFind || 'In-game catchable',
+          whereToFind: realWhereToFind || primaryAvail?.whereToFind || 'In-game catchable',
           versionExclusive: primaryAvail?.versionExclusive || 'Both Versions',
           requiresDlc: Boolean(primaryAvail?.requiresDlc),
           dlcName: primaryAvail?.dlcName,
@@ -257,6 +261,8 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
         const primaryMeta = GAMES.find((g) => g.id === primaryGId);
         const primaryAvail = p.availability[primaryGId];
         const primaryTitle = primaryMeta?.shortTitle || primaryAvail?.gameShortTitle || primaryGId.toUpperCase();
+        // Correct, verified location from the encounter bundle when covered.
+        const realWhereToFind = summarizeEncountersForGame(encounters, p.id, primaryGId);
 
         list.push({
           pokemon: p,
@@ -266,7 +272,7 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
           badgeColor: 'sky',
           primaryGameId: primaryGId,
           primaryGameTitle: primaryTitle,
-          whereToFind: primaryAvail?.whereToFind || 'In-game catchable',
+          whereToFind: realWhereToFind || primaryAvail?.whereToFind || 'In-game catchable',
           versionExclusive: primaryAvail?.versionExclusive || 'Both Versions',
           requiresDlc: Boolean(primaryAvail?.requiresDlc),
           dlcName: primaryAvail?.dlcName,

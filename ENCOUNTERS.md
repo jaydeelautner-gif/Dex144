@@ -26,19 +26,32 @@ generated into a static JSON file at `public/data/encounters.json`.
 ## Regenerating the data
 
 ```bash
-npm run fetch:encounters      # or: python3 scripts/fetch_encounters.py
+npm run fetch:encounters                      # or: python3 scripts/fetch_encounters.py
+python3 scripts/fetch_encounters_supplement.py   # SV/PLA (Serebii) + BDSP/USUM
+npm run generate:gates                         # regenerate milestone gates
 ```
 
 Then commit the updated `public/data/encounters.json`.
 
 ## Known limits
 
-- PokéAPI's `/encounters` endpoint does not yet include Brilliant
-  Diamond/Shining Pearl, Legends: Arceus, or Scarlet/Violet wild data, so the
-  exact-data panel simply doesn't render a row for those games — the existing
-  hand-written "Where to find" availability cards still cover them.
-- Species obtained only via evolution, gift, or transfer have no wild rows and
-  show an explanatory message instead.
+- **Supplemented games**: PokéAPI's `/encounters` endpoint lacks Brilliant
+  Diamond/Shining Pearl, Legends: Arceus, and Scarlet/Violet wild data, so
+  **`scripts/fetch_encounters_supplement.py`** scrapes Serebii Pokearth
+  spawntables (cached under `/tmp`) and appends `scarlet`/`violet`/`pla` rows;
+  BDSP/BD & SP are derived from the faithful-remake DPPt bundle data and
+  USUM from the SM data. Re-run it after `npm run fetch:encounters`.
+- Species obtained only via evolution or transfer have no wild rows and show
+  an explanatory message instead.
+
+## Encounter summaries ("Where to find")
+
+`summarizeEncountersForGame(dataset, pokemonId, gameId)` in
+`src/data/encountersData.ts` derives the per-game "Where to find" text
+straight from the bundle (top areas + method + level range + chance%). The
+detail drawer, full-page view and Catch Hub suggestion cards all prefer this
+real, verified summary and only fall back to the curated availability text
+when a species×game pair has no bundle rows (e.g. Colosseum/XD).
 
 ## Milestone gates (badge → wild catchability)
 

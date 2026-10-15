@@ -81,7 +81,7 @@ const SINNOH_ZONES = (p) => [
   [`${p}-badge-5`, /hearthome|sinnoh-route-20[89]|trophy-garden|sinnoh-route-21[01]/],
   [`${p}-badge-4`, /pastoria|great-marsh|sinnoh-route-21[2-9]|lake-valor|solaceon/],
   [`${p}-badge-3`, /veilstone/],
-  [`${p}-badge-2`, /eterna|sinnoh-route-20[5-6]|old-chateau/],
+  [`${p}-badge-2`, /eterna|sinnoh-route-20[3-7]|old-chateau/],
   [`${p}-badge-1`, /floaroma|sinnoh-route-204|ravaged-path|fuego-ironworks|valley-windworks/],
   ['start', /./],
 ];
@@ -151,20 +151,12 @@ const HISUI_ZONES = (p) => [
   ['start', /./],
 ];
 
-/** Paldea (SV) — open world, but zones follow the recommended badge path.
- *  Titan areas gate behind the ride-ability they unlock. */
+/** Paldea (SV) — open world: every wild area is reachable from the start of
+ *  the game; only Area Zero is post-champion. The badge catch-level caps are
+ *  not modeled (no level→badge tiers in the bundle), so wild gates are limited
+ *  to Area Zero. Curated gates (sv-*) win per prefix anyway. */
 const PALDEA_ZONES = [
-  ['sv-champion', /areazero|greatcrater|zerogate|zerolab/],
-  ['sv-gym-8', /glaseadomountain/],
-  ['sv-gym-7', /alfornada/],
-  ['sv-gym-6', /montenevera|north-province|northpaldeansea/],
-  ['sv-titan-5', /casseroyalake/],
-  ['sv-titan-4', /asadodesert/],
-  ['sv-gym-5', /medali/],
-  ['sv-gym-4', /cascarrafa/],
-  ['sv-gym-3', /levincia/],
-  ['sv-gym-2', /artazon|east-province|eastpaldeansea/],
-  ['sv-gym-1', /cortondo|west-province|westpaldeansea/],
+  ['sv-champion', /areazero|greatcraterofpaldea|zerogate|zerolab|roaming/],
   ['start', /./],
 ];
 

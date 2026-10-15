@@ -39,6 +39,7 @@ import {
   type PokemonInstance,
 } from '../data/pokemonInventoryData';
 import { getEvolutionFamilyForPokemon } from '../data/pokemonEvolutionData';
+import { useEncounterDataset, summarizeEncountersForGame } from '../data/encountersData';
 import { getItemInfoForPokemon } from '../data/pokemonItemsData';
 import { PokemonSprite } from './PokemonSprite';
 import { GameLogoBadge, PokemonHomeLogoBadge } from './GameLogoBadge';
@@ -90,6 +91,8 @@ export const PokemonFullPageView: React.FC<PokemonFullPageViewProps> = ({
   const [previewShiny, setPreviewShiny] = useState(false);
   const [revealedFullPagePokeIds, setRevealedFullPagePokeIds] = useState<Set<string>>(() => new Set());
   const [consentModalInstance, setConsentModalInstance] = useState<PokemonInstance | null>(null);
+  // Correct, verified per-game encounter summaries (PokéAPI / Serebii bundle).
+  const { dataset: encounterDataset } = useEncounterDataset();
   const [hasPositiveConsent, setHasPositiveConsent] = useState(false);
 
   const prevPokemon = pokemon.id > 1 ? dex[pokemon.id - 2] : dex[dex.length - 1];
@@ -687,7 +690,7 @@ export const PokemonFullPageView: React.FC<PokemonFullPageViewProps> = ({
                       <MapPin className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
                       <div className="leading-relaxed">
                         <strong className="text-slate-200">Where to Find:</strong>{' '}
-                        <span>{avail.whereToFind}</span>
+                        <span>{summarizeEncountersForGame(encounterDataset, pokemon.id, gameMeta.id) ?? avail.whereToFind}</span>
                       </div>
                     </div>
 
