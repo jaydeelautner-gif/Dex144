@@ -153,7 +153,7 @@ try {
 
   await page.screenshot({ path: '/tmp/trainer-tab2.png', fullPage: false });
   assert.ok(badgeImgs >= 30, 'badge sprites render per owned game in profile');
-  assert.equal(svg, 1, 'avatar preview renders');
+  assert.ok(svg >= 1, 'avatar preview renders (card + builder)');
   assert.deepEqual(errors, []);
   console.log('PASS: closed-first, responsive login frame, PIN default/keypad/login and logout-to-closed');
 } finally {
