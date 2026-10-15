@@ -406,24 +406,6 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
 
   return (
     <div className="flex flex-col gap-5 sm:gap-8 max-w-5xl mx-auto pb-40 lg:pb-12">
-      {/* Top Header */}
-      <div className="bg-[#0F1522] border border-amber-500/40 rounded-2xl p-4 sm:p-6 lg:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-2xl relative overflow-hidden">
-        <div className="flex flex-col gap-2 relative z-10">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/50 text-amber-300 text-[10px] sm:text-[11px] font-mono-tabular font-bold">
-              POKEPET REGISTRATION PORTAL
-            </span>
-            <span className="hidden sm:inline text-xs text-slate-400">Database Entry with Unique Site-Wide POKEID</span>
-          </div>
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-slate-100 tracking-tight">
-            Register Pet Pokémon
-          </h1>
-          <p className="hidden md:block text-sm text-slate-300 max-w-2xl leading-relaxed">
-            This is the exclusive gateway to register pet Pokémon to your database. Every entry generates a site-wide unique 12-digit POKEID checked against the central database to guarantee no duplicates, validates origin game or HOME gift status, enforces level (1–100), and records storage state.
-          </p>
-        </div>
-      </div>
-
       {/* Main Registration Panel */}
       <form onSubmit={handleSubmit} className="flex flex-col gap-5 sm:gap-6">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-start">
@@ -625,7 +607,7 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
                 {/* Number pad — right side */}
                 <div className="flex-1 min-w-0 p-1.5 rounded-xl bg-[#0B0F17] border border-slate-800 flex flex-col gap-1.5">
                   <div className="grid grid-cols-3 gap-1.5">
-                    {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((digit) => (
+                    {['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'].map((digit) => (
                       <button
                         key={digit}
                         type="button"
@@ -640,7 +622,7 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
                             setLevel(num);
                           }
                         }}
-                        className="py-2 lg:py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-sm lg:text-base font-bold font-mono text-slate-100 cursor-pointer transition-colors active:bg-amber-500 active:text-slate-950"
+                        className={`py-2 lg:py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-sm lg:text-base font-bold font-mono text-slate-100 cursor-pointer transition-colors active:bg-amber-500 active:text-slate-950 ${digit === '0' ? 'col-start-2' : ''}`}
                       >
                         {digit}
                       </button>
