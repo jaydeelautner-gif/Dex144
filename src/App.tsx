@@ -85,6 +85,7 @@ import { OpeningScreen } from './components/OpeningScreen';
 import { ClosedDexCover, PokedexClosingAnimation } from './components/DexCover';
 import { TrainerAvatar, AvatarBuilder, loadLocalAvatar, saveLocalAvatar, DEFAULT_AVATAR as DEFAULT_AVATAR_CONFIG, type TrainerAvatarConfig } from './components/TrainerAvatar';
 import { GymBadgeStrip, gameBadgeSprites } from './components/GymBadgeStrip';
+import { ProfileCard } from './components/ProfileCard';
 import { DexFrame } from './components/DexFrame';
 import { PokedexOpeningAnimation } from './components/PokedexOpeningAnimation';
 import { playGameboyPowerOnSound, playPokepetRegisteredSound } from './utils/gameboySound';
@@ -2923,6 +2924,13 @@ export function App() {
             {/* TAB: PROFILE — Boxes / Inventory / Friends */}
             {activeTab === 'profile' && (
               <div className="flex flex-col gap-4">
+                <ProfileCard
+                  trainerName={displayTrainerName}
+                  avatar={avatar}
+                  ownedGames={normalizeToCanonicalGames(ownedGames)}
+                  gameProgress={gameProgress as Record<string, string[]>}
+                  isPublic={isPublic}
+                />
                 {/* Profile sub-navigation */}
                 <div className="flex items-center gap-1 p-1 bg-[#0F1522] border border-slate-800/80 rounded-xl w-fit max-w-full overflow-x-auto">
                   {(
@@ -2930,7 +2938,7 @@ export function App() {
                       { id: 'boxes', label: 'Boxes' },
                       { id: 'inventory', label: `Inventory (${inventory.length})` },
                       { id: 'friends', label: `Friends${incomingRequests.length > 0 ? ` (${incomingRequests.length})` : ''}` },
-                      { id: 'trainer', label: 'Trainer & Badges' },
+                      { id: 'trainer', label: 'Avatar Builder' },
                     ] as const
                   ).map((sub) => (
                     <button

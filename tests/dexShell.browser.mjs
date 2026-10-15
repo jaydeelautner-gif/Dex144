@@ -121,7 +121,12 @@ try {
   await page.getByRole('button', { name: 'Unlock with PIN' }).click();
   await page.getByRole('button', { name: /Log Out|Sign Out/i }).waitFor();
   await page.getByRole('button', { name: 'Test Trainer' }).first().click();
-  await page.getByRole('button', { name: 'Trainer & Badges' }).click();
+  const card = page.locator('[aria-label="Trainer card"]');
+  await card.waitFor();
+  await card.screenshot({ path: '/tmp/profile-card.png' });
+  const cardText = await card.innerText();
+  console.log('CARD:', cardText.replace(/\n/g, ' | ').slice(0, 220));
+  await page.getByRole('button', { name: 'Avatar Builder' }).click();
   await page.waitForTimeout(1000);
   const badgeImgs = await page.locator('img[src*="/badges/"]').count();
   const lit = await page.locator('img[src*="/badges/"]:not(.grayscale)').count();
