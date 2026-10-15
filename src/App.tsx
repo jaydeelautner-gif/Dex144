@@ -401,6 +401,15 @@ export function App() {
     loadRescueBinFromStorage()
   );
 
+  // Dark mode is the only theme. One-time cleanup of the retired preference key.
+  useEffect(() => {
+    try {
+      localStorage.removeItem('homedex_theme');
+    } catch {
+      // ignore
+    }
+  }, []);
+
   // Automatically prune expired rescue bin items (kept for 30 days and automatically deleted)
   useEffect(() => {
     const prune = () => {
@@ -568,17 +577,6 @@ export function App() {
   }, [lockedByProgressSet, trackedGames, mergedCompletedSet]);
   // ── END GAME PROGRESS TRACKING ──
 
-  // Theme State — locked to dark mode
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-
-  useEffect(() => {
-    document.documentElement.classList.remove('light');
-    try {
-      localStorage.setItem('homedex_theme', 'dark');
-    } catch {
-      // ignore
-    }
-  }, []);
 
   // Firebase Auth State
   const [user, setUser] = useState<User | null>(null);
@@ -2704,8 +2702,6 @@ export function App() {
                 onSetAllTallyGames={handleSetAllTallyGames}
                 includePokemonGoInSuggestions={includePokemonGoInSuggestions}
                 onToggleIncludePokemonGoInSuggestions={handleToggleIncludePokemonGoInSuggestions}
-                theme={theme}
-                onToggleTheme={(t) => setTheme(t)}
                 trainerName={displayTrainerName}
                 isCloudSynced={Boolean(user)}
                 isPublic={isPublic}

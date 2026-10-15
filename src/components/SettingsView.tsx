@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   Settings,
-  Sun,
   Moon,
   Check,
   CheckSquare,
@@ -39,12 +38,11 @@ import { RescueShelterSection } from './RescueShelterSection';
 import type { RescueBinItem } from '../data/pokemonInventoryData';
 import type { User } from '../firebase';
 
-type TabId = 'games' | 'tracker' | 'appearance' | 'export' | 'storage' | 'rescue' | 'danger';
+type TabId = 'games' | 'tracker' | 'export' | 'storage' | 'rescue' | 'danger';
 
 const SETTINGS_TABS: { id: TabId; label: string; hint: string; icon: React.ElementType }[] = [
   { id: 'games', label: 'Games & DLC', hint: 'Owned games & expansions', icon: Layers },
   { id: 'tracker', label: 'Tracker', hint: 'Tally & suggestions', icon: Compass },
-  { id: 'appearance', label: 'Appearance', hint: 'Dark / light theme', icon: Sun },
   { id: 'export', label: 'Export & Sharing', hint: 'Trainer card & backups', icon: Share2 },
   { id: 'storage', label: 'Storage & Sync', hint: 'Offline & cloud sync', icon: CloudDownload },
   { id: 'rescue', label: 'Rescue Shelter', hint: '30-day protection bin', icon: Heart },
@@ -70,8 +68,6 @@ interface SettingsViewProps {
   onSetAllOwnedGames: (games: GameId[]) => void;
   onToggleOwnedDlc: (dlcId: DlcId) => void;
   onSetAllOwnedDlcs: (dlcs: DlcId[]) => void;
-  theme: 'dark' | 'light';
-  onToggleTheme: (theme: 'dark' | 'light') => void;
   trainerName: string;
   isCloudSynced: boolean;
   isPublic: boolean;
@@ -118,8 +114,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onSetAllTallyGames,
   includePokemonGoInSuggestions,
   onToggleIncludePokemonGoInSuggestions,
-  theme,
-  onToggleTheme,
   trainerName,
   isCloudSynced,
   isPublic,
@@ -184,7 +178,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             Settings & Trainer Card Export
           </h1>
           <p className="text-sm text-slate-400 max-w-2xl leading-relaxed">
-            Manage your owned games library, generate your global Trainer Card, export backups, customize appearance, and configure cloud synchronization.
+            Manage your owned games library, generate your global Trainer Card, export backups, and configure cloud synchronization.
           </p>
         </div>
 
@@ -282,63 +276,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             onImportProgress={onImportProgress}
           />
         )}
-      </section>
-      )}
-
-      {/* SECTION 2: APPEARANCE & THEME (Light Mode / Dark Mode) */}
-      {activeTab === 'appearance' && (
-      <section className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 flex flex-col gap-5 shadow-xl">
-        <div className="border-b border-slate-800/80 pb-3">
-          <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-amber-400" />
-            Theme & Appearance
-          </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Switch between Dark Mode and crisp Light Mode.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div
-            onClick={() => onToggleTheme('dark')}
-            className={`rounded-xl border p-4 flex items-center justify-between gap-4 cursor-pointer transition-all ${
-              theme === 'dark'
-                ? 'bg-slate-900 border-amber-400 ring-2 ring-amber-400/20'
-                : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-amber-400">
-                <Moon className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-sm font-bold text-slate-100">Dark Mode (Default)</div>
-                <div className="text-xs text-slate-400">Slate & obsidian dark theme</div>
-              </div>
-            </div>
-            {theme === 'dark' && <Check className="w-4 h-4 text-amber-400" />}
-          </div>
-
-          <div
-            onClick={() => onToggleTheme('light')}
-            className={`rounded-xl border p-4 flex items-center justify-between gap-4 cursor-pointer transition-all ${
-              theme === 'light'
-                ? 'bg-slate-900 border-amber-400 ring-2 ring-amber-400/20'
-                : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400">
-                <Sun className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-sm font-bold text-slate-100">Light Mode</div>
-                <div className="text-xs text-slate-400">Crisp high-contrast theme</div>
-              </div>
-            </div>
-            {theme === 'light' && <Check className="w-4 h-4 text-amber-400" />}
-          </div>
-        </div>
       </section>
       )}
 
