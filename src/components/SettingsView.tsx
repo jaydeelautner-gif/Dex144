@@ -39,12 +39,16 @@ import { RescueShelterSection } from './RescueShelterSection';
 import type { RescueBinItem } from '../data/pokemonInventoryData';
 import type { User } from '../firebase';
 import { HOME_PANELS, type HomePanelVisibility, type HomePanelId } from '../data/homePanels';
+import { Volume2 } from 'lucide-react';
+import { areSoundEffectsEnabled, setSoundEffectsEnabled, SOUND_PREF_EVENT } from '../utils/gameboySound';
+import { playPokepetRegisteredSound } from '../utils/gameboySound';
 
-type TabId = 'home' | 'games' | 'tracker' | 'export' | 'storage' | 'rescue' | 'danger';
+type TabId = 'home' | 'games' | 'sounds' | 'tracker' | 'export' | 'storage' | 'rescue' | 'danger';
 
 const SETTINGS_TABS: { id: TabId; label: string; hint: string; icon: React.ElementType }[] = [
   { id: 'home', label: 'Home Screen', hint: 'Choose visible panels', icon: Layers },
   { id: 'games', label: 'Games & DLC', hint: 'Owned games & expansions', icon: Layers },
+  { id: 'sounds', label: 'Sounds', hint: 'Sound effects on/off', icon: Volume2 },
   { id: 'tracker', label: 'Tracker', hint: 'Tally & suggestions', icon: Compass },
   { id: 'export', label: 'Export & Sharing', hint: 'Trainer card & backups', icon: Share2 },
   { id: 'storage', label: 'Storage & Sync', hint: 'Offline & cloud sync', icon: CloudDownload },
@@ -142,6 +146,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onResetAllProgress,
   onNavigateToTracker,
 }) => {
+  const [soundEffectsOn, setSoundEffectsOn] = useState(() => areSoundEffectsEnabled());
+  useEffect(() => {
+    const sync = () => setSoundEffectsOn(areSoundEffectsEnabled());
+    window.addEventListener(SOUND_PREF_EVENT, sync);
+    return () => window.removeEventListener(SOUND_PREF_EVENT, sync);
+  }, []);
   const [confirmReset, setConfirmReset] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>(openOfflineSectionRequest ? 'storage' : 'games');
   useEffect(() => { if(openOfflineSectionRequest) setActiveTab('storage'); },[openOfflineSectionRequest]);
@@ -291,6 +301,35 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </fieldset>
           ))}
           <button type="button" onClick={onResetHomePanels} className="self-start px-4 py-2 rounded-xl bg-amber-500 text-slate-950 text-xs font-bold">Restore default home layout</button>
+        </section>
+      )}
+
+      {/* SECTION: SOUNDS */}
+      {activeTab === 'sounds' && (
+        <section className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 flex flex-col gap-4">
+          <div>
+            <h2 className="text-lg font-bold text-slate-100">Sounds</h2>
+            <p className="text-xs text-slate-400 mt-1">Control the app's synthesized sound effects. Saved on this device and available offline.</p>
+          </div>
+          <label className="flex items-start gap-3 p-3 rounded-xl bg-slate-900 border border-slate-800 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={soundEffectsOn}
+              onChange={(e) => setSoundEffectsEnabled(e.target.checked)}
+              className="mt-1 accent-amber-400"
+            />
+            <span>
+              <span className="block text-sm text-slate-100 font-semibold">Sound effects</span>
+              <span className="block text-xs text-slate-400 mt-0.5">Boot chime, dex opening, closing and the PokéPet registration jingle.</span>
+            </span>
+          </label>
+          <button
+            type="button"
+            onClick={() => { void playPokepetRegisteredSound(); }}
+            className="self-start px-4 py-2 rounded-xl bg-amber-500 text-slate-950 text-xs font-bold cursor-pointer"
+          >
+            Preview registration jingle
+          </button>
         </section>
       )}
 

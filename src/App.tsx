@@ -85,7 +85,7 @@ import { OpeningScreen } from './components/OpeningScreen';
 import { ClosedDexCover, PokedexClosingAnimation } from './components/DexCover';
 import { DexFrame } from './components/DexFrame';
 import { PokedexOpeningAnimation } from './components/PokedexOpeningAnimation';
-import { playGameboyPowerOnSound } from './utils/gameboySound';
+import { playGameboyPowerOnSound, playPokepetRegisteredSound } from './utils/gameboySound';
 
 import {
   auth,
@@ -1124,6 +1124,7 @@ export function App() {
     };
 
     setInventory((prev) => [taggedInstance, ...prev]);
+    playPokepetRegisteredSound();
 
     savePokepetToUniversalDatabase(taggedInstance, ownerId, effectiveTrainerName).catch((err) => {
       console.warn('Failed to save pokepet to universal database:', err);

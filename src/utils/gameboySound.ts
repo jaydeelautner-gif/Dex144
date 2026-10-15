@@ -6,6 +6,16 @@
 
 let audioCtx: AudioContext | null = null;
 
+/** User preference: sound effects on/off (persisted, defaults to on). */
+export const SOUND_PREF_EVENT = 'homedex-sound-pref-changed';
+export function areSoundEffectsEnabled(): boolean {
+  try { return localStorage.getItem('homedex_sound_effects_v1') !== 'false'; } catch { return true; }
+}
+export function setSoundEffectsEnabled(enabled: boolean): void {
+  try { localStorage.setItem('homedex_sound_effects_v1', String(enabled)); } catch { /* ignore */ }
+  try { window.dispatchEvent(new Event(SOUND_PREF_EVENT)); } catch { /* ignore */ }
+}
+
 function getAudioContext(): AudioContext | null {
   if (typeof window === 'undefined') return null;
   const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -42,6 +52,7 @@ export function primeGameboyAudio(): void {
  */
 export function playGameboyPowerOnSound(): void {
   try {
+    if (!areSoundEffectsEnabled()) return;
     const ctx = getAudioContext();
     if (!ctx) return;
 
@@ -104,6 +115,7 @@ export function playGameboyPowerOnSound(): void {
  */
 export function playPokedexOpenSound(): void {
   try {
+    if (!areSoundEffectsEnabled()) return;
     const ctx = getAudioContext();
     if (!ctx) return;
 
@@ -150,6 +162,43 @@ export function playPokedexOpenSound(): void {
     gainChirp.connect(ctx.destination);
     oscChirp.start(chirpTime);
     oscChirp.stop(chirpTime + 0.2);
+  } catch {
+    // ignore
+  }
+}
+/**
+ * PokéPet registration fanfare — a locally-synthesized homage to the classic
+ * Game Boy "Pokémon captured!" jingle (rising pokeball chime + final ping).
+ * No copyrighted audio files are shipped; the melody is synthesized on device.
+ */
+export function playPokepetRegisteredSound(): void {
+  if (!areSoundEffectsEnabled()) return;
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    const now = ctx.currentTime + 0.05;
+    // Quick capture "clink": rapid alternating low/high square blips.
+    const blip = (t: number, freq: number, dur: number, vol: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(vol, t + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(t); osc.stop(t + dur + 0.05);
+    };
+    // Capture rattle (three quick descending pokes like a wobbling ball).
+    blip(now, 1244, 0.07, 0.14); // D#6
+    blip(now + 0.12, 1244, 0.07, 0.12);
+    blip(now + 0.24, 987, 0.09, 0.13); // B5
+    // Triumphant caught-fanfare arpeggio: C5 E5 G5 C6 (held), final E6 ping.
+    blip(now + 0.5, 523.25, 0.16, 0.16);
+    blip(now + 0.66, 659.25, 0.16, 0.16);
+    blip(now + 0.82, 783.99, 0.16, 0.17);
+    blip(now + 0.98, 1046.5, 0.5, 0.18);
+    blip(now + 1.18, 1318.5, 0.45, 0.14);
   } catch {
     // ignore
   }
