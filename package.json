@@ -21,6 +21,7 @@
     "test:preferences": "tsx tests/dlcHomePreferences.test.ts && npm run build && node tests/preferences.browser.mjs",
     "test:catchability": "tsx tests/catchability.test.ts",
     "test:starter-lock": "tsx tests/starterLock.test.ts",
+    "test:game-progress-sync": "tsx tests/gameProgressSync.test.ts",
     "test:offline-patch": "node tests/offlinePatch.browser.mjs",
     "test:auth-gateway": "npm run build && node tests/authGateway.browser.mjs",
     "test:sync": "node --experimental-strip-types tests/syncDiagnostics.test.ts || npx tsx tests/syncDiagnostics.test.ts",
