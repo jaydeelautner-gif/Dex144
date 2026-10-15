@@ -25,7 +25,7 @@ import {
 import {
   getPokemonGenderInfo,
 } from '../data/pokemonGenderData';
-import { canBeHomeGift, getHomeGiftInfo } from '../data/homeGiftsData';
+import { canBeHomeGift } from '../data/homeGiftsData';
 import {
   isTransferToHomePermanentlyBlocked,
   type PokemonInstance,
@@ -809,10 +809,14 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
               </div>
             </div>
 
-            {/* Special Origin: Pokémon HOME Gift Checkbox */}
-            {isGiftEligible && (
-              <div className="p-3.5 rounded-xl bg-purple-950/25 border border-purple-500/50 flex flex-col gap-2">
-                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+            {/* Gift and trade origin toggles */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {isGiftEligible && (
+                <label className={`flex items-center gap-2.5 p-3 rounded-xl border cursor-pointer select-none ${
+                  isHomeGift
+                    ? 'bg-purple-950/25 border-purple-500/50'
+                    : 'bg-slate-900/90 border-slate-800 hover:border-purple-500/50'
+                }`}>
                   <input
                     type="checkbox"
                     checked={isHomeGift}
@@ -820,50 +824,37 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
                       const checked = e.target.checked;
                       setIsHomeGift(checked);
                       if (checked) {
+                        setIsTraded(false);
                         setStoredInHome(true);
                       }
                     }}
                     className="w-5 h-5 lg:w-4 lg:h-4 rounded text-purple-600 bg-slate-950 border-purple-500 focus:ring-0 cursor-pointer"
                   />
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold text-purple-200 flex items-center gap-1.5">
-                      <Gift className="w-3.5 h-3.5 text-purple-400" />
-                      <span>Gifted from Pokémon HOME</span>
-                    </span>
-                    <span className="text-[11px] text-purple-300/80">
-                      {getHomeGiftInfo(selectedPokemon?.id || 0)?.description ||
-                        'Pokémon HOME Mystery Gift / Event distribution'}
-                    </span>
-                  </div>
+                  <span className="text-xs font-bold text-purple-200 flex items-center gap-1.5">
+                    <Gift className="w-3.5 h-3.5 text-purple-400" />
+                    Gifted from Pokémon HOME
+                  </span>
                 </label>
-                {isHomeGift && (
-                  <p className="text-[11px] text-purple-300 bg-purple-900/40 p-2 rounded-lg border border-purple-500/30">
-                    ★ When tagged as <strong>Gifted from Home</strong>, it cannot have a game assigned to it and the option to pick a game does not appear. HOME gifts are the only Pokémon that can be counted as caught in the dex without an origin game.
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Trade Checkbox */}
-            {!isHomeGift && (
-              <label className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-sky-500/50 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={isTraded}
-                  onChange={(e) => setIsTraded(e.target.checked)}
-                  className="w-5 h-5 lg:w-4 lg:h-4 rounded text-sky-500 bg-slate-950 border-slate-700 focus:ring-0 cursor-pointer"
-                />
-                <div className="flex flex-col">
+              )}
+              <label className={`flex items-center gap-2.5 p-3 rounded-xl bg-slate-900/90 border border-slate-800 select-none ${
+                isHomeGift ? 'opacity-50 cursor-not-allowed' : 'hover:border-sky-500/50 cursor-pointer'
+              }`}>
+                  <input
+                    type="checkbox"
+                    checked={isTraded}
+                    disabled={isHomeGift}
+                    onChange={(e) => {
+                      setIsTraded(e.target.checked);
+                      if (e.target.checked) setIsHomeGift(false);
+                    }}
+                    className="w-5 h-5 lg:w-4 lg:h-4 rounded text-sky-500 bg-slate-950 border-slate-700 focus:ring-0 cursor-pointer disabled:cursor-not-allowed"
+                  />
                   <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
                     <ArrowLeftRight className="w-3.5 h-3.5 text-sky-400" />
-                    <span>Received via Trade</span>
+                    Received via Trade
                   </span>
-                  <span className="text-[10px] text-slate-400">
-                    Unlocks games you don't own as a valid origin.
-                  </span>
-                </div>
               </label>
-            )}
+            </div>
 
             {/* Game Origin Selection */}
             {!isHomeGift && (
