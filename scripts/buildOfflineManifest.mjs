@@ -16,6 +16,7 @@ function walk(dir) {
   }
 }
 walk(root); files.sort((a,b)=>a.url.localeCompare(b.url));
+if (!files.some(f=>f.url==='/offline-media.json')) throw Error('Offline artwork catalog missing. Run `npm run generate:offline-media` and commit public/offline-media.json.');
 if (!files.some(f=>f.url==='/index.html') || !files.some(f=>f.url==='/data/encounters.json') || !files.some(f=>f.url==='/offline-media.json') || !files.some(f=>f.url==='/sw.js')) throw Error('Incomplete offline build output.');
 writeFileSync(join(root,'offline-manifest.json'),JSON.stringify({schema:2,version,files}));
 console.log(`Offline manifest ${version}: ${files.length} required site files, ${files.reduce((n,f)=>n+f.bytes,0)} bytes (before artwork).`);

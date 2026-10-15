@@ -6,7 +6,12 @@ import { readFileSync,existsSync } from 'node:fs';
 import { join,extname } from 'node:path';
 import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
-import { chromium } from '@playwright/test';
+// Playwright is an optional, test-only dependency: install with
+// `npm i -D @playwright/test && npx playwright install chromium` to run this suite.
+const { chromium } = await import('@playwright/test').catch(() => {
+  console.log('SKIP: @playwright/test is not installed (optional dev dependency).');
+  process.exit(0);
+});
 import { build } from 'esbuild';
 const root=new URL('../dist/',import.meta.url).pathname;
 const original=JSON.parse(readFileSync(join(root,'offline-manifest.json')));
