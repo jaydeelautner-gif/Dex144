@@ -169,6 +169,14 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
     return canBeHomeGift(selectedPokemon.id);
   }, [selectedPokemon]);
 
+  const availableOriginGames = useMemo(
+    () => GAMES.filter((game) =>
+      USER_SELECTABLE_GAMES.includes(game.id) &&
+      (isTraded || ownedGames.includes(game.id))
+    ),
+    [isTraded, ownedGames]
+  );
+
   const transferBlockInfo = useMemo(() => {
     if (!selectedPokemon) return { isBlocked: false };
     if (isHomeGift) return { isBlocked: false };
@@ -863,43 +871,32 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
                   <Gamepad2 className="w-3.5 h-3.5 text-amber-400" />
                   <span>Origin Game Caught In *</span>
                 </label>
-                <select
-                  value={targetGame}
-                  onChange={(e) => setTargetGame(e.target.value as GameId)}
-                  className="w-full px-3 py-3 lg:py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm lg:text-xs font-semibold text-slate-200 focus:outline-none focus:border-amber-400 cursor-pointer"
-                >
-                  {ownedGames.length > 0 && (
-                    <optgroup label="Your Owned Games">
-                      {ownedGames.map((gId) => {
-                        const g = GAMES.find((item) => item.id === gId);
-                        return (
-                          <option key={gId} value={gId}>
-                            {g?.shortTitle || gId.toUpperCase()} ({g?.generationLabel})
-                          </option>
-                        );
-                      })}
-                    </optgroup>
-                  )}
-
-                  {isTraded && (
-                    <optgroup label="Other Main Series Games (via Trade)">
-                      {GAMES.filter((g) => !ownedGames.includes(g.id) && USER_SELECTABLE_GAMES.includes(g.id)).map((g) => (
-                        <option key={g.id} value={g.id}>
-                          {g.shortTitle} ({g.generationLabel})
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                </select>
-
-                {!isTraded ? (
-                  <span className="text-[10px] text-slate-400">
-                    Only games you own are listed. Tick <strong className="text-sky-300">Received via Trade</strong> to unlock other games.
-                  </span>
+                {availableOriginGames.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {availableOriginGames.map((game) => {
+                      const selected = targetGame === game.id;
+                      return (
+                        <button
+                          key={game.id}
+                          type="button"
+                          aria-pressed={selected}
+                          aria-label={`Origin game: ${game.title}`}
+                          onClick={() => setTargetGame(game.id)}
+                          className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-colors cursor-pointer ${
+                            selected
+                              ? 'bg-amber-400/15 border-amber-400/60 text-amber-200'
+                              : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-amber-400/40 hover:text-slate-100'
+                          }`}
+                        >
+                          {game.shortTitle}
+                        </button>
+                      );
+                    })}
+                  </div>
                 ) : (
-                  <span className="text-[10px] text-sky-400">
-                    Trade mode: any main series game can be selected as the origin.
-                  </span>
+                  <p className="text-[11px] text-slate-400">
+                    No owned games selected. Mark a game as owned in Settings or enable Received via Trade.
+                  </p>
                 )}
               </div>
             )}
