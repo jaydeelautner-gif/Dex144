@@ -1294,6 +1294,45 @@ export function App() {
     });
   }, [user]);
 
+  /**
+   * Permanently delete ONE PokéPet from the rescue shelter. This is immediate
+   * and irreversible: the sidebar record and its cloud copy are destroyed
+   * rather than the 30-day auto-expiry doing it later.
+   */
+  const handlePurgeRescueItem = useCallback((rescueId: string) => {
+    setRescueBin((binPrev) => {
+      const nextBin = binPrev.filter((b) => b.rescueId !== rescueId);
+      try {
+        localStorage.setItem(LS_RESCUE_BIN_KEY, JSON.stringify(nextBin));
+      } catch {
+        // ignore
+      }
+      return nextBin;
+    });
+    if (user?.uid) {
+      deleteRescueItemFromUserCollection(user.uid, rescueId).catch(() => {});
+    }
+    setToast({ message: 'PokéPet permanently deleted from the shelter.', type: 'info' });
+  }, [user]);
+
+  /** Permanently delete EVERY PokéPet currently in the rescue shelter. */
+  const handlePurgeAllRescue = useCallback(() => {
+    const ids = rescueBin.map((b) => b.rescueId);
+    if (ids.length === 0) return;
+    setRescueBin(() => {
+      try {
+        localStorage.setItem(LS_RESCUE_BIN_KEY, JSON.stringify([]));
+      } catch {
+        // ignore
+      }
+      return [];
+    });
+    if (user?.uid) {
+      for (const id of ids) deleteRescueItemFromUserCollection(user.uid, id).catch(() => {});
+    }
+    setToast({ message: `Permanently deleted ${ids.length} PokéPet${ids.length === 1 ? '' : 's'} from the shelter.`, type: 'info' });
+  }, [user, rescueBin]);
+
   // Rescue all pokepets from the 30-day bin
   const handleRescueAll = useCallback(() => {
     const binPrev = rescueBin;
@@ -2735,6 +2774,8 @@ export function App() {
                 inventoryCount={inventory.length}
                 rescueBin={rescueBin}
                 onRescuePokepet={handleRescuePokepet}
+                onPurgeRescueItem={handlePurgeRescueItem}
+                onPurgeAllRescue={handlePurgeAllRescue}
                 onRescueAll={handleRescueAll}
                 onToggleOwnedGame={handleToggleOwnedGame}
                 onSetAllOwnedGames={(games) => setOwnedGames(normalizeToCanonicalGames(games))}

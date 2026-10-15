@@ -30,6 +30,10 @@ interface RescueShelterSectionProps {
   dex: PokemonEntry[];
   onRescuePokepet: (rescueId: string) => void;
   onRescueAll: () => void;
+  /** Permanently destroy one sheltered PokéPet (irreversible). */
+  onPurgeRescueItem: (rescueId: string) => void;
+  /** Permanently destroy every sheltered PokéPet (irreversible). */
+  onPurgeAllRescue: () => void;
 }
 
 export const RescueShelterSection: React.FC<RescueShelterSectionProps> = ({
@@ -37,9 +41,15 @@ export const RescueShelterSection: React.FC<RescueShelterSectionProps> = ({
   dex,
   onRescuePokepet,
   onRescueAll,
+  onPurgeRescueItem,
+  onPurgeAllRescue,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [rescuedSuccessMsg, setRescuedSuccessMsg] = useState<string | null>(null);
+  // Permanent deletion is irreversible, so it always needs an explicit confirm.
+  const [confirmPurgeId, setConfirmPurgeId] = useState<string | null>(null);
+  const [confirmPurgeAll, setConfirmPurgeAll] = useState(false);
+  const [purgedMsg, setPurgedMsg] = useState<string | null>(null);
 
   const filteredItems = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -64,6 +74,23 @@ export const RescueShelterSection: React.FC<RescueShelterSectionProps> = ({
     onRescuePokepet(item.rescueId);
     setRescuedSuccessMsg(`Rescued ${displayName} (${item.instance.pokeId}) back to your active inventory!`);
     setTimeout(() => setRescuedSuccessMsg(null), 4000);
+  };
+
+  const handlePurgeOne = (item: RescueBinItem) => {
+    const mon = dex.find((p) => p.id === item.instance.pokemonId);
+    const displayName = item.instance.nickname || mon?.name || `Pokémon #${item.instance.pokemonId}`;
+    onPurgeRescueItem(item.rescueId);
+    setConfirmPurgeId(null);
+    setPurgedMsg(`${displayName} (${item.instance.pokeId}) was permanently deleted. This cannot be undone.`);
+    setTimeout(() => setPurgedMsg(null), 5000);
+  };
+
+  const handlePurgeAll = () => {
+    const count = rescueBin.length;
+    onPurgeAllRescue();
+    setConfirmPurgeAll(false);
+    setPurgedMsg(`Permanently deleted ${count} sheltered Pokémon. This cannot be undone.`);
+    setTimeout(() => setPurgedMsg(null), 5000);
   };
 
   const handleRescueAllItems = () => {
@@ -96,11 +123,12 @@ export const RescueShelterSection: React.FC<RescueShelterSectionProps> = ({
             Rescue Pokémon Shelter
           </h2>
           <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
-            All PokéPets you choose to delete are safeguarded here for 30 days along with their permanent 12-digit POKEID, original battle stats, nickname, and origin data. Rescuing a Pokémon restores it immediately to your account and protects it so it is no longer eligible to be automatically deleted.
+            All PokéPets you choose to delete are safeguarded here for 30 days along with their permanent 12-digit POKEID, original battle stats, nickname, and origin data. Rescuing a Pokémon restores it immediately to your account and protects it so it is no longer eligible to be automatically deleted. You can also delete a single PokéPet — or the whole shelter — immediately and permanently instead of waiting for the 30-day countdown; permanent deletion cannot be undone.
           </p>
         </div>
 
         {rescueBin.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
           <button
             type="button"
             onClick={handleRescueAllItems}
@@ -109,6 +137,36 @@ export const RescueShelterSection: React.FC<RescueShelterSectionProps> = ({
             <Heart className="w-4 h-4 fill-slate-950" />
             <span>Rescue All Pokémon ({rescueBin.length})</span>
           </button>
+          {confirmPurgeAll ? (
+            <>
+              <button
+                type="button"
+                onClick={handlePurgeAll}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs cursor-pointer"
+              >
+                <AlertTriangle className="w-3.5 h-3.5" />
+                <span>Yes, delete all {rescueBin.length} forever</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmPurgeAll(false)}
+                className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold cursor-pointer"
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmPurgeAll(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-rose-950 border border-slate-700 hover:border-rose-500/60 text-rose-300 font-bold text-xs cursor-pointer"
+              title="Permanently destroy every sheltered PokéPet. This cannot be undone."
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete All Forever</span>
+            </button>
+          )}
+          </div>
         )}
       </div>
 
@@ -117,6 +175,14 @@ export const RescueShelterSection: React.FC<RescueShelterSectionProps> = ({
         <div className="p-3.5 rounded-xl bg-emerald-950/60 border border-emerald-500/50 flex items-center gap-3 text-emerald-200 text-xs font-medium animate-fade-in">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>{rescuedSuccessMsg}</span>
+        </div>
+      )}
+
+      {/* Permanent deletion feedback */}
+      {purgedMsg && (
+        <div className="p-3.5 rounded-xl bg-rose-950/60 border border-rose-500/50 flex items-center gap-3 text-rose-200 text-xs font-medium animate-fade-in">
+          <Trash2 className="w-4 h-4 text-rose-400 shrink-0" />
+          <span>{purgedMsg}</span>
         </div>
       )}
 
@@ -233,20 +299,57 @@ export const RescueShelterSection: React.FC<RescueShelterSectionProps> = ({
                   </div>
                 </div>
 
-                {/* Rescue Action */}
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-[10px] text-slate-500 font-mono">
-                    Tagged owner: {item.originalTrainerName || 'Trainer'}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleRescueSingle(item)}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs transition-colors cursor-pointer shadow-md shadow-emerald-500/20"
-                  >
-                    <Heart className="w-3.5 h-3.5 fill-slate-950" />
-                    <span>Rescue Pokémon</span>
-                  </button>
-                </div>
+                {/* Rescue / permanent delete actions */}
+                {confirmPurgeId === item.rescueId ? (
+                  <div className="rounded-lg border border-rose-500/50 bg-rose-950/40 p-2.5 flex flex-col gap-2">
+                    <span className="text-[11px] text-rose-200 font-semibold flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      Delete {item.instance.pokeId} permanently? This cannot be undone.
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handlePurgeOne(item)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete Forever</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmPurgeId(null)}
+                        className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-[10px] text-slate-500 font-mono">
+                      Tagged owner: {item.originalTrainerName || 'Trainer'}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setConfirmPurgeId(item.rescueId)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-rose-950 border border-slate-700 hover:border-rose-500/60 text-rose-300 font-bold text-xs transition-colors cursor-pointer"
+                        title="Permanently delete this PokéPet now instead of waiting 30 days."
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete Forever</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRescueSingle(item)}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs transition-colors cursor-pointer shadow-md shadow-emerald-500/20"
+                      >
+                        <Heart className="w-3.5 h-3.5 fill-slate-950" />
+                        <span>Rescue Pokémon</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}

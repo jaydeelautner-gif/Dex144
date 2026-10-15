@@ -66,6 +66,10 @@ interface SettingsViewProps {
   rescueBin: RescueBinItem[];
   onRescuePokepet: (rescueId: string) => void;
   onRescueAll: () => void;
+  /** Permanently destroy one sheltered PokéPet (irreversible). */
+  onPurgeRescueItem: (rescueId: string) => void;
+  /** Permanently destroy every sheltered PokéPet (irreversible). */
+  onPurgeAllRescue: () => void;
   user?: User | null;
   onSyncSuccess?: (syncedCount: number) => void;
   openOfflineSectionRequest?: number;
@@ -109,6 +113,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   rescueBin,
   onRescuePokepet,
   onRescueAll,
+  onPurgeRescueItem,
+  onPurgeAllRescue,
   livingSet,
   ownedGames,
   ownedDlcs,
@@ -597,6 +603,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         rescueBin={rescueBin}
         dex={dex}
         onRescuePokepet={onRescuePokepet}
+        onPurgeRescueItem={onPurgeRescueItem}
+        onPurgeAllRescue={onPurgeAllRescue}
         onRescueAll={onRescueAll}
       />
       )}
