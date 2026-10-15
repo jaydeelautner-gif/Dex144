@@ -84,7 +84,6 @@ import { FriendsView } from './components/FriendsView';
 import { OpeningScreen } from './components/OpeningScreen';
 import { ClosedDexCover, PokedexClosingAnimation } from './components/DexCover';
 import { TrainerAvatar, AvatarBuilder, loadLocalAvatar, saveLocalAvatar, DEFAULT_AVATAR as DEFAULT_AVATAR_CONFIG, type TrainerAvatarConfig } from './components/TrainerAvatar';
-import { GymBadgeStrip, gameBadgeSprites } from './components/GymBadgeStrip';
 import { ProfileCard } from './components/ProfileCard';
 import { DexFrame } from './components/DexFrame';
 import { PokedexOpeningAnimation } from './components/PokedexOpeningAnimation';
@@ -3008,37 +3007,7 @@ export function App() {
                         />
                       </div>
                     </section>
-                    <section className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-5 flex flex-col gap-4">
-                      <div>
-                        <h2 className="text-base font-bold text-slate-100">Gym Badges by Game</h2>
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          Badge sprites for your owned games, lit up for every badge you marked as earned in Progress tracking.
-                        </p>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {normalizeToCanonicalGames(ownedGames).map((gameId) => {
-                          const prefix = gameBadgeSprites(gameId)?.prefix;
-                          if (!prefix) return null;
-                          const stripGame = GAMES.find((g) => g.id === gameId);
-                          return (
-                            <div key={gameId} className="bg-[#0B0F17] border border-slate-800/80 rounded-xl p-3 flex flex-col gap-2">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <GameLogoBadge gameId={gameId} size="xs" />
-                                <span className="text-xs font-bold text-slate-100 truncate">{stripGame?.shortTitle ?? gameId}</span>
-                              </div>
-                              <GymBadgeStrip
-                                gameId={gameId}
-                                completedIds={gameProgress[prefix] || []}
-                                size={30}
-                                extra={prefix === 'gs' || prefix === 'hgss'
-                                  ? { sprite: 9, earned: gameProgress[prefix]?.includes(`${prefix}-kanto`), label: 'Kanto badges (all 8)' }
-                                  : null}
-                              />
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </section>
+                    
                   </div>
                 )}
                 {profileSubTab === 'friends' && (

@@ -123,18 +123,34 @@ try {
   await page.getByRole('button', { name: 'Test Trainer' }).first().click();
   const card = page.locator('[aria-label="Trainer card"]');
   await card.waitFor();
-  await card.screenshot({ path: '/tmp/profile-card.png' });
+  await page.evaluate(() => {
+    const el = document.querySelector('[aria-label="Trainer card"]');
+    el?.scrollIntoView();
+  });
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: '/tmp/profile-card.png' });
   const cardText = await card.innerText();
   console.log('CARD:', cardText.replace(/\n/g, ' | ').slice(0, 220));
   await page.getByRole('button', { name: 'Avatar Builder' }).click();
+  await page.waitForTimeout(500);
+  const builder = page.locator('section', { hasText: 'Your Trainer Avatar' }).first();
+  await builder.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: '/tmp/avatar-builder.png' });
+  for (const label of ['ponytail', 'determined', 'hoodie', 'beanie', 'scarf']) {
+    await page.getByRole('button', { name: label, exact: true }).click();
+    await page.waitForTimeout(150);
+  }
+  await page.screenshot({ path: '/tmp/avatar-custom.png' });
+  const saved = await page.evaluate(() => localStorage.getItem('homedex_avatar_v1'));
+  console.log('AVATAR-SAVED:', saved);
+  await page.locator('svg[aria-label="Trainer avatar"]').first().screenshot({ path: '/tmp/avatar-custom.svg.png' });
   await page.waitForTimeout(1000);
   const badgeImgs = await page.locator('img[src*="/badges/"]').count();
   const lit = await page.locator('img[src*="/badges/"]:not(.grayscale)').count();
   const svg = await page.locator('svg[aria-label="Trainer avatar"]').count();
   console.log('BADGES total:', badgeImgs, 'lit:', lit, 'avatar-svg:', svg);
 
-  await page.locator('section', { hasText: 'Gym Badges by Game' }).first().scrollIntoViewIfNeeded();
-  await page.waitForTimeout(600);
   await page.screenshot({ path: '/tmp/trainer-tab2.png', fullPage: false });
   assert.ok(badgeImgs >= 30, 'badge sprites render per owned game in profile');
   assert.equal(svg, 1, 'avatar preview renders');

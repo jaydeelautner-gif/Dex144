@@ -1,9 +1,10 @@
 import React from 'react';
 import type { GameId } from '../data/pokemonData';
 import { GAMES } from '../data/pokemonData';
-import { MILESTONE_INDEX } from '../data/milestones';
 import { TrainerAvatar, type TrainerAvatarConfig } from './TrainerAvatar';
-import { GROUP_BADGE_SPRITES, badgeSpriteUrl, gameBadgeSprites } from './GymBadgeStrip';
+import { GymBadgeStrip, gameBadgeSprites } from './GymBadgeStrip';
+import { GameLogoBadge } from './GameLogoBadge';
+import { MILESTONE_INDEX } from '../data/milestones';
 
 /**
  * Trainer Card — the classic in-game trainer card, HomeDex edition.
@@ -22,28 +23,22 @@ export const ProfileCard: React.FC<{
     [ownedGames]
   );
 
-  // Earned badge sprites per owned group, in milestone order.
+  // Count earned badges per owned group (badge-type milestones only).
   const badgeRows = React.useMemo(() => {
-    const rows: { group: string; sprites: { url: string; earned: boolean }[]; earned: number }[] = [];
+    const rows: { gameId: GameId; prefix: string; earned: number; total: number }[] = [];
     for (const game of owned) {
       const mapping = gameBadgeSprites(game.id);
-      if (!mapping || rows.some((r) => r.group === mapping.prefix)) continue;
+      if (!mapping || rows.some((r) => r.prefix === mapping.prefix)) continue;
       const completed = new Set(gameProgress[mapping.prefix] ?? []);
-      const sprites = GROUP_BADGE_SPRITES[mapping.prefix].map((n, i) => {
-        const milestoneId = `${mapping.prefix}-badge-${i + 1}`;
-        const earned = completed.has(milestoneId) || (MILESTONE_INDEX.get(milestoneId)?.type === 'badge' && completed.has(milestoneId));
-        return { url: badgeSpriteUrl(n), earned };
-      });
-      // SV uses sv-gym-N ids instead of sv-badge-N.
-      const svEarned = mapping.prefix === 'sv'
-        ? GROUP_BADGE_SPRITES.sv.map((n, i) => ({ url: badgeSpriteUrl(n), earned: completed.has(`sv-gym-${i + 1}`) }))
-        : sprites;
-      const earnedCount = svEarned.filter((b) => b.earned).length;
-      rows.push({ group: mapping.prefix, sprites: svEarned, earned: earnedCount });
+      const total = (mapping.sprites.length);
+      const earned = [...completed].filter((id) => {
+        const m = MILESTONE_INDEX.get(id);
+        return m?.type === 'badge' && id.startsWith(mapping.prefix);
+      }).length;
+      rows.push({ gameId: game.id, prefix: mapping.prefix, earned, total });
     }
     return rows;
   }, [owned, gameProgress]);
-
   const totalBadges = badgeRows.reduce((n, r) => n + r.earned, 0);
   const gameChips = owned.slice(0, 8);
   const extraGames = Math.max(0, owned.length - gameChips.length);
@@ -110,35 +105,43 @@ export const ProfileCard: React.FC<{
           )}
         </div>
 
-        {/* Badge case */}
+        {/* Badge case — one mini-card per badge game, like the trainer's case pages */}
         <div className="rounded-xl bg-black/30 border border-white/20 p-2.5 flex flex-col gap-1.5">
-          <span className="text-[10px] font-mono uppercase tracking-widest text-amber-200/90">
-            Badge Case
-          </span>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-mono uppercase tracking-widest text-amber-200/90">
+              Badge Case
+            </span>
+            <span className="text-[10px] font-mono text-white/60">
+              {totalBadges} badges earned
+            </span>
+          </div>
           {badgeRows.length === 0 ? (
             <span className="text-[11px] text-red-100/70 font-mono">No badge games owned yet.</span>
           ) : (
-            <div className="flex flex-col gap-1.5 max-h-28 overflow-y-auto pr-1">
-              {badgeRows.map((row) => (
-                <div key={row.group} className="flex items-center gap-1.5">
-                  <span className="text-[10px] font-mono text-white/60 w-12 shrink-0 uppercase">
-                    {row.earned}/{row.sprites.length}
-                  </span>
-                  <div className="flex items-center gap-1 flex-wrap">
-                    {row.sprites.map((b, i) => (
-                      <img
-                        key={i}
-                        src={b.url}
-                        alt={b.earned ? 'Earned badge' : 'Locked badge'}
-                        width={22}
-                        height={22}
-                        loading="lazy"
-                        className={`rounded-full ${b.earned ? 'drop-shadow-[0_0_5px_rgba(251,191,36,0.8)]' : 'opacity-25 grayscale'}`}
-                      />
-                    ))}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-1">
+              {badgeRows.map((row) => {
+                const game = owned.find((g) => gameBadgeSprites(g.id)?.prefix === row.prefix)!;
+                const isJohto = row.prefix === 'gs' || row.prefix === 'hgss';
+                return (
+                  <div key={row.prefix} className="bg-[#0B0F17] border border-slate-700/70 rounded-xl p-3 flex flex-col gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <GameLogoBadge gameId={game.id} size="xs" />
+                      <span className="text-xs font-bold text-slate-100 truncate">{game.shortTitle}</span>
+                      <span className="ml-auto text-[10px] font-mono text-amber-300 shrink-0">
+                        {row.earned}/{row.total}
+                      </span>
+                    </div>
+                    <GymBadgeStrip
+                      gameId={game.id}
+                      completedIds={gameProgress[row.prefix] ?? []}
+                      size={30}
+                      extra={isJohto
+                        ? { sprite: 9, earned: (gameProgress[row.prefix] ?? []).includes(`${row.prefix}-kanto`), label: 'Kanto badges (all 8)' }
+                        : null}
+                    />
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
