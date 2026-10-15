@@ -418,12 +418,12 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
   }, [variations, selectedVariantId, selectedPokemon]);
 
   return (
-    <div className="flex flex-col gap-5 sm:gap-8 max-w-5xl mx-auto pb-40 lg:pb-12">
+    <div className="flex flex-col gap-4 sm:gap-6 max-w-5xl mx-auto pb-40 lg:pb-8">
       {/* Main Registration Panel */}
-      <form onSubmit={handleSubmit} className="flex flex-col gap-5 sm:gap-6">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-start">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4 lg:gap-3">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-3 items-start">
           {/* Left Column: Species Search & Live Artwork Preview */}
-          <div className="lg:col-span-5 flex flex-col gap-3 sm:gap-4 bg-[#0F1522] border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl">
+          <div className="lg:col-span-5 flex flex-col gap-2.5 lg:gap-3 bg-[#0F1522] border border-slate-800 rounded-2xl p-3 sm:p-4 shadow-xl">
             <label className="text-xs font-bold text-slate-200 flex items-center justify-between">
               <span>Select Species (Dex # or Name) *</span>
               <span className="text-[10px] text-amber-400 font-mono">1 to 1025</span>
@@ -527,8 +527,8 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
             )}
 
             {selectedPokemon && (
-              <div className="p-3 lg:p-4 rounded-xl bg-[#0B0F17] border border-slate-800 flex flex-col gap-3">
-                <div className="flex flex-row lg:flex-col items-center gap-3 lg:gap-3">
+              <div className="p-2.5 lg:p-3 rounded-xl bg-[#0B0F17] border border-slate-800 flex flex-col gap-2.5">
+                <div className="flex flex-row items-center gap-3">
                   <div className="w-20 h-20 lg:w-28 lg:h-28 bg-slate-900/90 rounded-xl flex items-center justify-center border border-slate-800 relative shadow-inner shrink-0">
                     <PokemonSprite
                       id={activeVariantObj.spriteId}
@@ -543,7 +543,7 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
                       </div>
                     )}
                   </div>
-                  <div className="flex-1 min-w-0 text-left lg:text-center">
+                  <div className="flex-1 min-w-0 text-left">
                     <div className="text-xs font-mono-tabular text-amber-400 font-bold">
                       #{String(selectedPokemon.id).padStart(4, '0')} — {selectedPokemon.region}
                     </div>
@@ -571,11 +571,80 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
                 )}
               </div>
             )}
+
+            {/* Level + Number Pad */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
+                <span>Level (Mandatory) *</span>
+                <span className="text-[10px] text-amber-400 font-mono">1 – 100</span>
+              </label>
+
+              <div className="flex items-stretch gap-2">
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  required
+                  inputMode="numeric"
+                  value={level}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setLevel(val === '' ? '' : Math.max(1, Math.min(100, Number(val))));
+                  }}
+                  className="w-20 sm:w-24 shrink-0 px-2 rounded-xl bg-slate-900 border border-slate-700 text-2xl sm:text-3xl font-bold font-mono text-slate-100 text-center focus:outline-none focus:border-amber-400"
+                  placeholder="50"
+                />
+
+                <div className="flex-1 min-w-0 p-1 rounded-xl bg-[#0B0F17] border border-slate-800 flex flex-col gap-1">
+                  <div className="grid grid-cols-3 lg:grid-cols-5 gap-1">
+                    {['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'].map((digit) => (
+                      <button
+                        key={digit}
+                        type="button"
+                        onClick={() => {
+                          const current = String(level === '' ? '' : level);
+                          const next = `${current}${digit}`;
+                          const num = Number(next);
+                          if (Number.isNaN(num)) return;
+                          setLevel(num > 100 ? Number(digit) : num);
+                        }}
+                        className={`py-1.5 lg:py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs lg:text-sm font-bold font-mono text-slate-100 cursor-pointer transition-colors active:bg-amber-500 active:text-slate-950 ${digit === '0' ? 'col-start-2 lg:col-start-auto' : ''}`}
+                      >
+                        {digit}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-2 gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setLevel('')}
+                      className="py-1.5 lg:py-1 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/50 text-rose-300 text-[10px] font-bold cursor-pointer transition-colors"
+                    >
+                      Clear
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const current = String(level === '' ? '' : level);
+                        const next = current.slice(0, -1);
+                        setLevel(next === '' ? '' : Number(next));
+                      }}
+                      className="py-1.5 lg:py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-[10px] font-bold text-slate-200 cursor-pointer transition-colors"
+                    >
+                      ⌫ Back
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <span className="text-[10px] text-slate-400">
+                Required for each instance. Displayed on public living dex and box views.
+              </span>
+            </div>
           </div>
 
           {/* Right Column: Pokepet Input Attributes */}
-          <div className="lg:col-span-7 flex flex-col gap-4 sm:gap-5 bg-[#0F1522] border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xl">
-            <h2 className="text-sm sm:text-base font-bold text-slate-100 border-b border-slate-800/80 pb-3">
+          <div className="lg:col-span-7 flex flex-col gap-3 lg:gap-2.5 bg-[#0F1522] border border-slate-800 rounded-2xl p-3 sm:p-5 lg:p-4 shadow-xl">
+            <h2 className="text-sm sm:text-base font-bold text-slate-100 border-b border-slate-800/80 pb-2">
               Pokepet Attributes & Acquisition Details
             </h2>
 
@@ -593,84 +662,8 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
               </div>
             )}
 
-            {/* Level + Number Pad — side by side on one row */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
-                <span>Level (Mandatory) *</span>
-                <span className="text-[10px] text-amber-400 font-mono">1 – 100</span>
-              </label>
-
-              <div className="flex items-stretch gap-2">
-                {/* Level input — left side */}
-                <input
-                  type="number"
-                  min="1"
-                  max="100"
-                  required
-                  inputMode="numeric"
-                  value={level}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setLevel(val === '' ? '' : Math.max(1, Math.min(100, Number(val))));
-                  }}
-                  className="w-20 sm:w-24 shrink-0 px-2 rounded-xl bg-slate-900 border border-slate-700 text-2xl sm:text-3xl font-bold font-mono text-slate-100 text-center focus:outline-none focus:border-amber-400"
-                  placeholder="50"
-                />
-
-                {/* Number pad — right side */}
-                <div className="flex-1 min-w-0 p-1.5 rounded-xl bg-[#0B0F17] border border-slate-800 flex flex-col gap-1.5">
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'].map((digit) => (
-                      <button
-                        key={digit}
-                        type="button"
-                        onClick={() => {
-                          const current = String(level === '' ? '' : level);
-                          const next = `${current}${digit}`;
-                          const num = Number(next);
-                          if (Number.isNaN(num)) return;
-                          if (num > 100) {
-                            setLevel(Number(digit));
-                          } else {
-                            setLevel(num);
-                          }
-                        }}
-                        className={`py-2 lg:py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-sm lg:text-base font-bold font-mono text-slate-100 cursor-pointer transition-colors active:bg-amber-500 active:text-slate-950 ${digit === '0' ? 'col-start-2' : ''}`}
-                      >
-                        {digit}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setLevel('')}
-                      className="py-2 lg:py-1.5 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/50 text-rose-300 text-[11px] font-bold cursor-pointer transition-colors"
-                    >
-                      Clear
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const current = String(level === '' ? '' : level);
-                        const next = current.slice(0, -1);
-                        setLevel(next === '' ? '' : Number(next));
-                      }}
-                      className="py-2 lg:py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-[11px] font-bold text-slate-200 cursor-pointer transition-colors"
-                    >
-                      ⌫ Back
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <span className="text-[10px] text-slate-400">
-                Required for each instance. Displayed on public living dex and box views.
-              </span>
-            </div>
-
             {/* Optional Poké Ball */}
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1">
               <label htmlFor="pokepet-ball" className="text-xs font-bold text-slate-300">
                 Poké Ball (Optional)
               </label>
@@ -678,7 +671,7 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
                 id="pokepet-ball"
                 value={ballType}
                 onChange={(e) => setBallType(e.target.value as PokeballId | '')}
-                className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm lg:text-xs font-semibold text-slate-200 focus:outline-none focus:border-amber-400 cursor-pointer"
+                className="w-full px-3 py-2 lg:py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-sm lg:text-xs font-semibold text-slate-200 focus:outline-none focus:border-amber-400 cursor-pointer"
               >
                 <option value="">Not specified</option>
                 {POKEBALLS.map((ball) => (
@@ -688,7 +681,7 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
             </div>
 
             {/* Nickname */}
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1">
               <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
                 <span>Nickname (Optional)</span>
                 <span className="text-[10px] text-slate-400 font-mono">{nickname.length}/10 chars</span>
@@ -700,7 +693,7 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value.slice(0, 10))}
                   placeholder={selectedPokemon?.name || 'In-game Name'}
-                  className="flex-1 px-3 py-3 lg:py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-base lg:text-sm font-semibold text-slate-100 focus:outline-none focus:border-amber-400"
+                  className="flex-1 px-3 py-2.5 lg:py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-base lg:text-sm font-semibold text-slate-100 focus:outline-none focus:border-amber-400"
                 />
                 {nickname && selectedPokemon && (
                   <button
@@ -719,8 +712,8 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
             </div>
 
             {/* Row: Form / Variant & Gender Selection */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-2">
+              <div className="flex flex-col gap-1">
                 <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
                   <span>Form / Regional Variant *</span>
                   <span className="text-[10px] text-amber-400 font-mono">{variations.length} available</span>
@@ -743,7 +736,7 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
                         <ChevronLeft className="w-5 h-5 lg:w-4 lg:h-4" />
                       </button>
 
-                      <div className="flex-1 min-w-0 px-3 py-2.5 lg:py-2 rounded-xl bg-slate-900 border border-amber-500/40 flex items-center gap-3">
+                      <div className="flex-1 min-w-0 px-2 py-2 lg:py-1 rounded-xl bg-slate-900 border border-amber-500/40 flex items-center gap-2">
                         <div className="w-10 h-10 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center shrink-0 overflow-hidden">
                           {currentVariant && (
                             <PokemonSprite
@@ -803,7 +796,7 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
                 )}
               </div>
 
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-1">
                 <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
                   <span>Gender</span>
                   <span className="text-[10px] text-slate-400 font-mono capitalize">
@@ -831,7 +824,7 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
                   <select
                     value={gender}
                     onChange={(e) => setGender(e.target.value as PokemonGender)}
-                    className="w-full px-3 py-3 lg:py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm lg:text-xs font-semibold text-slate-200 focus:outline-none focus:border-amber-400 cursor-pointer"
+                    className="w-full px-3 py-3 lg:py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-sm lg:text-xs font-semibold text-slate-200 focus:outline-none focus:border-amber-400 cursor-pointer"
                   >
                     {genderInfo.genderRatio !== 'female_only' && <option value="male">♂ Male</option>}
                     {genderInfo.genderRatio !== 'male_only' && <option value="female">♀ Female</option>}
@@ -843,7 +836,7 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
             {/* Gift and trade origin toggles */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {isGiftEligible && (
-                <label className={`flex items-center gap-2.5 p-3 rounded-xl border cursor-pointer select-none ${
+                <label className={`flex items-center gap-2.5 p-3 lg:p-2 rounded-xl border cursor-pointer select-none ${
                   isHomeGift
                     ? 'bg-purple-950/25 border-purple-500/50'
                     : 'bg-slate-900/90 border-slate-800 hover:border-purple-500/50'
@@ -867,7 +860,7 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
                   </span>
                 </label>
               )}
-              <label className={`flex items-center gap-2.5 p-3 rounded-xl bg-slate-900/90 border border-slate-800 select-none ${
+              <label className={`flex items-center gap-2.5 p-3 lg:p-2 rounded-xl bg-slate-900/90 border border-slate-800 select-none ${
                 isHomeGift ? 'opacity-50 cursor-not-allowed' : 'hover:border-sky-500/50 cursor-pointer'
               }`}>
                   <input
@@ -905,7 +898,7 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
                           aria-pressed={selected}
                           aria-label={`Origin game: ${game.title}`}
                           onClick={() => setTargetGame(game.id)}
-                          className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-colors cursor-pointer ${
+                          className={`px-2.5 py-1.5 lg:py-1 rounded-lg border text-[11px] font-semibold transition-colors cursor-pointer ${
                             selected
                               ? 'bg-amber-400/15 border-amber-400/60 text-amber-200'
                               : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-amber-400/40 hover:text-slate-100'
@@ -925,8 +918,8 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
             )}
 
             {/* Shiny Toggle */}
-            <div className="grid grid-cols-1 gap-3 pt-2 border-t border-slate-800">
-              <label className={`flex items-center gap-2.5 p-3 rounded-xl border cursor-pointer select-none ${
+            <div className="grid grid-cols-1 gap-2 pt-2 border-t border-slate-800">
+              <label className={`flex items-center gap-2.5 p-3 lg:p-2 rounded-xl border cursor-pointer select-none ${
                 isShiny
                   ? 'bg-amber-950/25 border-amber-500/50'
                   : 'bg-slate-900/90 border-slate-800 hover:border-amber-500/50'
@@ -945,7 +938,7 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
             </div>
 
             {/* Pokémon HOME Transfer Gate & Living Dex Eligibility */}
-            <div className="pt-2 border-t border-slate-800 flex flex-col gap-3">
+            <div className="pt-2 border-t border-slate-800 flex flex-col gap-2">
               {transferBlockInfo.isBlocked ? (
                 <div className="p-3.5 rounded-xl bg-rose-950/30 border border-rose-500/50 flex flex-col gap-1 text-xs text-rose-300">
                   <div className="flex items-center gap-1.5 font-bold">
@@ -960,7 +953,7 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
                   </p>
                 </div>
               ) : (
-                <label className={`flex items-center gap-2.5 p-3 rounded-xl border cursor-pointer select-none ${
+                <label className={`flex items-center gap-2.5 p-2 lg:p-1.5 rounded-xl border cursor-pointer select-none ${
                   isHomeGift || storedInHome
                     ? 'bg-emerald-950/25 border-emerald-500/50'
                     : 'bg-slate-900/90 border-slate-800 hover:border-emerald-500/50'
@@ -986,8 +979,8 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
               )}
 
               {storedInHome && !transferBlockInfo.isBlocked ? (
-                <div className="p-3.5 rounded-xl bg-sky-950/20 border border-sky-500/40 flex flex-col gap-3">
-                  <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                <div className="p-2 rounded-xl bg-sky-950/20 border border-sky-500/40 flex flex-col gap-2">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={isInLivingBox}
@@ -1004,19 +997,6 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
                       </span>
                     </div>
                   </label>
-
-                  {isInLivingBox && selectedPokemon && (
-                    <div className="pt-2 border-t border-sky-500/30 flex flex-col items-center">
-                      <span className="text-[10px] font-mono font-semibold text-sky-300 mb-1 text-center">
-                        Box {selectedPokemon.boxNumber}, Slot {selectedPokemon.boxSlot}
-                      </span>
-                      <BoxSlotMiniMap
-                        boxNumber={selectedPokemon.boxNumber}
-                        boxSlot={selectedPokemon.boxSlot}
-                        size="md"
-                      />
-                    </div>
-                  )}
                 </div>
               ) : (
                 <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800 text-xs text-rose-300/90 flex items-center gap-2">
