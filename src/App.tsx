@@ -527,6 +527,7 @@ export function App() {
     toggleMilestone,
     toggleTracking,
     resetGame: resetGameProgress,
+    restartGame,
     completeAll: completeAllMilestones,
   } = useGameProgress();
 
@@ -2162,6 +2163,7 @@ export function App() {
                 onToggleMilestone={toggleMilestone}
                 onToggleTracking={toggleTracking}
                 onResetGameProgress={resetGameProgress}
+                onRestartGame={restartGame}
                 onCompleteAllMilestones={completeAllMilestones}
                 onNavigateToProgress={() => setActiveTab('progress')}
                 // ── END GAME PROGRESS TRACKING ──
@@ -2652,6 +2654,7 @@ export function App() {
                 onToggle={toggleMilestone}
                 onToggleTracking={toggleTracking}
                 onReset={resetGameProgress}
+                onRestartGame={restartGame}
                 onCompleteAll={completeAllMilestones}
                 dex={dex}
                 caughtSet={caughtSet}

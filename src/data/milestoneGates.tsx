@@ -71,17 +71,14 @@ export const CURATED_MILESTONE_GATES: Record<number, string[]> = {
   24: ['lgpe-badge-3'],                              // Arbok
 
   // ── #0025–0036 — Pikachu / Sandshrew / Nidorans / Clefairy ──
-  27: ['lgpe-badge-3', 'bdsp-badge-2', 'swsh-ioa'],  // Sandshrew (Pikachu / Underground / IoA)
+  27: ['lgpe-badge-3', 'swsh-ioa'],  // Sandshrew (Pikachu / Underground / IoA)
   28: ['lgpe-badge-3', 'bdsp-badge-2', 'swsh-ioa'],  // Sandslash
-  35: ['swsh-badge-4'],                              // Clefairy (SwSh Wild Area mid-game)
-  36: ['swsh-badge-4'],                              // Clefable
 
   // ── #0037–0040 — Vulpix / Jigglypuff ──
   37: ['lgpe-badge-3', 'bdsp-badge-3', 'swsh-ioa', 'sv-dlc-indigo'], // Vulpix
   38: ['lgpe-badge-3', 'bdsp-badge-3', 'swsh-ioa', 'sv-dlc-indigo'], // Ninetales
 
   // ── #0041–0045 — Zubat / Oddish ──
-  43: ['lgpe-badge-2', 'swsh-badge-3'],              // Oddish
   44: ['lgpe-badge-2', 'swsh-badge-3'],              // Gloom
   45: ['lgpe-badge-2', 'swsh-badge-3'],              // Vileplume
 
@@ -96,39 +93,38 @@ export const CURATED_MILESTONE_GATES: Record<number, string[]> = {
   53: ['lgpe-badge-3', 'swsh-badge-1', 'sv-dlc-indigo'], // Persian
 
   // ── #0054–0062 — Psyduck / Mankey / Growlithe / Poliwag ──
-  54: ['lgpe-badge-2', 'swsh-badge-2', 'sv-gym-2'],  // Psyduck
-  55: ['lgpe-badge-2', 'swsh-badge-2', 'sv-gym-2'],  // Golduck
-  56: ['lgpe-badge-1', 'sv-gym-1'],                  // Mankey
-  57: ['lgpe-badge-1', 'sv-gym-1'],                  // Primeape
-  58: ['lgpe-badge-3', 'bdsp-badge-3', 'swsh-badge-2', 'sv-dlc-indigo'], // Growlithe
+  54: ['lgpe-badge-2', 'swsh-badge-2'],  // Psyduck
+  55: ['lgpe-badge-2', 'swsh-badge-2'],  // Golduck
+  56: ['lgpe-badge-1'],                  // Mankey
+  57: ['lgpe-badge-1'],                  // Primeape
+  58: ['lgpe-badge-3', 'sv-dlc-indigo'], // Growlithe
   59: ['lgpe-badge-3', 'bdsp-badge-3', 'swsh-badge-2', 'sv-dlc-indigo'], // Arcanine
-  60: ['lgpe-badge-2', 'swsh-badge-2', 'sv-dlc-indigo'], // Poliwag
-  61: ['lgpe-badge-2', 'swsh-badge-2', 'sv-dlc-indigo'], // Poliwhirl
+  60: ['swsh-badge-2', 'sv-dlc-indigo'], // Poliwag
+  61: ['swsh-badge-2', 'sv-dlc-indigo'], // Poliwhirl
   62: ['lgpe-badge-2', 'swsh-badge-2', 'sv-dlc-indigo'], // Poliwrath
 
   // ── #0063–0071 — Abra / Machop / Bellsprout ──
   63: ['lgpe-badge-2', 'swsh-badge-1', 'sv-gym-1'],  // Abra
   64: ['lgpe-badge-2', 'swsh-badge-1', 'sv-gym-1'],  // Kadabra
   65: ['lgpe-badge-2', 'swsh-badge-1', 'sv-gym-1'],  // Alakazam
-  66: ['lgpe-badge-2', 'swsh-badge-2', 'sv-gym-2'],  // Machop
-  67: ['lgpe-badge-2', 'swsh-badge-2', 'sv-gym-2'],  // Machoke
-  68: ['lgpe-badge-2', 'swsh-badge-2', 'sv-gym-2'],  // Machamp
-  69: ['lgpe-badge-2'],                              // Bellsprout (LGPE only)
+  66: ['lgpe-badge-2', 'sv-gym-2'],  // Machop
+  67: ['lgpe-badge-2', 'sv-gym-2'],  // Machoke
+  68: ['lgpe-badge-2', 'sv-gym-2'],  // Machamp
   70: ['lgpe-badge-2'],                              // Weepinbell
   71: ['lgpe-badge-2'],                              // Victreebel
 
   // ── #0072–0082 — Tentacool / Geodude / Ponyta / Slowpoke / Magnemite ──
   72: ['lgpe-badge-4', 'swsh-badge-2', 'sv-gym-3'],  // Tentacool
   73: ['lgpe-badge-4', 'swsh-badge-2', 'sv-gym-3'],  // Tentacruel
-  74: ['lgpe-badge-1', 'bdsp-badge-1', 'pla-rank-1'], // Geodude
-  75: ['lgpe-badge-1', 'bdsp-badge-1', 'pla-rank-1'], // Graveler
+  74: ['lgpe-badge-1', 'pla-rank-1'], // Geodude
+  75: ['lgpe-badge-1', 'pla-rank-1'], // Graveler
   76: ['lgpe-badge-1', 'bdsp-badge-1', 'pla-rank-1'], // Golem
   77: ['lgpe-badge-2', 'swsh-badge-1', 'pla-rank-3'], // Ponyta
   78: ['lgpe-badge-2', 'swsh-badge-1', 'pla-rank-3'], // Rapidash
   79: ['lgpe-badge-4', 'swsh-ioa', 'sv-dlc-indigo'], // Slowpoke (Kanto form)
   80: ['lgpe-badge-4', 'swsh-ioa', 'sv-dlc-indigo'], // Slowbro
-  81: ['lgpe-badge-3', 'swsh-badge-2', 'sv-gym-2', 'pla-rank-2'], // Magnemite
-  82: ['lgpe-badge-3', 'swsh-badge-2', 'sv-gym-2', 'pla-rank-2'], // Magneton
+  81: ['lgpe-badge-3', 'swsh-badge-2', 'pla-rank-2'], // Magnemite
+  82: ['lgpe-badge-3', 'swsh-badge-2', 'pla-rank-2'], // Magneton
 
   // ── #0083–0091 — Farfetch'd / Doduo / Seel / Grimer / Shellder ──
   83: ['lgpe-badge-2', 'swsh-badge-3', 'sv-dlc-indigo'], // Farfetch'd
@@ -138,42 +134,42 @@ export const CURATED_MILESTONE_GATES: Record<number, string[]> = {
   87: ['lgpe-badge-6', 'swsh-ioa'],                  // Dewgong
   88: ['lgpe-badge-7', 'swsh-ioa', 'pla-rank-4'],    // Grimer
   89: ['lgpe-badge-7', 'swsh-ioa', 'pla-rank-4'],    // Muk
-  90: ['lgpe-badge-6', 'swsh-badge-3', 'sv-dlc-indigo'], // Shellder
-  91: ['lgpe-badge-6', 'swsh-badge-3', 'sv-dlc-indigo'], // Cloyster
+  90: ['lgpe-badge-6', 'sv-dlc-indigo'], // Shellder
+  91: ['lgpe-badge-6', 'sv-dlc-indigo'], // Cloyster
 
   // ── #0092–0101 — Gastly / Onix / Drowzee / Krabby / Voltorb ──
-  92: ['lgpe-badge-2', 'swsh-badge-3', 'sv-gym-3'],  // Gastly
-  93: ['lgpe-badge-2', 'swsh-badge-3', 'sv-gym-3'],  // Haunter
+  92: ['lgpe-badge-2', 'swsh-badge-3'],  // Gastly
+  93: ['lgpe-badge-2'],  // Haunter
   94: ['lgpe-badge-2', 'swsh-badge-3', 'sv-gym-3'],  // Gengar
-  95: ['lgpe-badge-2', 'bdsp-badge-1', 'swsh-badge-1'], // Onix
+  95: ['lgpe-badge-2'], // Onix
   96: ['lgpe-badge-2', 'swsh-ioa'],                  // Drowzee
   97: ['lgpe-badge-2', 'swsh-ioa'],                  // Hypno
-  98: ['lgpe-badge-4', 'swsh-badge-3', 'sv-dlc-indigo'], // Krabby
-  99: ['lgpe-badge-4', 'swsh-badge-3', 'sv-dlc-indigo'], // Kingler
-  100: ['lgpe-badge-3', 'swsh-ioa', 'sv-gym-2', 'pla-rank-4'], // Voltorb
-  101: ['lgpe-badge-3', 'swsh-ioa', 'sv-gym-2', 'pla-rank-4'], // Electrode
+  98: ['lgpe-badge-4', 'sv-dlc-indigo'], // Krabby
+  99: ['lgpe-badge-4', 'sv-dlc-indigo'], // Kingler
+  100: ['lgpe-badge-3', 'swsh-ioa', 'pla-rank-4'], // Voltorb
+  101: ['lgpe-badge-3', 'swsh-ioa', 'pla-rank-4'], // Electrode
 
   // ── #0102–0111 — Exeggcute / Cubone / Hitmons / Lickitung / Koffing / Rhyhorn ──
   102: ['lgpe-badge-5', 'swsh-ioa', 'sv-gym-4'],     // Exeggcute (Safari Zone)
   103: ['lgpe-badge-5', 'swsh-ioa', 'sv-gym-4'],     // Exeggutor
   104: ['lgpe-badge-2', 'swsh-ioa', 'sv-dlc-indigo'], // Cubone
   105: ['lgpe-badge-2', 'swsh-ioa', 'sv-dlc-indigo'], // Marowak
-  106: ['lgpe-badge-4', 'swsh-badge-3', 'sv-dlc-indigo'], // Hitmonlee
-  107: ['lgpe-badge-4', 'swsh-badge-3', 'sv-dlc-indigo'], // Hitmonchan
+  106: ['lgpe-badge-4', 'sv-dlc-indigo'], // Hitmonlee
+  107: ['lgpe-badge-4', 'sv-dlc-indigo'], // Hitmonchan
   108: ['lgpe-badge-4', 'swsh-badge-3', 'sv-dlc-indigo'], // Lickitung
   109: ['lgpe-badge-5', 'swsh-badge-3', 'sv-dlc-indigo'], // Koffing
   110: ['lgpe-badge-5', 'swsh-badge-3', 'sv-dlc-indigo'], // Weezing
-  111: ['lgpe-badge-5', 'swsh-badge-4', 'sv-gym-4', 'pla-rank-3'], // Rhyhorn
+  111: ['lgpe-badge-5', 'sv-gym-4', 'pla-rank-3'], // Rhyhorn
 
   // ── #0112–0124 — Rhydon / Chansey / Tangela / Kangaskhan / Horsea / Goldeen / Staryu / Mr. Mime / Scyther / Jynx ──
-  112: ['lgpe-badge-5', 'swsh-badge-4', 'sv-gym-4', 'pla-rank-3'], // Rhydon
+  112: ['lgpe-badge-5', 'sv-gym-4', 'pla-rank-3'], // Rhydon
   113: ['lgpe-badge-5', 'swsh-badge-4', 'sv-dlc-indigo'], // Chansey
   114: ['lgpe-badge-5', 'swsh-ioa', 'sv-dlc-indigo'], // Tangela
   115: ['lgpe-badge-5', 'swsh-ioa', 'sv-dlc-indigo'], // Kangaskhan
   116: ['lgpe-badge-4', 'swsh-badge-3', 'sv-dlc-indigo'], // Horsea
   117: ['lgpe-badge-4', 'swsh-badge-3', 'sv-dlc-indigo'], // Seadra
-  118: ['lgpe-badge-4', 'swsh-badge-3', 'sv-gym-3', 'pla-rank-2'], // Goldeen
-  119: ['lgpe-badge-4', 'swsh-badge-3', 'sv-gym-3', 'pla-rank-2'], // Seaking
+  118: ['lgpe-badge-4', 'sv-gym-3', 'pla-rank-2'], // Goldeen
+  119: ['lgpe-badge-4', 'sv-gym-3', 'pla-rank-2'], // Seaking
   120: ['lgpe-badge-6', 'swsh-badge-4', 'sv-dlc-indigo', 'pla-rank-3'], // Staryu
   121: ['lgpe-badge-6', 'swsh-badge-4', 'sv-dlc-indigo', 'pla-rank-3'], // Starmie
   122: ['lgpe-badge-3', 'swsh-badge-3', 'sv-dlc-indigo', 'pla-rank-3'], // Mr. Mime
@@ -185,14 +181,14 @@ export const CURATED_MILESTONE_GATES: Record<number, string[]> = {
   126: ['lgpe-badge-8', 'swsh-badge-3', 'sv-dlc-indigo', 'pla-rank-4'], // Magmar
   127: ['lgpe-badge-5', 'swsh-ioa', 'sv-dlc-indigo'], // Pinsir
   128: ['lgpe-badge-5', 'swsh-ioa', 'sv-gym-2', 'pla-rank-2'], // Tauros
-  129: ['lgpe-badge-2', 'swsh-badge-1', 'sv-gym-1', 'pla-rank-1'], // Magikarp
-  130: ['lgpe-badge-2', 'swsh-badge-1', 'sv-gym-1', 'pla-rank-1'], // Gyarados
-  131: ['lgpe-badge-7', 'swsh-badge-6', 'sv-gym-6', 'pla-rank-6'], // Lapras
-  132: ['lgpe-badge-7', 'swsh-badge-4', 'sv-gym-4', 'pla-rank-3'], // Ditto
-  133: ['lgpe-badge-3', 'swsh-badge-1', 'sv-gym-1', 'pla-rank-1'], // Eevee
-  134: ['lgpe-badge-3', 'swsh-badge-1', 'sv-gym-1', 'pla-rank-1'], // Vaporeon
-  135: ['lgpe-badge-3', 'swsh-badge-1', 'sv-gym-1', 'pla-rank-1'], // Jolteon
-  136: ['lgpe-badge-3', 'swsh-badge-1', 'sv-gym-1', 'pla-rank-1'], // Flareon
+  129: ['pla-rank-1'], // Magikarp
+  130: ['lgpe-badge-2', 'pla-rank-1'], // Gyarados
+  131: ['lgpe-badge-7', 'sv-gym-6', 'pla-rank-6'], // Lapras
+  132: ['lgpe-badge-7', 'pla-rank-3'], // Ditto
+  133: ['pla-rank-1'], // Eevee
+  134: ['lgpe-badge-3', 'swsh-badge-1', 'pla-rank-1'], // Vaporeon
+  135: ['lgpe-badge-3', 'swsh-badge-1', 'pla-rank-1'], // Jolteon
+  136: ['lgpe-badge-3', 'swsh-badge-1', 'pla-rank-1'], // Flareon
 
   // ── #0137–0143 — Porygon / Fossils / Aerodactyl / Snorlax ──
   137: ['lgpe-badge-3', 'swsh-ioa', 'sv-dlc-indigo', 'pla-rank-6'], // Porygon
@@ -201,15 +197,15 @@ export const CURATED_MILESTONE_GATES: Record<number, string[]> = {
   140: ['lgpe-badge-7', 'swsh-ct', 'sv-dlc-indigo', 'pla-rank-6'], // Kabuto
   141: ['lgpe-badge-7', 'swsh-ct', 'sv-dlc-indigo', 'pla-rank-6'], // Kabutops
   142: ['lgpe-badge-7', 'swsh-ct', 'sv-dlc-indigo', 'pla-rank-6'], // Aerodactyl
-  143: ['lgpe-badge-5', 'swsh-badge-4', 'sv-gym-3', 'pla-rank-2'], // Snorlax
+  143: ['lgpe-badge-5', 'sv-gym-3', 'pla-rank-2'], // Snorlax
 
   // ── #0144–0151 — Legendary birds / Dratini line / Mewtwo / Mew ──
-  144: ['lgpe-badge-7', 'bdsp-champion', 'swsh-ct', 'sv-dlc-indigo'], // Articuno
-  145: ['lgpe-champion', 'bdsp-champion', 'swsh-ct', 'sv-dlc-indigo'], // Zapdos
-  146: ['lgpe-badge-8', 'bdsp-champion', 'swsh-ct', 'sv-dlc-indigo'], // Moltres
+  144: ['bdsp-champion', 'swsh-ct', 'sv-dlc-indigo'], // Articuno
+  145: ['bdsp-champion', 'swsh-ct', 'sv-dlc-indigo'], // Zapdos
+  146: ['bdsp-champion', 'swsh-ct', 'sv-dlc-indigo'], // Moltres
   147: ['lgpe-badge-5', 'swsh-ioa', 'sv-dlc-indigo', 'pla-rank-6'], // Dratini
   148: ['lgpe-badge-5', 'swsh-ioa', 'sv-dlc-indigo', 'pla-rank-6'], // Dragonair
-  149: ['lgpe-badge-5', 'swsh-ioa', 'sv-dlc-indigo', 'pla-rank-6'], // Dragonite
+  149: ['swsh-ioa', 'sv-dlc-indigo', 'pla-rank-6'], // Dragonite
   150: ['lgpe-champion', 'bdsp-champion', 'swsh-ct', 'sv-dlc-indigo'], // Mewtwo
   151: ['lgpe-champion', 'bdsp-champion', 'swsh-champion', 'sv-champion', 'pla-champion'], // Mew (event-only)
 
@@ -221,14 +217,9 @@ export const CURATED_MILESTONE_GATES: Record<number, string[]> = {
   // ═══════════════════════════════════════════════════════════════════════
 
   // ── Scarlet & Violet (non-Kanto suggestions) ──
-  672: ['sv-gym-1'],                 // Skiddo — South Province (Area Two)
-  969: ['sv-titan-3'],               // Glimmet — Glaseado Mountain
-  975: ['sv-gym-7'],                 // Cetitan — Glaseado Mountain
   607: ['sv-gym-3'],                 // Litwick — West Province (Area One)
-  984: ['sv-titan-4', 'sv-gym-6'],   // Great Tusk — Area Zero
 
   // ── Sword & Shield (non-Kanto suggestions) ──
-  530: ['swsh-badge-5'],             // Excadrill — Giant's Mirror / Dusty Bowl
   538: ['swsh-badge-6'],             // Throh — Route 9 Circhester Bay
   884: ['swsh-badge-7'],             // Duraludon — Giant's Mirror / Dusty Bowl
 

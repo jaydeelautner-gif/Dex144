@@ -59,6 +59,7 @@ interface HomeViewProps {
   onToggleMilestone: (gameId: GameId, milestoneId: string) => void;
   onToggleTracking: (gameId: GameId) => void;
   onResetGameProgress: (gameId: GameId) => void;
+  onRestartGame: (gameId: GameId) => void;
   onCompleteAllMilestones: (gameId: GameId, milestoneIds: string[]) => void;
   onNavigateToProgress: () => void;
   // ── END GAME PROGRESS TRACKING ──
@@ -96,6 +97,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onToggleMilestone,
   onToggleTracking,
   onResetGameProgress,
+  onRestartGame,
   onCompleteAllMilestones,
   onNavigateToProgress,
   // ── END GAME PROGRESS TRACKING ──
@@ -343,6 +345,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               onClearStarter={onClearStarter}
               onSelectPokemon={onSelectPokemon}
               onNavigateToProgress={onNavigateToProgress}
+              onRestartGame={onRestartGame}
               groupFilter={effectiveCatchGroup ?? undefined}
             />
 

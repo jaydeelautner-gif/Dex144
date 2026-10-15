@@ -34,6 +34,8 @@ interface MilestoneUnlocksPanelProps {
   onClearStarter: (gameGroup: string) => void;
   onSelectPokemon: (pokemon: PokemonEntry) => void;
   onNavigateToProgress: () => void;
+  /** Restart this game (clears milestones + starter choice; keeps PokéPets). */
+  onRestartGame?: (gameId: GameId) => void;
   /** Owned DLC ids — used to detect DLC alternate ways to get unchosen starters. */
   ownedDlcs: DlcId[];
   /** Per-game registered catches — drives per-game evolution suggestions. */
@@ -101,6 +103,7 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
   onClearStarter,
   onSelectPokemon,
   onNavigateToProgress,
+  onRestartGame,
   ownedDlcs,
   gameCatches,
   inventory = [],
@@ -181,7 +184,12 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
     gameId: GameId,
     excludeIds: Set<number>
   ): { p: PokemonEntry; fromName: string; detail: string }[] => {
-    const caughtInGame = new Set(gameCatches?.[gameId] ?? []);
+    // Registered PokéPets in this game (origin or current) plus explicit
+    // per-game catch records — either source means the trainer has it there.
+    const caughtInGame = new Set<number>(gameCatches?.[gameId] ?? []);
+    for (const pet of inventory) {
+      if ((pet.currentGameId ?? pet.gameId) === gameId) caughtInGame.add(pet.pokemonId);
+    }
     if (caughtInGame.size === 0) return [];
     const out: { p: PokemonEntry; fromName: string; detail: string }[] = [];
     for (const p of dex) {
@@ -325,16 +333,14 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
         lastMilestoneLabel = lastMilestone.label;
         const stillLocked = getLockedDexNumbers(new Set(completedIds), group);
 
+        // Cumulative: keep suggesting everything unlocked so far (not just the
+        // latest badge), so earlier suggestions never disappear as you progress.
         for (const p of dex) {
           if (caughtSet.has(p.id)) continue;
           if (activeGameId && p.availability[activeGameId]?.reacquisitionMode === 'trade_or_other') continue;
           if (stillLocked.has(p.id)) continue;
           if (!isCatchableInWild(p, members)) continue; // evolution-only
-          const previousCompleted = completed
-            .filter((m) => m.order < lastMilestone.order)
-            .map((m) => m.id);
-          const lockedBefore = getLockedDexNumbers(new Set(previousCompleted), group);
-          if (lockedBefore.has(p.id)) freshCandidates.push(p);
+          freshCandidates.push(p);
         }
         const split = splitWildVsEvolution(freshCandidates, members);
         const freshSpecies = split.wild.sort((a, b) => a.id - b.id);
@@ -351,15 +357,42 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
             ? computeEvolutionSuggestions(activeGameId, freshGridIds)
             : [];
 
+        // The starter choice stays available in this mode too: it must not
+        // vanish just because a badge has been earned.
+        const starters = (STARTER_TRIOS[group] ?? [])
+          .map((sid) => dexById.get(sid))
+          .filter((p): p is PokemonEntry => Boolean(p));
+        const chosenIdFresh = starterChoices[group];
+        const chosenFresh = chosenIdFresh != null
+          ? dexById.get(normalizeStarterChoiceId(group, chosenIdFresh) ?? chosenIdFresh) ?? null
+          : null;
+        const starterOptions = chosenIdFresh == null ? starters : [];
+        const unchosenLineIdsFresh = new Set(
+          getUnchosenStarterLineIds(group, chosenIdFresh)
+        );
+        const starterTradeOnly: PokemonEntry[] = [];
+        const starterAlternates: { p: PokemonEntry; how: string }[] = [];
+        for (const sid of unchosenLineIdsFresh) {
+          const sp = dexById.get(sid);
+          if (!sp || caughtSet.has(sid)) continue;
+          const how = findAlternateAcquisitionLabel(
+            sid, group, encounters, ownedDlcs, (id) => dexById.get(id)?.availability
+          );
+          if (how) starterAlternates.push({ p: sp, how });
+          else starterTradeOnly.push(sp);
+        }
+        starterTradeOnly.sort((a, b) => a.id - b.id);
+        starterAlternates.sort((a, b) => a.p.id - b.p.id);
+
         out.push({
           group,
           gameShort: meta?.short ?? group,
           accent: meta?.accent ?? '#f59e0b',
           lastMilestoneLabel,
-          starterOptions: [],
-          chosenStarter: null,
-          starterTradeOnly: [],
-          starterAlternates: [],
+          starterOptions,
+          chosenStarter: chosenFresh,
+          starterTradeOnly,
+          starterAlternates,
           evolutionSuggestions,
           startingSpecies: [],
           startingSpeciesOverflow: 0,
@@ -374,7 +407,7 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
     }
 
     return out;
-  }, [progress, ownedGames, ownedDlcs, dex, caughtSet, starterChoices, encounters, groupFilter, gameCatches, activeGameId]);
+  }, [progress, ownedGames, ownedDlcs, dex, caughtSet, starterChoices, encounters, groupFilter, gameCatches, activeGameId, inventory]);
 
   const reacquireIds = activeGameId ? evolvedAwaySpecies(inventory, activeGameId) : [];
 

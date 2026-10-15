@@ -94,6 +94,21 @@ export function useGameProgress() {
     setProgress((prev) => ({ ...prev, [gameId]: [] }));
   }, []);
 
+  /**
+   * Restart a game: clears milestones AND the starter choice so the starter
+   * selection can be made again. Registered PokéPets, catches and inventory are
+   * deliberately untouched — only progression is reset.
+   */
+  const restartGame = useCallback((gameId: GameId) => {
+    setProgress((prev) => ({ ...prev, [gameId]: [] }));
+    setStarterChoices((prev) => {
+      if (!(gameId in prev)) return prev;
+      const next = { ...prev };
+      delete next[gameId];
+      return next;
+    });
+  }, []);
+
   const completeAll = useCallback((gameId: GameId, milestoneIds: string[]) => {
     setProgress((prev) => ({ ...prev, [gameId]: [...milestoneIds] }));
   }, []);
@@ -135,6 +150,7 @@ export function useGameProgress() {
     toggleMilestone,
     toggleTracking,
     resetGame,
+    restartGame,
     completeAll,
     chooseStarter,
     clearStarterChoice,

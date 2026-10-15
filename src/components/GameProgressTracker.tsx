@@ -19,6 +19,8 @@ interface Props {
   onToggle: (gameId: GameId, milestoneId: string) => void;
   onToggleTracking: (gameId: GameId) => void;
   onReset: (gameId: GameId) => void;
+  /** Restart the game: clears milestones + starter choice, keeps all PokéPets. */
+  onRestartGame: (gameId: GameId) => void;
   onCompleteAll: (gameId: GameId, milestoneIds: string[]) => void;
   dex: PokemonEntry[];
   caughtSet: Set<number>;
@@ -32,6 +34,7 @@ export function GameProgressTracker({
   onToggle,
   onToggleTracking,
   onReset,
+  onRestartGame,
   onCompleteAll,
   dex,
   caughtSet,
@@ -330,6 +333,18 @@ export function GameProgressTracker({
           className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold cursor-pointer"
         >
           Mark all complete
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (window.confirm(`Restart ${meta.short}? Badges and the starter choice are cleared so you can pick again. All registered PokéPets are kept.`)) {
+              onRestartGame(activeGame);
+            }
+          }}
+          className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-rose-950 border border-slate-800 text-xs text-slate-300 hover:text-rose-300 cursor-pointer ml-auto"
+          title="Clear milestones and the starter choice to start the game over. Keeps every registered PokéPet."
+        >
+          Restart Game
         </button>
       </div>
     </section>
