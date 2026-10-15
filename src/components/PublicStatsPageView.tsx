@@ -23,6 +23,9 @@ import {
 import { getVariationsForPokemon } from '../data/regionalVariantsData';
 import { PokemonSprite } from './PokemonSprite';
 import { GameLogoBadge, PokemonHomeLogoBadge } from './GameLogoBadge';
+import { GymBadgeStrip } from './GymBadgeStrip';
+import { TrainerAvatar } from './TrainerAvatar';
+import { gameBadgeSprites } from './GymBadgeStrip';
 import {
   formatOriginSourceLabel,
   formatStorageLocationLabel,
@@ -41,6 +44,10 @@ interface PublicStatsPageViewProps {
   ownedGames: GameId[];
   ownedDlcs: DlcId[];
   gameCatches: GameCatchesMap;
+  /** Completed game-progress milestone ids per group, for gym badge display. */
+  gameProgress?: Record<string, string[]>;
+  /** Trainer avatar config for the header. */
+  avatar?: unknown;
   shareUrl?: string;
   isOwnPreview?: boolean;
   onExitPublicView?: () => void;
@@ -59,6 +66,8 @@ export const PublicStatsPageView: React.FC<PublicStatsPageViewProps> = ({
   ownedGames,
   ownedDlcs,
   gameCatches,
+  gameProgress,
+  avatar,
   shareUrl,
   isOwnPreview = false,
   onExitPublicView,
@@ -312,6 +321,7 @@ export const PublicStatsPageView: React.FC<PublicStatsPageViewProps> = ({
       <div className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-xl">
         <div className="flex flex-col gap-1.5">
           <div className="flex flex-wrap items-center gap-2">
+            <TrainerAvatar config={avatar as never} size={64} className="shrink-0" />
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/15 border border-emerald-500/40 text-xs font-mono-tabular font-semibold text-emerald-300">
               <Globe className="w-3.5 h-3.5" />
               PUBLIC LIVING DEX SHOWCASE
@@ -460,6 +470,11 @@ export const PublicStatsPageView: React.FC<PublicStatsPageViewProps> = ({
                       }}
                     />
                   </div>
+                  <GymBadgeStrip
+                    gameId={game.id}
+                    completedIds={gameProgress?.[gameBadgeSprites(game.id)?.prefix ?? ''] || []}
+                    size={26}
+                  />
                 </div>
               );
             })}

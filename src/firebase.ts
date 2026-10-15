@@ -147,6 +147,8 @@ export const MAX_INVENTORY_ITEMS_SIZE = 2000;
 
 import type { EvolutionRecord } from './data/pokemonInventoryData';
 import { normalizeHomePanels, type HomePanelVisibility } from './data/homePanels';
+import { normalizeAvatar, type TrainerAvatarConfig } from './components/TrainerAvatar';
+import { MILESTONE_INDEX } from './data/milestones';
 import { sanitizeEvolutionHistory } from './utils/evolutionHistory';
 
 export interface SerializedPokemonInstance {
@@ -202,6 +204,10 @@ export interface UserDexProfileData {
   gameCatches: GameCatchesMap;
   /** Home screen panel visibility, synced across a user's devices. */
   homePanels?: HomePanelVisibility;
+  /** Trainer avatar configuration, synced across a user's devices. */
+  avatar?: TrainerAvatarConfig;
+  /** Per-group completed game-progress milestone ids, for public badge display. */
+  gameProgress?: Record<string, string[]>;
   /** Local cache only — not stored in the Firestore parent document. */
   inventory?: SerializedPokemonInstance[];
   /** Local cache only — not stored in the Firestore parent document. */
@@ -430,6 +436,24 @@ export function sanitizeBoxSelectedGames(entries: string[]): string[] {
 export function parseHomePanels(value: unknown): HomePanelVisibility | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   return normalizeHomePanels(value);
+}
+
+const GAME_PROGRESS_GROUP_LIMIT = 24;
+const GAME_PROGRESS_ENTRIES_LIMIT = 60;
+export function sanitizeGameProgress(raw: unknown): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  for (const [group, ids] of Object.entries(raw as Record<string, unknown>).slice(0, GAME_PROGRESS_GROUP_LIMIT)) {
+    if (!Array.isArray(ids)) continue;
+    const valid = ids.filter((id) => typeof id === 'string' && MILESTONE_INDEX.has(id)).slice(0, GAME_PROGRESS_ENTRIES_LIMIT);
+    if (valid.length) out[group.slice(0, 24)] = valid;
+  }
+  return out;
+}
+/** Validates a cloud-provided trainer avatar; null when absent/invalid. */
+export function parseAvatar(value: unknown): TrainerAvatarConfig | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  return normalizeAvatar(value);
 }
 
 export function sanitizeOwnedGames(games: string[]): GameId[] {
@@ -736,6 +760,8 @@ function parseProfileSnapshotData(uid: string, raw: Record<string, unknown>): Us
       : ALL_GAME_IDS,
     ownedDlcs: sanitizeOwnedDlcs(Array.isArray(raw.ownedDlcs) ? raw.ownedDlcs : []),
     gameCatches: sanitizeGameCatchesMap(raw.gameCatches),
+    avatar: parseAvatar(raw.avatar) ?? undefined,
+    gameProgress: sanitizeGameProgress(raw.gameProgress),
     // NEW: friend fields
     friendCode: raw.friendCode ? String(raw.friendCode).slice(0, 16) : undefined,
     friends: Array.isArray(raw.friends)
@@ -1054,6 +1080,8 @@ export async function saveUserDexProfile(
     ownedDlcs: string[];
     gameCatches: GameCatchesMap;
     homePanels?: HomePanelVisibility;
+    avatar?: TrainerAvatarConfig;
+    gameProgress?: Record<string, string[]>;
     inventory?: SerializedPokemonInstance[];
     rescueBin?: RescueBinItem[];
   }
@@ -1072,6 +1100,8 @@ export async function saveUserDexProfile(
   const ownedDlcs = sanitizeOwnedDlcs(payload.ownedDlcs);
   const gameCatches = sanitizeGameCatchesMap(payload.gameCatches);
   const homePanels = normalizeHomePanels(payload.homePanels ?? null);
+  const avatar = payload.avatar ? normalizeAvatar(payload.avatar) : undefined;
+  const gameProgress = sanitizeGameProgress(payload.gameProgress ?? null);
   const inventory = sanitizeInventory(payload.inventory);
   const rescueBin = sanitizeRescueBin(payload.rescueBin);
   const trainerName = sanitizeTrainerName(payload.trainerName);
@@ -1116,6 +1146,8 @@ export async function saveUserDexProfile(
     ownedDlcs,
     gameCatches,
     homePanels,
+    avatar,
+    gameProgress,
     caughtCount: caughtIds.length,
     shinyCount: shinyIds.length,
   };

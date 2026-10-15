@@ -92,6 +92,47 @@ try {
   await page.getByRole('button', { name: 'Unlock with PIN' }).click();
   await page.getByRole('button', { name: /Log Out|Sign Out/i }).waitFor();
   assert.equal(await page.getByLabel('Pokédex hardware').count(), 1);
+  // Trainer & Badges tab: avatar builder + badge sprites render.
+  const signOutBtn = page.getByRole('button', { name: /Log Out|Sign Out/i });
+  if (await signOutBtn.count()) {
+    await signOutBtn.click();
+    await page.getByRole('button', { name: /Open Dex/i }).waitFor();
+  }
+  await page.evaluate(() => {
+    localStorage.setItem('homedex_v4_game_progress', JSON.stringify({ rb: ['rb-badge-1','rb-badge-2','rb-badge-3'] }));
+    localStorage.setItem('homedex_v4_owned_games', JSON.stringify(['red']));
+    const v = JSON.parse(localStorage.getItem('homedex_cached_auth_vault_v1')||'[]');
+    v[0].uid = 'badge-test-trainer';
+    localStorage.setItem('homedex_cached_auth_vault_v1', JSON.stringify(v));
+    localStorage.setItem('homedex_cached_profile_badge-test-trainer', JSON.stringify({
+      ownerId: 'badge-test-trainer', trainerName: 'Test Trainer', activeGameFilter: 'all',
+      isPublic: false, caughtIds: [], shinyIds: [], livingIds: [], caughtVariants: [],
+      boxSelectedVariants: [], boxSelectedGames: [], ownedGames: ['red'], ownedDlcs: [],
+      gameCatches: {}, homePanels: {}, gameProgress: { rb: ['rb-badge-1','rb-badge-2','rb-badge-3'] },
+      caughtCount: 0, shinyCount: 0,
+    }));
+  });
+  await page.reload();
+  await page.getByRole('button', { name: /Open Dex/i }).waitFor();
+  await page.getByRole('button', { name: /Open Dex/i }).click();
+  await page.getByRole('button', { name: /Skip Intro/i }).click();
+  await page.getByRole('group', { name: 'PIN touch keypad' }).waitFor();
+  for (const digit of ['1','2','3','4']) await page.getByRole('button', { name: 'PIN digit ' + digit, exact: true }).click();
+  await page.getByRole('button', { name: 'Unlock with PIN' }).click();
+  await page.getByRole('button', { name: /Log Out|Sign Out/i }).waitFor();
+  await page.getByRole('button', { name: 'Test Trainer' }).first().click();
+  await page.getByRole('button', { name: 'Trainer & Badges' }).click();
+  await page.waitForTimeout(1000);
+  const badgeImgs = await page.locator('img[src*="/badges/"]').count();
+  const lit = await page.locator('img[src*="/badges/"]:not(.grayscale)').count();
+  const svg = await page.locator('svg[aria-label="Trainer avatar"]').count();
+  console.log('BADGES total:', badgeImgs, 'lit:', lit, 'avatar-svg:', svg);
+
+  await page.locator('section', { hasText: 'Gym Badges by Game' }).first().scrollIntoViewIfNeeded();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: '/tmp/trainer-tab2.png', fullPage: false });
+  assert.ok(badgeImgs >= 30, 'badge sprites render per owned game in profile');
+  assert.equal(svg, 1, 'avatar preview renders');
   assert.deepEqual(errors, []);
   console.log('PASS: closed-first, responsive login frame, PIN default/keypad/login and logout-to-closed');
 } finally {

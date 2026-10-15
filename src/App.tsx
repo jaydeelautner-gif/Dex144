@@ -83,6 +83,8 @@ import { DeviceAccessModal } from './components/DeviceAccessModal';
 import { FriendsView } from './components/FriendsView';
 import { OpeningScreen } from './components/OpeningScreen';
 import { ClosedDexCover, PokedexClosingAnimation } from './components/DexCover';
+import { TrainerAvatar, AvatarBuilder, loadLocalAvatar, saveLocalAvatar, DEFAULT_AVATAR as DEFAULT_AVATAR_CONFIG, type TrainerAvatarConfig } from './components/TrainerAvatar';
+import { GymBadgeStrip, gameBadgeSprites } from './components/GymBadgeStrip';
 import { DexFrame } from './components/DexFrame';
 import { PokedexOpeningAnimation } from './components/PokedexOpeningAnimation';
 import { playGameboyPowerOnSound, playPokepetRegisteredSound } from './utils/gameboySound';
@@ -125,6 +127,7 @@ import {
   type SerializedPokemonInstance,
   type FriendRequest,
   parseHomePanels,
+  parseAvatar,
 } from './firebase';
 
 type MainWorkspaceTab =
@@ -323,6 +326,10 @@ function isExclusiveLabel(label: string): boolean {
 
 export function App() {
   const { homePanels, toggleHomePanel, resetHomePanels, setCloudHomePanels } = useHomePanels();
+  const [avatar, setAvatar] = useState<TrainerAvatarConfig | null>(() => loadLocalAvatar());
+  const [cloudGameProgress, setCloudGameProgress] = useState<Record<string, string[]>>({});
+  // User edited the avatar locally; cleared once written to the cloud.
+  const avatarTouchedRef = useRef(false);
   const baseDex = useMemo(() => buildInitialNationalDex(), []);
   const { dataset: acquisitionDataset } = useEncounterDataset();
 
@@ -341,7 +348,7 @@ export function App() {
   const [dexPhase, setDexPhase] = useState<'closed' | 'opening' | 'open' | 'closing'>('closed');
   const finishOpening = useCallback(() => setDexPhase('open'), []);
   const finishClosing = useCallback(() => setDexPhase('closed'), []);
-  const [profileSubTab, setProfileSubTab] = useState<'boxes' | 'inventory' | 'friends'>('boxes');
+  const [profileSubTab, setProfileSubTab] = useState<'boxes' | 'inventory' | 'friends' | 'trainer'>('boxes');
   const navigateToProfile = (sub: 'boxes' | 'inventory' | 'friends') => {
     setProfileSubTab(sub);
     setFullPagePokemon(null);
@@ -870,6 +877,13 @@ export function App() {
             const cloudPanels = parseHomePanels(remoteProfile.homePanels);
             if (cloudPanels) setCloudHomePanels(cloudPanels);
           }
+          if (!avatarTouchedRef.current) {
+            const cloudAvatar = parseAvatar(remoteProfile.avatar);
+            if (cloudAvatar) { setAvatar(cloudAvatar); saveLocalAvatar(cloudAvatar); }
+          }
+          if (remoteProfile.gameProgress && Object.keys(remoteProfile.gameProgress).length) {
+            setCloudGameProgress(remoteProfile.gameProgress);
+          }
           // The local toggle is authoritative for this device: only adopt the
           // cloud value once per session, otherwise a stale/absent remote flag
           // would silently revert a change the user just made.
@@ -916,6 +930,8 @@ export function App() {
             ownedDlcs,
             gameCatches,
             homePanels,
+            avatar: avatar ?? undefined,
+            gameProgress: gameProgress as Record<string, string[]>,
           }).catch(() => {});
         }
         isInitialFetch = false;
@@ -1066,6 +1082,7 @@ export function App() {
       localStorage.setItem(LS_DLCS_KEY, JSON.stringify(ownedDlcs));
       localStorage.setItem(LS_TRAINER_KEY, trainerName);
       localStorage.setItem(LS_PUBLIC_KEY, String(isPublic));
+      if (avatar) saveLocalAvatar(avatar);
       localStorage.setItem(LS_INVENTORY_KEY, JSON.stringify(inventory));
       localStorage.setItem(LS_RESCUE_BIN_KEY, JSON.stringify(rescueBin));
     } catch {
@@ -1088,9 +1105,11 @@ export function App() {
           ownedDlcs,
           gameCatches,
           homePanels,
+          avatar: avatar ?? undefined,
+          gameProgress: gameProgress as Record<string, string[]>,
           inventory: inventory as SerializedPokemonInstance[],
           rescueBin,
-        }).then(() => { homePanelsTouchedRef.current = false; }).catch(() => {});
+        }).then(() => { homePanelsTouchedRef.current = false; avatarTouchedRef.current = false; }).catch(() => {});
       }, 350);
       return () => clearTimeout(timer);
     }
@@ -1105,6 +1124,8 @@ export function App() {
     gameCatches,
     ownedDlcs,
     homePanels,
+    avatar,
+    gameProgress,
     trainerName,
     isPublic,
     inventory,
@@ -2041,6 +2062,8 @@ export function App() {
                   sharedProfileData.boxSelectedGames || []
                 )}
                 ownedGames={normalizeToCanonicalGames(sharedProfileData.ownedGames || DEFAULT_OWNED_GAMES)}
+                gameProgress={sharedProfileData.gameProgress}
+                avatar={sharedProfileData.avatar}
                 ownedDlcs={(sharedProfileData.ownedDlcs as DlcId[]) || []}
                 gameCatches={sharedProfileData.gameCatches || createEmptyGameCatchesMap()}
                 shareUrl={window.location.href}
@@ -2150,6 +2173,8 @@ export function App() {
               ownedGames={normalizeToCanonicalGames(sharedProfileData.ownedGames || DEFAULT_OWNED_GAMES)}
               ownedDlcs={(sharedProfileData.ownedDlcs as DlcId[]) || []}
               gameCatches={sharedProfileData.gameCatches || createEmptyGameCatchesMap()}
+              gameProgress={sharedProfileData.gameProgress}
+              avatar={sharedProfileData.avatar}
               shareUrl={window.location.href}
               inventory={(sharedProfileData.inventory as PokemonInstance[]) || []}
               onExitPublicView={() => {
@@ -2905,6 +2930,7 @@ export function App() {
                       { id: 'boxes', label: 'Boxes' },
                       { id: 'inventory', label: `Inventory (${inventory.length})` },
                       { id: 'friends', label: `Friends${incomingRequests.length > 0 ? ` (${incomingRequests.length})` : ''}` },
+                      { id: 'trainer', label: 'Trainer & Badges' },
                     ] as const
                   ).map((sub) => (
                     <button
@@ -2959,6 +2985,54 @@ export function App() {
                   />
                 )}
 
+                {profileSubTab === 'trainer' && (
+                  <div className="flex flex-col gap-6">
+                    <section className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-5 flex flex-col sm:flex-row gap-5 items-start">
+                      <TrainerAvatar config={avatar} size={128} />
+                      <div className="flex-1 min-w-0">
+                        <h2 className="text-base font-bold text-slate-100">Your Trainer Avatar</h2>
+                        <p className="text-xs text-slate-400 mt-0.5 mb-3">
+                          Represents you on your profile and public showcase. Saved on this device and synced to your account when signed in.
+                        </p>
+                        <AvatarBuilder
+                          config={avatar ?? DEFAULT_AVATAR_CONFIG}
+                          onChange={(next) => { setAvatar(next); saveLocalAvatar(next); avatarTouchedRef.current = true; }}
+                        />
+                      </div>
+                    </section>
+                    <section className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-5 flex flex-col gap-4">
+                      <div>
+                        <h2 className="text-base font-bold text-slate-100">Gym Badges by Game</h2>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          Badge sprites for your owned games, lit up for every badge you marked as earned in Progress tracking.
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {normalizeToCanonicalGames(ownedGames).map((gameId) => {
+                          const prefix = gameBadgeSprites(gameId)?.prefix;
+                          if (!prefix) return null;
+                          const stripGame = GAMES.find((g) => g.id === gameId);
+                          return (
+                            <div key={gameId} className="bg-[#0B0F17] border border-slate-800/80 rounded-xl p-3 flex flex-col gap-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <GameLogoBadge gameId={gameId} size="xs" />
+                                <span className="text-xs font-bold text-slate-100 truncate">{stripGame?.shortTitle ?? gameId}</span>
+                              </div>
+                              <GymBadgeStrip
+                                gameId={gameId}
+                                completedIds={gameProgress[prefix] || []}
+                                size={30}
+                                extra={prefix === 'gs' || prefix === 'hgss'
+                                  ? { sprite: 9, earned: gameProgress[prefix]?.includes(`${prefix}-kanto`), label: 'Kanto badges (all 8)' }
+                                  : null}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  </div>
+                )}
                 {profileSubTab === 'friends' && (
                   <FriendsView
                     dex={dex}
@@ -3013,6 +3087,8 @@ export function App() {
                 ownedGames={ownedGames}
                 ownedDlcs={ownedDlcs}
                 gameCatches={gameCatches}
+                gameProgress={gameProgress as Record<string, string[]>}
+                avatar={avatar}
                 shareUrl={publicShareUrl}
                 isOwnPreview={true}
                 inventory={inventory}
@@ -3255,6 +3331,8 @@ export function App() {
                 friendProfiles[activeFriendUid].boxSelectedGames || []
               )}
               ownedGames={normalizeToCanonicalGames(friendProfiles[activeFriendUid].ownedGames || DEFAULT_OWNED_GAMES)}
+              gameProgress={undefined}
+              avatar={undefined}
               ownedDlcs={(friendProfiles[activeFriendUid].ownedDlcs as DlcId[]) || []}
               gameCatches={
                 friendProfiles[activeFriendUid].gameCatches || createEmptyGameCatchesMap()
