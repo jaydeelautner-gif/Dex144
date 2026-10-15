@@ -757,6 +757,17 @@ for (const fam of CURATED_EVOLUTION_FAMILIES) {
   }
 }
 
+// Generated PokéAPI families fill every line the curated table doesn't
+// cover (curated entries win — they are registered last and overwrite).
+import { GENERATED_EVOLUTION_FAMILIES } from './evolutionFamilies.generated';
+for (const fam of GENERATED_EVOLUTION_FAMILIES as EvolutionFamily[]) {
+  for (const st of fam.stages) {
+    if (!EVOLUTION_LOOKUP_MAP.has(st.pokemonId)) {
+      EVOLUTION_LOOKUP_MAP.set(st.pokemonId, fam);
+    }
+  }
+}
+
 /**
  * Returns the full evolution family for any Pokémon.
  * If not explicitly in the curated list, builds a realistic chain linking related stages.

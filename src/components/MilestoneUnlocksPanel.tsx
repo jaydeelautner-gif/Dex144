@@ -1,9 +1,10 @@
 import React, { useMemo } from 'react';
 import { Trophy, Sparkles, Check, X, ArrowLeftRight } from 'lucide-react';
-import type { GameId, PokemonEntry, DlcId } from '../data/pokemonData';
+import type { GameId, PokemonEntry, DlcId, GameCatchesMap } from '../data/pokemonData';
 import {
   GAME_META,
   GROUP_MEMBER_GAMES,
+  GAME_ID_TO_TRACKABLE,
   STARTER_TRIOS,
   getOwnedTrackableGames,
   milestonesFor,
@@ -32,6 +33,12 @@ interface MilestoneUnlocksPanelProps {
   onNavigateToProgress: () => void;
   /** Owned DLC ids — used to detect DLC alternate ways to get unchosen starters. */
   ownedDlcs: DlcId[];
+  /** Per-game registered catches — drives per-game evolution suggestions. */
+  gameCatches?: GameCatchesMap;
+  /** The active Catch Hub game (canonical id). Evolution suggestions are
+   *  computed for this game: species uncaught here whose lower stage IS
+   *  caught here. */
+  activeGameId?: GameId;
   /** Restrict the panel to a single trackable group (Catch Hub game tabs). */
   groupFilter?: string;
 }
@@ -48,6 +55,9 @@ interface PanelRow {
   starterTradeOnly: PokemonEntry[];
   /** Unchosen starter-line species the game itself offers another way to get. */
   starterAlternates: { p: PokemonEntry; how: string }[];
+  /** Species uncaught in the active game whose lower stage IS caught there
+   *  — evolve the caught pre-evolution to obtain them. */
+  evolutionSuggestions: { p: PokemonEntry; fromName: string; detail: string }[];
   startingSpecies: PokemonEntry[];
   startingSpeciesOverflow: number;
   startingEvolutionSpecies: PokemonEntry[];
@@ -69,7 +79,7 @@ const NON_WILD_METHODS = new Set([
 ]);
 
 /**
- * "Fresh Catches" panel.
+ * "Trainer Hints" panel.
  *  • No badges yet in a tracked game → shows its three starters as a
  *    pick-one choice (the other two disappear once chosen) plus every
  *    uncaught species obtainable from the very start of that game.
@@ -88,6 +98,8 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
   onSelectPokemon,
   onNavigateToProgress,
   ownedDlcs,
+  gameCatches,
+  activeGameId,
   groupFilter,
 }) => {
   // Wild-encounter bundle (PokéAPI) — used to hide evolution-only species.
@@ -152,6 +164,40 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
       else evolution.push(p);
     }
     return { wild, evolution };
+  };
+
+  /**
+   * Evolution suggestions for one game: species the trainer does NOT have
+   * registered in that game, but whose lower stage IS registered there —
+   * evolve the caught pre-evolution to obtain them. `excludeIds` filters
+   * species already shown in the wild-catch grids of the same row.
+   */
+  const computeEvolutionSuggestions = (
+    gameId: GameId,
+    excludeIds: Set<number>
+  ): { p: PokemonEntry; fromName: string; detail: string }[] => {
+    const caughtInGame = new Set(gameCatches?.[gameId] ?? []);
+    if (caughtInGame.size === 0) return [];
+    const out: { p: PokemonEntry; fromName: string; detail: string }[] = [];
+    for (const p of dex) {
+      if (caughtInGame.has(p.id)) continue; // already registered in this game
+      if (excludeIds.has(p.id)) continue; // already suggested as a wild catch
+      const family = getEvolutionFamilyForPokemon(p.id);
+      const idx = family.stages.findIndex((s) => s.pokemonId === p.id);
+      if (idx <= 0) continue; // no lower tier in this line
+      let from: (typeof family.stages)[number] | null = null;
+      for (let s = idx - 1; s >= 0; s--) {
+        if (caughtInGame.has(family.stages[s].pokemonId)) {
+          from = family.stages[s];
+          break;
+        }
+      }
+      if (!from) continue;
+      const target = family.stages[idx];
+      out.push({ p, fromName: from.speciesName, detail: target.detail || target.trigger });
+    }
+    out.sort((a, b) => a.p.id - b.p.id);
+    return out.slice(0, MAX_STARTING_GRID);
   };
 
   const rows = useMemo<PanelRow[]>(() => {
@@ -225,6 +271,17 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
         const startingEvolutionOverflow = Math.max(0, startingEvolutionSpecies.length - MAX_STARTING_GRID);
         startingEvolutionSpecies.length = Math.min(startingEvolutionSpecies.length, MAX_STARTING_GRID);
 
+        // Per-game evolution suggestions (active tab only), excluding species
+        // already surfaced as wild catches above.
+        const wildGridIds = new Set<number>([
+          ...startingSpecies.map((p) => p.id),
+          ...startingEvolutionSpecies.map((p) => p.id),
+        ]);
+        const evolutionSuggestions =
+          activeGameId && (GAME_ID_TO_TRACKABLE as Record<string, string | undefined>)[activeGameId] === group
+            ? computeEvolutionSuggestions(activeGameId, wildGridIds)
+            : [];
+
         const chosen = chosenId != null ? dexById.get(normalizeStarterChoiceId(group, chosenId) ?? chosenId) ?? null : null;
         // Always offer all three starters until a choice is made, even if
         // some are already caught/registered in the dex.
@@ -246,6 +303,7 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
           startingSpeciesOverflow,
           startingEvolutionSpecies,
           startingEvolutionOverflow,
+          evolutionSuggestions,
           freshSpecies: [],
           freshEvolutionSpecies: [],
           freshEvolutionOverflow: 0,
@@ -277,6 +335,15 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
         const freshEvolutionOverflow = Math.max(0, freshEvolutionSpecies.length - MAX_STARTING_GRID);
         freshEvolutionSpecies.length = Math.min(freshEvolutionSpecies.length, MAX_STARTING_GRID);
 
+        const freshGridIds = new Set<number>([
+          ...freshSpecies.map((p) => p.id),
+          ...freshEvolutionSpecies.map((p) => p.id),
+        ]);
+        const evolutionSuggestions =
+          activeGameId && (GAME_ID_TO_TRACKABLE as Record<string, string | undefined>)[activeGameId] === group
+            ? computeEvolutionSuggestions(activeGameId, freshGridIds)
+            : [];
+
         out.push({
           group,
           gameShort: meta?.short ?? group,
@@ -286,6 +353,7 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
           chosenStarter: null,
           starterTradeOnly: [],
           starterAlternates: [],
+          evolutionSuggestions,
           startingSpecies: [],
           startingSpeciesOverflow: 0,
           startingEvolutionSpecies: [],
@@ -299,7 +367,7 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
     }
 
     return out;
-  }, [progress, ownedGames, ownedDlcs, dex, caughtSet, starterChoices, encounters, groupFilter]);
+  }, [progress, ownedGames, ownedDlcs, dex, caughtSet, starterChoices, encounters, groupFilter, gameCatches, activeGameId]);
 
   const hasContent = rows.some(
     (r) =>
@@ -309,6 +377,7 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
       r.startingEvolutionSpecies.length > 0 ||
       r.starterTradeOnly.length > 0 ||
       r.starterAlternates.length > 0 ||
+      r.evolutionSuggestions.length > 0 ||
       r.chosenStarter ||
       r.starterOptions.length > 0
   );
@@ -321,9 +390,9 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
             <Trophy className="w-4 h-4" />
           </span>
           <div>
-            <h2 className="text-lg font-bold text-slate-100">Fresh Catches</h2>
+            <h2 className="text-lg font-bold text-slate-100">Trainer Hints</h2>
             <p className="text-xs text-slate-400">
-              Uncaught Pokémon you can catch right now in your owned games.
+              Uncaught Pokémon you can catch right now in your owned games — plus evolution and starter hints.
             </p>
           </div>
         </div>
@@ -625,6 +694,36 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
                         +{row.freshEvolutionOverflow} more evolution-stage species
                       </p>
                     )}
+                  </div>
+                )}
+
+                {/* Evolution suggestions: pre-evolution caught in this game,
+                    target species not yet registered in this game */}
+                {row.evolutionSuggestions.length > 0 && (
+                  <div className="px-4 pb-3">
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-teal-300 uppercase tracking-wide mb-1.5">
+                      <Sparkles className="w-3 h-3" />
+                      Evolution suggestions — evolve your registered catches
+                    </div>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+                      {row.evolutionSuggestions.map(({ p, fromName, detail }) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => onSelectPokemon(p)}
+                          title={`#${String(p.id).padStart(4, '0')} ${p.name} — evolve your registered ${fromName} (${detail})`}
+                          className="p-2 rounded-xl bg-teal-500/5 border border-teal-500/20 hover:border-teal-400/60 hover:bg-slate-900 flex flex-col items-center gap-1 transition-colors cursor-pointer"
+                        >
+                          <PokemonSprite id={p.id} name={p.name} size="sm" />
+                          <span className="text-[10px] text-teal-200/80 truncate w-full text-center">
+                            #{String(p.id).padStart(3, '0')} {p.name}
+                          </span>
+                          <span className="text-[9px] font-semibold text-teal-300/80 text-center leading-tight line-clamp-2">
+                            Evolve {fromName}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
