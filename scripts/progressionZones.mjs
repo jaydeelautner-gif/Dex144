@@ -111,8 +111,8 @@ export const ALOLA_ZONES = (p) => [
 export const GALAR_ZONES = [
   ['swsh-ct', /crown-tundra|freezington|giants-bed|dyna-tree-hill|frosting-field|tunnel-to-the-top|three-point-pass|crown-shrine|ballimere-lake|old-cemetery|lakeside-cave|rocky-picket|split-decision-cavern|roaring-sea-caves|frigid-sea-cave/],
   ['swsh-ioa', /isle-of-armor|master-dojo|warm-up-tunnel|potbottom|soothing-sands|forest-of-focus|courage-sea|wisdom-lake|loop-lagoon|challenge-beach|challenge-road|stepping-stone-sea/],
-  ['swsh-champion', /energy-plant-tower|galar-pokemon-league|rose-tower|roaming/],
-  ['swsh-badge-8', /hammerlocke-gym|lake-of-outrage|galar-route-10|wyndon|hammerlocke-hills/],
+  ['swsh-champion', /energy-plant-tower|galar-pokemon-league|rose-tower|battle-tower|postwick-leons-room|slumbering-weald-deep|roaming/],
+  ['swsh-badge-8', /hammerlocke-gym|hammerlocke-area|lake-of-outrage|galar-route-10|wyndon|hammerlocke-hills/],
   ['swsh-badge-7', /spikemuth|galar-route-9/],
   ['swsh-badge-6', /circhester|galar-route-8|giants-mirror|giants-cap|north-lake-miloch|south-lake-miloch/],
   ['swsh-badge-5', /ballonlea|glimwood-tangle|galar-route-7/],

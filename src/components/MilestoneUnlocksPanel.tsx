@@ -1,4 +1,6 @@
 import { isAreaOwned } from '../data/dlcOwnership';
+import { isRowCatchableNow, countBadges, isStoryComplete, type CatchabilityContext } from '../utils/catchability';
+import { isAreaReachable } from '../utils/gameAreas';
 import type { PokemonInstance } from '../data/pokemonInventoryData';
 import { evolvedAwaySpecies } from '../utils/pokepetEvolution';
 import { reacquisitionHint } from '../utils/reacquisition';
@@ -255,6 +257,28 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
       const meta = GAME_META[group];
       const members = (GROUP_MEMBER_GAMES[group] ?? []).filter(id => ownedGames.includes(id));
 
+      // Catchability right now: the bundle's own story-progress flags plus the
+      // documented catch-level cap for the badges earned so far.
+      const groupMilestones = milestonesFor(group, ownedDlcs);
+      const completedSet = new Set(completedIds);
+      const catchCtx: CatchabilityContext = {
+        group,
+        badges: countBadges(groupMilestones, completedSet),
+        storyComplete: isStoryComplete(groupMilestones, completedSet),
+        ownedDlcs,
+      };
+      const catchableNow = (p: PokemonEntry): boolean => {
+        if (!encounters) return true; // no bundle yet — never hide on missing data
+        return members.some((g) =>
+          Object.entries(encounters[String(p.id)]?.[g] ?? {}).some(([area, list]) =>
+            // The area itself must be unlocked (badge tier), not merely listed,
+            // then the individual row must pass story + catch-level checks.
+            isAreaReachable(g, area, completedSet, ownedDlcs) &&
+            list.some((row) => isRowCatchableNow(row, { ...catchCtx, gameId: g }, area))
+          )
+        );
+      };
+
       const startingCandidates: PokemonEntry[] = [];
       const freshCandidates: PokemonEntry[] = [];
       let lastMilestoneLabel: string | null = null;
@@ -303,6 +327,7 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
           if (isStarter) continue; // starters live in the dedicated choice row
           if (unchosenLineIds.has(p.id)) continue; // unchosen starter lines get their own grids below
           if (!isCatchableInWild(p, members)) continue; // evolution-only
+          if (!catchableNow(p)) continue; // story-gated or above the current catch-level cap
           const obtainableFromStart = members.some(
             (gId) => p.availability[gId]?.status === 'base'
           );
@@ -373,6 +398,7 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
           if (activeGameId && p.availability[activeGameId]?.reacquisitionMode === 'trade_or_other') continue;
           if (stillLocked.has(p.id)) continue;
           if (!isCatchableInWild(p, members)) continue; // evolution-only
+          if (!catchableNow(p)) continue; // story-gated or above the current catch-level cap
           freshCandidates.push(p);
         }
         const split = splitWildVsEvolution(freshCandidates, members);

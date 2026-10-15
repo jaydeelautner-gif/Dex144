@@ -18,7 +18,8 @@
     "generate:offline-media": "tsx scripts/prepareOfflineMedia.ts",
     "generate:area-unlocks": "node scripts/generateAreaUnlocks.mjs",
     "generate:areas": "node scripts/generateAreaUnlocks.mjs",
-    "test:preferences": "tsx tests/dlcHomePreferences.test.ts && npm run build && node tests/preferences.browser.mjs"
+    "test:preferences": "tsx tests/dlcHomePreferences.test.ts && npm run build && node tests/preferences.browser.mjs",
+    "test:catchability": "tsx tests/catchability.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

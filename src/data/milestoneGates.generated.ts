@@ -10,7 +10,7 @@
 export const GENERATED_MILESTONE_GATES: Record<number, string[]> = {
   1: ['xy-badge-5'],
   2: ['xy-champion'],
-  4: ['xy-badge-5', 'lgpe-badge-1'],
+  4: ['xy-badge-5', 'lgpe-badge-1', 'swsh-badge-8'],
   5: ['xy-champion', 'swsh-badge-8'],
   6: ['swsh-badge-8'],
   7: ['xy-badge-5', 'lgpe-badge-2'],
@@ -664,7 +664,7 @@ export const GENERATED_MILESTONE_GATES: Record<number, string[]> = {
   764: ['sm-grand-1'],
   765: ['sm-grand-1'],
   766: ['sm-grand-1'],
-  772: ['sm-grand-2'],
+  772: ['sm-grand-2', 'swsh-champion'],
   774: ['sm-grand-2'],
   775: ['sm-grand-2'],
   777: ['swsh-badge-3'],
