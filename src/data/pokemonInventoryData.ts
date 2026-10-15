@@ -3,6 +3,50 @@ import { GAMES } from './pokemonData';
 
 export type PokemonGender = 'male' | 'female' | 'genderless';
 
+export const POKEBALLS = [
+  { id: 'poke-ball', name: 'Poké Ball' },
+  { id: 'great-ball', name: 'Great Ball' },
+  { id: 'ultra-ball', name: 'Ultra Ball' },
+  { id: 'master-ball', name: 'Master Ball' },
+  { id: 'safari-ball', name: 'Safari Ball' },
+  { id: 'sport-ball', name: 'Sport Ball' },
+  { id: 'fast-ball', name: 'Fast Ball' },
+  { id: 'level-ball', name: 'Level Ball' },
+  { id: 'lure-ball', name: 'Lure Ball' },
+  { id: 'heavy-ball', name: 'Heavy Ball' },
+  { id: 'love-ball', name: 'Love Ball' },
+  { id: 'friend-ball', name: 'Friend Ball' },
+  { id: 'moon-ball', name: 'Moon Ball' },
+  { id: 'net-ball', name: 'Net Ball' },
+  { id: 'dive-ball', name: 'Dive Ball' },
+  { id: 'nest-ball', name: 'Nest Ball' },
+  { id: 'repeat-ball', name: 'Repeat Ball' },
+  { id: 'timer-ball', name: 'Timer Ball' },
+  { id: 'luxury-ball', name: 'Luxury Ball' },
+  { id: 'premier-ball', name: 'Premier Ball' },
+  { id: 'dusk-ball', name: 'Dusk Ball' },
+  { id: 'heal-ball', name: 'Heal Ball' },
+  { id: 'quick-ball', name: 'Quick Ball' },
+  { id: 'cherish-ball', name: 'Cherish Ball' },
+  { id: 'park-ball', name: 'Park Ball' },
+  { id: 'dream-ball', name: 'Dream Ball' },
+  { id: 'beast-ball', name: 'Beast Ball' },
+  { id: 'strange-ball', name: 'Strange Ball' },
+  { id: 'feather-ball', name: 'Feather Ball' },
+  { id: 'wing-ball', name: 'Wing Ball' },
+  { id: 'jet-ball', name: 'Jet Ball' },
+  { id: 'leaden-ball', name: 'Leaden Ball' },
+  { id: 'gigaton-ball', name: 'Gigaton Ball' },
+] as const;
+
+export type PokeballId = (typeof POKEBALLS)[number]['id'];
+
+export function sanitizePokeballId(value: unknown): PokeballId | undefined {
+  return typeof value === 'string'
+    ? POKEBALLS.find((ball) => ball.id === value)?.id
+    : undefined;
+}
+
 export interface EvolutionRecord {
   fromSpeciesId: number;
   previousGameId?: GameId;
@@ -26,6 +70,7 @@ export interface PokemonInstance {
   variantId: string; // e.g. "25:base", "25:female", "37:alola", "6:gmax"
   variantName: string;
   isShiny: boolean;
+  ballType?: PokeballId;
   gameId?: GameId; // Origin game (MUST be undefined if isHomeGift is true)
   isHomeGift: boolean; // Tagged as Gifted from Pokémon HOME
   isTraded: boolean; // Received via Trade

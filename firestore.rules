@@ -56,6 +56,18 @@ service cloud.firestore {
         ));
     }
 
+    function isValidBallType(ballType) {
+      return ballType == null || ballType in [
+        'poke-ball', 'great-ball', 'ultra-ball', 'master-ball', 'safari-ball',
+        'sport-ball', 'fast-ball', 'level-ball', 'lure-ball', 'heavy-ball',
+        'love-ball', 'friend-ball', 'moon-ball', 'net-ball', 'dive-ball',
+        'nest-ball', 'repeat-ball', 'timer-ball', 'luxury-ball', 'premier-ball',
+        'dusk-ball', 'heal-ball', 'quick-ball', 'cherish-ball', 'park-ball',
+        'dream-ball', 'beast-ball', 'strange-ball', 'feather-ball', 'wing-ball',
+        'jet-ball', 'leaden-ball', 'gigaton-ball'
+      ];
+    }
+
     // Entity Blueprint Validation Helper: UserDexProfile
     function isValidUserDexProfile(data) {
       return data.keys().hasAll([
@@ -193,6 +205,7 @@ service cloud.firestore {
       data.variantName is string &&
       data.variantName.size() <= 60 &&
       data.isShiny is bool &&
+      (!('ballType' in data) || isValidBallType(data.ballType)) &&
       data.isHomeGift is bool &&
       data.isTraded is bool &&
       data.storedInHome is bool &&
@@ -225,6 +238,7 @@ service cloud.firestore {
         event.itemName is string && event.itemName.size() <= 100 &&
         (!event.usedItem || event.itemName.size() > 0) &&
         after.gender == before.gender && after.isShiny == before.isShiny &&
+        after.get('ballType', null) == before.get('ballType', null) &&
         after.get('gameId', null) == before.get('gameId', null) &&
         after.isHomeGift == before.isHomeGift && after.isTraded == before.isTraded &&
         after.get('nickname', '') == before.get('nickname', '');
@@ -286,6 +300,7 @@ service cloud.firestore {
         data.variantId is string && data.variantId.size() <= 32 &&
         data.variantName is string && data.variantName.size() <= 60 &&
         data.isShiny is bool && data.isHomeGift is bool && data.isTraded is bool &&
+        (!('ballType' in data) || isValidBallType(data.ballType)) &&
         data.storedInHome is bool && data.isInLivingBox is bool &&
         data.createdAt is number && data.updatedAt is number;
     }

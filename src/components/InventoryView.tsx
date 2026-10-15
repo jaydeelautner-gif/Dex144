@@ -26,8 +26,10 @@ import { GAMES } from '../data/pokemonData';
 import {
   formatOriginSourceLabel,
   formatStorageLocationLabel,
+  POKEBALLS,
   type PokemonInstance,
   type PokemonGender,
+  type PokeballId,
 } from '../data/pokemonInventoryData';
 import { getVariationsForPokemon } from '../data/regionalVariantsData';
 import { PokemonSprite } from './PokemonSprite';
@@ -70,6 +72,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   const [editGameId, setEditGameId] = useState<GameId | undefined>(undefined);
   const [editVariantId, setEditVariantId] = useState<string>('');
   const [editIsShiny, setEditIsShiny] = useState<boolean>(false);
+  const [editBallType, setEditBallType] = useState<PokeballId | ''>('');
   const [editIsTraded, setEditIsTraded] = useState<boolean>(false);
   const [editIsHomeGift, setEditIsHomeGift] = useState<boolean>(false);
   const [editStoredInHome, setEditStoredInHome] = useState<boolean>(true);
@@ -128,6 +131,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
     setEditGameId(item.gameId);
     setEditVariantId(item.variantId);
     setEditIsShiny(Boolean(item.isShiny));
+    setEditBallType(item.ballType || '');
     setEditIsTraded(Boolean(item.isTraded));
     setEditIsHomeGift(Boolean(item.isHomeGift));
     setEditStoredInHome(item.storedInHome);
@@ -149,6 +153,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       nickname: editNickname.trim().slice(0, 10),
       gender: editGender,
       isShiny: editIsShiny,
+      ballType: editBallType || undefined,
       isTraded: editIsTraded,
       isHomeGift: editIsHomeGift,
       gameId: editIsHomeGift ? undefined : editGameId,
@@ -466,6 +471,20 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                           <option key={v.variantId} value={v.variantId}>
                             {v.formName}
                           </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400">Poké Ball (optional)</label>
+                      <select
+                        value={editBallType}
+                        onChange={(e) => setEditBallType(e.target.value as PokeballId | '')}
+                        className="w-full px-2 py-1.5 rounded bg-slate-900 border border-slate-700 text-xs text-slate-200 mt-0.5"
+                      >
+                        <option value="">Not specified</option>
+                        {POKEBALLS.map((ball) => (
+                          <option key={ball.id} value={ball.id}>{ball.name}</option>
                         ))}
                       </select>
                     </div>
