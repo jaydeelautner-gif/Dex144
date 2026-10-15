@@ -155,7 +155,7 @@ export function GameProgressTracker({
         {milestones.map((m) => {
           const isDone = completed.has(m.id);
           return (
-            <li key={m.id}>
+            <li key={m.id} className="shrink-0">
               <label
                 className={`flex items-center gap-3 px-3 py-2 rounded-xl border transition-colors cursor-pointer ${
                   isDone
@@ -234,11 +234,12 @@ export function GameProgressTracker({
             {visibleAreas.map((area) => {
               const isOpen = openArea === area.area;
               return (
-                <li key={area.area} className="rounded-xl border border-slate-800/80 bg-slate-900/40 overflow-hidden">
+                <li key={area.area} className="shrink-0 rounded-xl border border-slate-800/80 bg-slate-900/40 overflow-hidden">
                   <button
                     type="button"
                     aria-expanded={isOpen}
                     onClick={() => setOpenArea(isOpen ? null : area.area)}
+                    title={area.unlockLabel}
                     className="w-full flex items-center gap-2.5 px-3 py-2 text-left cursor-pointer hover:bg-slate-900/80"
                   >
                     {isOpen ? (
@@ -251,17 +252,18 @@ export function GameProgressTracker({
                     ) : (
                       <Lock className="w-3.5 h-3.5 text-rose-400 shrink-0" />
                     )}
-                    <span className={`text-xs flex-1 truncate ${area.unlocked ? 'text-slate-100' : 'text-slate-500'}`}>
+                    {/* min-w-0 lets the name truncate instead of pushing the chip out of the row. */}
+                    <span className={`text-xs flex-1 min-w-0 truncate ${area.unlocked ? 'text-slate-100' : 'text-slate-500'}`}>
                       {prettifyAreaName(area.area)}
                     </span>
                     <span
-                      className={`text-[10px] font-mono px-1.5 py-0.5 rounded border shrink-0 ${
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0 whitespace-nowrap ${
                         area.unlocked
                           ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
                           : 'bg-rose-500/10 border-rose-500/30 text-rose-300'
                       }`}
                     >
-                      {area.unlockLabel}
+                      {area.unlockShort}
                     </span>
                   </button>
 

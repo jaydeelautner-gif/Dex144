@@ -17,6 +17,8 @@ export interface GameArea {
   milestoneId: string | null;
   /** Human-readable unlock text, e.g. "Gym 3 — Goldenrod". */
   unlockLabel: string;
+  /** Concise chip text, e.g. "Badge 3" (falls back to unlockLabel). */
+  unlockShort: string;
   unlocked: boolean;
 }
 
@@ -45,6 +47,7 @@ export function getGameAreas(
   const members = GROUP_MEMBER_GAMES[group] ?? [];
   const order = new Map(milestonesFor(group).map((m, i) => [m.id, i]));
   const labels = new Map(milestonesFor(group).map((m) => [m.id, m.label]));
+  const shorts = new Map(milestonesFor(group).map((m) => [m.id, m.short]));
 
   // Only areas that actually have encounters in the selected game.
   const areasWithRows = new Set<string>();
@@ -63,6 +66,7 @@ export function getGameAreas(
         area,
         milestoneId,
         unlockLabel: milestoneId ? labels.get(milestoneId) ?? milestoneId : 'Available from the start',
+        unlockShort: milestoneId ? shorts.get(milestoneId) ?? labels.get(milestoneId) ?? milestoneId : 'From the start',
         unlocked: milestoneId === null || completedMilestones.has(milestoneId),
       };
     })
