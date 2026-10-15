@@ -13,6 +13,7 @@ import type { PokemonEntry, GameId } from '../data/pokemonData';
 import { GAMES } from '../data/pokemonData';
 import { getVariationsForPokemon } from '../data/regionalVariantsData';
 import { PokemonSprite } from './PokemonSprite';
+import { PokeballIcon } from './PokeballIcon';
 import { GameLogoBadge } from './GameLogoBadge';
 import {
   formatOriginSourceLabel,
@@ -318,8 +319,11 @@ export const LivingBoxesView: React.FC<LivingBoxesViewProps> = ({
                         "{matchingSpecimen.nickname}"
                       </div>
                     )}
-                    <div className="text-xs font-semibold text-slate-100 truncate">
-                      {p.name}
+                    <div className="flex items-center justify-center gap-1 text-xs font-semibold text-slate-100 truncate">
+                      {matchingSpecimen?.ballType && (
+                        <PokeballIcon ballType={matchingSpecimen.ballType} />
+                      )}
+                      <span className="truncate">{p.name}</span>
                     </div>
 
                     {/* Origin & Storage information line */}
