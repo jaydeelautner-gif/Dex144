@@ -762,7 +762,9 @@ function parseProfileSnapshotData(uid: string, raw: Record<string, unknown>): Us
     ownedDlcs: sanitizeOwnedDlcs(Array.isArray(raw.ownedDlcs) ? raw.ownedDlcs : []),
     gameCatches: sanitizeGameCatchesMap(raw.gameCatches),
     avatar: parseAvatar(raw.avatar) ?? undefined,
-    gameProgress: sanitizeGameProgress(raw.gameProgress),
+    ...(Object.prototype.hasOwnProperty.call(raw, 'gameProgress')
+      ? { gameProgress: sanitizeGameProgress(raw.gameProgress) }
+      : {}),
     // NEW: friend fields
     friendCode: raw.friendCode ? String(raw.friendCode).slice(0, 16) : undefined,
     friends: Array.isArray(raw.friends)
@@ -1155,6 +1157,7 @@ export async function saveUserDexProfile(
     homePanels,
     inventory,
     rescueBin,
+    gameProgress,
     caughtCount: caughtIds.length,
     shinyCount: shinyIds.length,
     updatedAt: Date.now(),

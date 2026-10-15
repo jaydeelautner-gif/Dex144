@@ -327,9 +327,9 @@ function isExclusiveLabel(label: string): boolean {
 export function App() {
   const { homePanels, toggleHomePanel, resetHomePanels, setCloudHomePanels } = useHomePanels();
   const [avatar, setAvatar] = useState<TrainerAvatarConfig | null>(() => loadLocalAvatar());
-  const [cloudGameProgress, setCloudGameProgress] = useState<Record<string, string[]>>({});
   // User edited the avatar locally; cleared once written to the cloud.
   const avatarTouchedRef = useRef(false);
+  const gameProgressTouchedRef = useRef(false);
   const baseDex = useMemo(() => buildInitialNationalDex(), []);
   const { dataset: acquisitionDataset } = useEncounterDataset();
 
@@ -547,6 +547,7 @@ export function App() {
   // ── GAME PROGRESS TRACKING ──
   const {
     progress: gameProgress,
+    syncProgress: gameProgressForSync,
     trackedGames,
     starterChoices,
     chooseStarter,
@@ -557,6 +558,7 @@ export function App() {
     resetGame: resetGameProgress,
     restartGame,
     completeAll: completeAllMilestones,
+    adoptCloudProgress,
 
   } = useGameProgress(ownedDlcs);
 
@@ -881,8 +883,8 @@ export function App() {
             const cloudAvatar = parseAvatar(remoteProfile.avatar);
             if (cloudAvatar) { setAvatar(cloudAvatar); saveLocalAvatar(cloudAvatar); }
           }
-          if (remoteProfile.gameProgress && Object.keys(remoteProfile.gameProgress).length) {
-            setCloudGameProgress(remoteProfile.gameProgress);
+          if (remoteProfile.gameProgress !== undefined) {
+            adoptCloudProgress(remoteProfile.gameProgress, gameProgressTouchedRef.current);
           }
           // The local toggle is authoritative for this device: only adopt the
           // cloud value once per session, otherwise a stale/absent remote flag
@@ -931,7 +933,7 @@ export function App() {
             gameCatches,
             homePanels,
             avatar: avatar ?? undefined,
-            gameProgress: gameProgress as Record<string, string[]>,
+            gameProgress: gameProgressForSync,
           }).catch(() => {});
         }
         isInitialFetch = false;
@@ -1106,10 +1108,14 @@ export function App() {
           gameCatches,
           homePanels,
           avatar: avatar ?? undefined,
-          gameProgress: gameProgress as Record<string, string[]>,
+          gameProgress: gameProgressForSync,
           inventory: inventory as SerializedPokemonInstance[],
           rescueBin,
-        }).then(() => { homePanelsTouchedRef.current = false; avatarTouchedRef.current = false; }).catch(() => {});
+        }).then(() => {
+          homePanelsTouchedRef.current = false;
+          avatarTouchedRef.current = false;
+          gameProgressTouchedRef.current = false;
+        }).catch(() => {});
       }, 350);
       return () => clearTimeout(timer);
     }
@@ -1125,7 +1131,7 @@ export function App() {
     ownedDlcs,
     homePanels,
     avatar,
-    gameProgress,
+    gameProgressForSync,
     trainerName,
     isPublic,
     inventory,
@@ -2497,11 +2503,23 @@ export function App() {
                 starterChoices={starterChoices}
                 onChooseStarter={chooseStarter}
                 onClearStarter={clearStarterChoice}
-                onToggleMilestone={toggleMilestone}
+                onToggleMilestone={(gameId, milestoneId) => {
+                  gameProgressTouchedRef.current = true;
+                  toggleMilestone(gameId, milestoneId);
+                }}
                 onToggleTracking={toggleTracking}
-                onResetGameProgress={resetGameProgress}
-                onRestartGame={restartGame}
-                onCompleteAllMilestones={completeAllMilestones}
+                onResetGameProgress={(gameId) => {
+                  gameProgressTouchedRef.current = true;
+                  resetGameProgress(gameId);
+                }}
+                onRestartGame={(gameId) => {
+                  gameProgressTouchedRef.current = true;
+                  restartGame(gameId);
+                }}
+                onCompleteAllMilestones={(gameId, milestoneIds) => {
+                  gameProgressTouchedRef.current = true;
+                  completeAllMilestones(gameId, milestoneIds);
+                }}
                 onNavigateToProgress={() => setActiveTab('progress')}
                 // ── END GAME PROGRESS TRACKING ──
               />
@@ -3038,11 +3056,23 @@ export function App() {
                 progress={gameProgress}
                 trackedGames={trackedGames}
                 ownedGames={ownedGames}
-                onToggle={toggleMilestone}
+                onToggle={(gameId, milestoneId) => {
+                  gameProgressTouchedRef.current = true;
+                  toggleMilestone(gameId, milestoneId);
+                }}
                 onToggleTracking={toggleTracking}
-                onReset={resetGameProgress}
-                onRestartGame={restartGame}
-                onCompleteAll={completeAllMilestones}
+                onReset={(gameId) => {
+                  gameProgressTouchedRef.current = true;
+                  resetGameProgress(gameId);
+                }}
+                onRestartGame={(gameId) => {
+                  gameProgressTouchedRef.current = true;
+                  restartGame(gameId);
+                }}
+                onCompleteAll={(gameId, milestoneIds) => {
+                  gameProgressTouchedRef.current = true;
+                  completeAllMilestones(gameId, milestoneIds);
+                }}
                 dex={dex}
                 caughtSet={caughtSet}
                 onSelectPokemon={(p) => setSelectedPokemon(p)}

@@ -9,6 +9,18 @@ const LS_STARTER_CHOICES_KEY = 'homedex_v4_starter_choices';
 
 export type ProgressState = Record<string, string[]>;
 
+export function resolveCloudProgress(
+  localProgress: ProgressState,
+  remoteProgress: Partial<ProgressState> | undefined,
+  hasLocalChanges: boolean
+): ProgressState {
+  if (remoteProgress === undefined || hasLocalChanges) return localProgress;
+  return TRACKABLE_GAMES.reduce((acc, id) => {
+    acc[id] = Array.isArray(remoteProgress[id]) ? remoteProgress[id]! : [];
+    return acc;
+  }, {} as ProgressState);
+}
+
 const EMPTY: ProgressState = TRACKABLE_GAMES.reduce((acc, id) => {
   acc[id] = [];
   return acc;
@@ -93,6 +105,10 @@ export function useGameProgress(ownedDlcs: readonly DlcId[] = []) {
     });
   }, [ownedDlcs]);
 
+  const adoptCloudProgress = useCallback((remoteProgress: Partial<ProgressState>, hasLocalChanges: boolean) => {
+    setProgress((prev) => resolveCloudProgress(prev, remoteProgress, hasLocalChanges));
+  }, []);
+
   const resetGame = useCallback((gameId: GameId) => {
     setProgress((prev) => ({ ...prev, [gameId]: [] }));
   }, []);
@@ -150,6 +166,7 @@ export function useGameProgress(ownedDlcs: readonly DlcId[] = []) {
 
   return {
     progress,
+    syncProgress: savedProgress,
     trackedGames,
     starterChoices,
     mergedCompletedSet,
@@ -158,6 +175,7 @@ export function useGameProgress(ownedDlcs: readonly DlcId[] = []) {
     resetGame,
     restartGame,
     completeAll,
+    adoptCloudProgress,
     chooseStarter,
     clearStarterChoice,
   };
