@@ -109,6 +109,7 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
   const [gender, setGender] = useState<PokemonGender>('male');
   const [nickname, setNickname] = useState('');
   const [isShiny, setIsShiny] = useState(false);
+  const [hasPokerus, setHasPokerus] = useState(false);
   const [ballType, setBallType] = useState<PokeballId | ''>('');
   const [isTraded, setIsTraded] = useState(false);
   const [isHomeGift, setIsHomeGift] = useState(false);
@@ -303,6 +304,7 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
     setLevel(50);
     setNickname('');
     setIsShiny(false);
+    setHasPokerus(false);
     setBallType('');
     setIsTraded(false);
     setIsHomeGift(false);
@@ -380,6 +382,7 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
         variantId: selectedVariantId,
         variantName,
         isShiny,
+        hasPokerus,
         ballType: ballType || undefined,
         gameId: isHomeGift ? undefined : (targetGame as GameId),
         isHomeGift,
@@ -917,6 +920,10 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
               </div>
             )}
 
+            <label className="flex items-center gap-2.5 p-3 rounded-xl border border-fuchsia-500/40 bg-slate-900 cursor-pointer text-xs font-bold text-fuchsia-200">
+              <input type="checkbox" checked={hasPokerus} onChange={e => setHasPokerus(e.target.checked)} className="accent-fuchsia-400" />
+              Pokérus
+            </label>
             {/* Shiny Toggle */}
             <div className="grid grid-cols-1 gap-2 pt-2 border-t border-slate-800">
               <label className={`flex items-center gap-2.5 p-3 lg:p-2 rounded-xl border cursor-pointer select-none ${

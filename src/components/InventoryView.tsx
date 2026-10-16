@@ -1,3 +1,4 @@
+import { PokerusBadge } from './PokerusBadge';
 import React, { useState, useMemo } from 'react';
 import {
   Search,
@@ -75,6 +76,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   const [editGameId, setEditGameId] = useState<GameId | undefined>(undefined);
   const [editVariantId, setEditVariantId] = useState<string>('');
   const [editIsShiny, setEditIsShiny] = useState<boolean>(false);
+  const [editHasPokerus, setEditHasPokerus] = useState(false);
   const [editBallType, setEditBallType] = useState<PokeballId | ''>('');
   const [editIsTraded, setEditIsTraded] = useState<boolean>(false);
   const [editIsHomeGift, setEditIsHomeGift] = useState<boolean>(false);
@@ -135,6 +137,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
     setEditGameId(item.gameId);
     setEditVariantId(item.variantId);
     setEditIsShiny(Boolean(item.isShiny));
+    setEditHasPokerus(Boolean(item.hasPokerus));
     setEditBallType(item.ballType || '');
     setEditIsTraded(Boolean(item.isTraded));
     setEditIsHomeGift(Boolean(item.isHomeGift));
@@ -157,6 +160,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       nickname: editNickname.trim().slice(0, 10),
       gender: editGender,
       isShiny: editIsShiny,
+      hasPokerus: editHasPokerus,
       ballType: editBallType || undefined,
       isTraded: editIsTraded,
       isHomeGift: editIsHomeGift,
@@ -469,6 +473,10 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                       </div>
                     </div>
 
+                    <label className="flex items-center gap-2 text-xs text-fuchsia-200 cursor-pointer">
+                      <input type="checkbox" checked={editHasPokerus} onChange={e => setEditHasPokerus(e.target.checked)} className="accent-fuchsia-400" />
+                      <PokerusBadge /> Pokérus
+                    </label>
                     {/* Variant dropdown */}
                     <div>
                       <label className="text-[10px] font-bold text-slate-400">Variant / Form</label>
@@ -619,6 +627,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                         {item.nickname && (
                           <span className="text-[10px] text-slate-500">({mon?.name})</span>
                         )}
+                        {item.hasPokerus && <PokerusBadge />}
                         {item.isShiny && <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
                       </div>
                       <div className="text-xs font-mono font-semibold text-amber-400">

@@ -1,3 +1,4 @@
+import { PokerusBadge } from './PokerusBadge';
 import React, { useState } from 'react';
 import {
   ChevronLeft,
@@ -273,6 +274,7 @@ export const LivingBoxesView: React.FC<LivingBoxesViewProps> = ({
                     ) : selectedBoxGameId ? (
                       <GameLogoBadge gameId={selectedBoxGameId} size="xs" />
                     ) : null}
+                    {matchingSpecimen?.hasPokerus && <PokerusBadge />}
                     {isShiny && (
                       <span title="Shiny Registered">
                         <Sparkles className="w-3.5 h-3.5 text-amber-400" />

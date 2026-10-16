@@ -1,3 +1,4 @@
+import { PokerusBadge } from './PokerusBadge';
 import React, { useState, useMemo } from 'react';
 import {
   Globe,
@@ -231,7 +232,8 @@ export const PublicStatsPageView: React.FC<PublicStatsPageViewProps> = ({
             ) : gameCaughtId ? (
               <GameLogoBadge gameId={gameCaughtId} size="xs" />
             ) : null}
-            {isShiny && (
+            {matchingSpecimen?.hasPokerus && <PokerusBadge />}
+                    {isShiny && (
               <span title="Shiny">
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
               </span>

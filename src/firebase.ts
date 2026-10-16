@@ -163,6 +163,7 @@ export interface SerializedPokemonInstance {
   variantId: string;
   variantName: string;
   isShiny: boolean;
+  hasPokerus?: boolean;
   ballType?: PokeballId;
   gameId?: string;
   isHomeGift: boolean;
@@ -284,6 +285,7 @@ export function sanitizeInventory(raw: unknown): SerializedPokemonInstance[] {
       variantId,
       variantName,
       isShiny,
+      hasPokerus: Boolean(rec.hasPokerus),
       isHomeGift,
       isTraded,
       storedInHome,
@@ -354,6 +356,7 @@ export function sanitizeRescueBin(raw: unknown): RescueBinItem[] {
       variantId: rawInst.variantId,
       variantName: rawInst.variantName,
       isShiny: Boolean(rawInst.isShiny),
+      hasPokerus: Boolean(rawInst.hasPokerus),
       ballType: sanitizePokeballId(rawInst.ballType),
       gameId: rawInst.gameId as GameId | undefined,
       isHomeGift: Boolean(rawInst.isHomeGift),
@@ -1402,6 +1405,7 @@ export async function getUserRegisteredPokepets(uid: string): Promise<Serialized
             variantId: String(data.variantId || `${data.pokemonId}:base`),
             variantName: String(data.variantName || 'Standard'),
             isShiny: Boolean(data.isShiny),
+      hasPokerus: Boolean(data.hasPokerus),
             ballType: sanitizePokeballId(data.ballType),
             isHomeGift: Boolean(data.isHomeGift),
             isTraded: Boolean(data.isTraded),
@@ -1489,6 +1493,7 @@ export async function savePokepetToUniversalDatabase(
     variantId: item.variantId,
     variantName: item.variantName,
     isShiny: item.isShiny,
+    hasPokerus: Boolean(item.hasPokerus),
     ballType: sanitizePokeballId(item.ballType) ?? null,
     isHomeGift: item.isHomeGift,
     isTraded: item.isTraded,
@@ -1560,6 +1565,7 @@ export async function updatePokepetInUniversalDatabase(
       variantId: item.variantId,
       variantName: item.variantName,
       isShiny: item.isShiny,
+    hasPokerus: Boolean(item.hasPokerus),
       ballType: sanitizePokeballId(item.ballType) ?? null,
       isHomeGift: item.isHomeGift,
       isTraded: item.isTraded,
@@ -1673,6 +1679,7 @@ export async function searchPokepetByPokeId(
         variantId: String(data.variantId || `${data.pokemonId}:base`),
         variantName: String(data.variantName || 'Standard'),
         isShiny: Boolean(data.isShiny),
+      hasPokerus: Boolean(data.hasPokerus),
         ballType: sanitizePokeballId(data.ballType),
         gameId: data.gameId ? String(data.gameId) : undefined,
         isHomeGift: Boolean(data.isHomeGift),

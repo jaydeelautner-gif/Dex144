@@ -70,6 +70,7 @@ export interface PokemonInstance {
   variantId: string; // e.g. "25:base", "25:female", "37:alola", "6:gmax"
   variantName: string;
   isShiny: boolean;
+  hasPokerus?: boolean;
   ballType?: PokeballId;
   gameId?: GameId; // Origin game (MUST be undefined if isHomeGift is true)
   isHomeGift: boolean; // Tagged as Gifted from Pokémon HOME

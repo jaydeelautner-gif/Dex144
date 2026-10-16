@@ -204,6 +204,7 @@ service cloud.firestore {
       data.variantId.size() <= 32 &&
       data.variantName is string &&
       data.variantName.size() <= 60 &&
+      (!('hasPokerus' in data) || data.hasPokerus is bool) &&
       data.isShiny is bool &&
       (!('ballType' in data) || isValidBallType(data.ballType)) &&
       data.isHomeGift is bool &&
@@ -299,6 +300,7 @@ service cloud.firestore {
         data.gender in ['male', 'female', 'genderless'] &&
         data.variantId is string && data.variantId.size() <= 32 &&
         data.variantName is string && data.variantName.size() <= 60 &&
+        (!('hasPokerus' in data) || data.hasPokerus is bool) &&
         data.isShiny is bool && data.isHomeGift is bool && data.isTraded is bool &&
         (!('ballType' in data) || isValidBallType(data.ballType)) &&
         data.storedInHome is bool && data.isInLivingBox is bool &&
