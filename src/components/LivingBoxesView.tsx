@@ -1,3 +1,4 @@
+import { DisplayLimitSelect, useDisplayLimit } from './DisplayControls';
 import { PokerusBadge } from './PokerusBadge';
 import React, { useState } from 'react';
 import {
@@ -63,10 +64,11 @@ export const LivingBoxesView: React.FC<LivingBoxesViewProps> = ({
 
   const hasRegisteredPokePet = (pokemonId: number) => registeredSpeciesSet.has(pokemonId);
 
+  const [boxLimit, setBoxLimit] = useDisplayLimit('homedex_private_box_count', 1);
   const totalBoxes = Math.ceil(dex.length / 30);
-  const startId = (activeBox - 1) * 30 + 1;
-  const endId = Math.min(activeBox * 30, dex.length);
-  const boxPokemon = dex.filter((p) => p.boxNumber === activeBox);
+  const startId = boxLimit === 'all' ? 1 : (activeBox - 1) * 30 + 1;
+  const endId = boxLimit === 'all' ? dex.length : Math.min((activeBox + boxLimit - 1) * 30, dex.length);
+  const boxPokemon = dex.filter((p) => boxLimit === 'all' || (p.boxNumber >= activeBox && p.boxNumber < activeBox + boxLimit));
   const boxedInCurrent = boxPokemon.filter((p) => hasRegisteredPokePet(p.id) && livingSet.has(p.id)).length;
   const caughtInCurrent = boxPokemon.filter((p) => hasRegisteredPokePet(p.id) && caughtSet.has(p.id)).length;
   const shinyInCurrent = boxPokemon.filter((p) => hasRegisteredPokePet(p.id) && shinySet.has(p.id)).length;
@@ -92,7 +94,8 @@ export const LivingBoxesView: React.FC<LivingBoxesViewProps> = ({
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
-            onClick={() => onChangeBox(activeBox > 1 ? activeBox - 1 : totalBoxes)}
+            disabled={boxLimit === 'all'}
+                  onClick={() => onChangeBox(activeBox > 1 ? activeBox - 1 : totalBoxes)}
             className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 transition-colors cursor-pointer"
             aria-label="Previous Box"
           >
@@ -102,6 +105,7 @@ export const LivingBoxesView: React.FC<LivingBoxesViewProps> = ({
             value={activeBox}
             onChange={(e) => onChangeBox(Number(e.target.value))}
             aria-label="Select PC Box"
+                  disabled={boxLimit === 'all'}
             className="px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-sm font-semibold text-slate-100 font-mono-tabular focus:outline-none focus:border-amber-500 cursor-pointer"
           >
             {Array.from({ length: totalBoxes }).map((_, idx) => {
@@ -119,7 +123,8 @@ export const LivingBoxesView: React.FC<LivingBoxesViewProps> = ({
           </select>
           <button
             type="button"
-            onClick={() => onChangeBox(activeBox < totalBoxes ? activeBox + 1 : 1)}
+            disabled={boxLimit === 'all'}
+                  onClick={() => onChangeBox(activeBox < totalBoxes ? activeBox + 1 : 1)}
             className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 transition-colors cursor-pointer"
             aria-label="Next Box"
           >
@@ -148,11 +153,12 @@ export const LivingBoxesView: React.FC<LivingBoxesViewProps> = ({
         )}
       </div>
 
+      <DisplayLimitSelect boxes label="Boxes shown" value={boxLimit} onChange={value=>{setBoxLimit(value);onChangeBox(1);}} />
       {/* Box Telemetry Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 px-1 text-xs text-slate-400">
         <div className="flex flex-wrap items-center gap-2 font-mono-tabular">
           <span className="text-slate-200 font-semibold">
-            PC Box {activeBox} (#{String(startId).padStart(4, '0')}–#{String(endId).padStart(4, '0')})
+            {boxLimit === 'all' ? 'All PC Boxes' : boxLimit === 1 ? `PC Box ${activeBox}` : `PC Boxes ${activeBox}–${Math.min(totalBoxes, activeBox + boxLimit - 1)}`} (#{String(startId).padStart(4, '0')}–#{String(endId).padStart(4, '0')})
           </span>
           <span aria-hidden="true">•</span>
           <span className="text-sky-400">
@@ -242,6 +248,7 @@ export const LivingBoxesView: React.FC<LivingBoxesViewProps> = ({
             return (
               <div
                 key={p.id}
+                data-testid="box-slot"
                 onClick={() => onSelectPokemon(p)}
                 className={`group relative rounded-xl border p-3 flex flex-col justify-between transition-all cursor-pointer select-none ${
                   isBoxed

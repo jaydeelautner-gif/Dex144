@@ -1,4 +1,5 @@
 export const HOME_PANELS = [
+  {id:'recentCommunity',label:'Recently registered community PokéPets',description:'Latest public registrations from trainers across the site. Requires internet.',group:'Home panels'},
   {id:'trainerCard',label:'Trainer card',description:'Your avatar, owned games and earned badge case in the Home sidebar.',group:'Trainer sidebar'},
   {id:'profileBoxes',label:'Boxes shortcut',description:'Open your living boxes from the Home sidebar.',group:'Trainer sidebar'},
   {id:'profileInventory',label:'Inventory shortcut',description:'Open your registered PokéPets from the Home sidebar.',group:'Trainer sidebar'},

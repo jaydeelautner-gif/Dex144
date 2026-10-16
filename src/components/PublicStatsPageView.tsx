@@ -1,3 +1,4 @@
+import { DisplayLimitSelect, PageControls, useDisplayLimit } from './DisplayControls';
 import { PokerusBadge } from './PokerusBadge';
 import React, { useState, useMemo } from 'react';
 import {
@@ -75,6 +76,9 @@ export const PublicStatsPageView: React.FC<PublicStatsPageViewProps> = ({
   inventory = [],
 }) => {
   const [activeBox, setActiveBox] = useState<number>(1);
+  const [boxLimit, setBoxLimit] = useDisplayLimit('homedex_public_box_count', 1);
+  const [dexLimit, setDexLimit] = useDisplayLimit('homedex_living_dex_display_count', 180);
+  const [dexPage, setDexPage] = useState(1);
   const [viewMode, setViewMode] = useState<'boxes' | 'all_caught'>('boxes');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
@@ -102,8 +106,8 @@ export const PublicStatsPageView: React.FC<PublicStatsPageViewProps> = ({
   );
 
   const boxPokemon = useMemo(
-    () => dex.filter((p) => p.boxNumber === activeBox),
-    [dex, activeBox]
+    () => dex.filter((p) => boxLimit === 'all' || (p.boxNumber >= activeBox && p.boxNumber < activeBox + boxLimit)),
+    [dex, activeBox, boxLimit]
   );
 
   const filteredDex = useMemo(() => {
@@ -121,6 +125,10 @@ export const PublicStatsPageView: React.FC<PublicStatsPageViewProps> = ({
       );
     });
   }, [dex, viewMode, searchQuery, livingSet, caughtSet, registeredSpeciesSet]);
+
+  const dexPages = dexLimit === 'all' ? 1 : Math.max(1, Math.ceil(filteredDex.length / dexLimit));
+  const currentDexPage = Math.min(dexPage, dexPages);
+  const visibleDex = dexLimit === 'all' ? filteredDex : filteredDex.slice((currentDexPage - 1) * dexLimit, currentDexPage * dexLimit);
 
   const handleCopyShareLink = async () => {
     const targetUrl = shareUrl || window.location.href;
@@ -196,6 +204,7 @@ export const PublicStatsPageView: React.FC<PublicStatsPageViewProps> = ({
     return (
       <div
         key={p.id}
+                data-testid="living-dex-slot"
         className={`rounded-2xl border p-3 flex flex-col justify-between gap-2 transition-all ${
           isBoxed
             ? 'bg-sky-950/20 border-sky-500/45'
@@ -517,6 +526,7 @@ export const PublicStatsPageView: React.FC<PublicStatsPageViewProps> = ({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
+                  disabled={boxLimit === 'all'}
                   onClick={() => setActiveBox(activeBox > 1 ? activeBox - 1 : totalBoxes)}
                   className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 cursor-pointer"
                 >
@@ -526,6 +536,7 @@ export const PublicStatsPageView: React.FC<PublicStatsPageViewProps> = ({
                   value={activeBox}
                   onChange={(e) => setActiveBox(Number(e.target.value))}
                   aria-label="Select PC Box"
+                  disabled={boxLimit === 'all'}
                   className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-mono-tabular font-semibold text-slate-100"
                 >
                   {Array.from({ length: totalBoxes }).map((_, idx) => {
@@ -541,6 +552,7 @@ export const PublicStatsPageView: React.FC<PublicStatsPageViewProps> = ({
                 </select>
                 <button
                   type="button"
+                  disabled={boxLimit === 'all'}
                   onClick={() => setActiveBox(activeBox < totalBoxes ? activeBox + 1 : 1)}
                   className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 cursor-pointer"
                 >
@@ -564,9 +576,14 @@ export const PublicStatsPageView: React.FC<PublicStatsPageViewProps> = ({
           )}
         </div>
 
+        <div className="flex flex-wrap gap-3 items-center">
+          {viewMode === 'boxes'
+            ? <DisplayLimitSelect boxes label="Boxes shown" value={boxLimit} onChange={value=>{setBoxLimit(value);setActiveBox(1);}} />
+            : <><DisplayLimitSelect label="Living Dex per page" value={dexLimit} onChange={value=>{setDexLimit(value);setDexPage(1);}} /><PageControls page={currentDexPage} pages={dexPages} total={filteredDex.length} onChange={setDexPage} /></>}
+        </div>
         {/* Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3.5">
-          {(viewMode === 'boxes' ? boxPokemon : filteredDex.slice(0, 180)).map((p) =>
+          {(viewMode === 'boxes' ? boxPokemon : visibleDex).map((p) =>
             renderLivingSlotCard(p)
           )}
         </div>

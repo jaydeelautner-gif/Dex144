@@ -38,6 +38,8 @@ import { GameLogoBadge } from './GameLogoBadge';
 
 import { INVENTORY_SORT_OPTIONS, sortInventory, type InventorySort } from '../utils/inventorySort';
 
+import { DisplayLimitSelect, PageControls, useDisplayLimit } from './DisplayControls';
+
 interface InventoryViewProps {
   dex: PokemonEntry[];
   inventory: PokemonInstance[];
@@ -63,6 +65,8 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   onNavigateToRegister,
   onNavigateToSettings,
 }) => {
+  const [displayLimit, setDisplayLimit] = useDisplayLimit('homedex_inventory_display_count', 'all');
+  const [displayPage, setDisplayPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterGame, setFilterGame] = useState<string>('all');
   const [filterHomeStatus, setFilterHomeStatus] = useState<string>('all');
@@ -128,6 +132,10 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
     });
     return sortInventory(filtered, sortOrder, new Map(dex.map(mon => [mon.id, mon.name])));
   }, [inventory, dex, searchQuery, filterGame, filterHomeStatus, sortOrder]);
+
+  const pages = displayLimit === 'all' ? 1 : Math.max(1, Math.ceil(filteredInstances.length / displayLimit));
+  const currentDisplayPage = Math.min(displayPage, pages);
+  const visibleInstances = displayLimit === 'all' ? filteredInstances : filteredInstances.slice((currentDisplayPage - 1) * displayLimit, currentDisplayPage * displayLimit);
 
   const handleStartEdit = (item: PokemonInstance) => {
     setEditingPokeId(item.pokeId);
@@ -255,6 +263,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               {INVENTORY_SORT_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
             </select>
           </label>
+          <DisplayLimitSelect label="PokéPets per page" value={displayLimit} onChange={value => { setDisplayLimit(value); setDisplayPage(1); }} />
           {/* Game filter */}
           <select
             value={filterGame}
@@ -293,6 +302,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         </div>
       </div>
 
+      <PageControls page={currentDisplayPage} pages={pages} total={filteredInstances.length} onChange={setDisplayPage} />
       {/* Inventory Cards Grid */}
       {filteredInstances.length === 0 ? (
         <div className="bg-[#0F1522] border border-slate-800 rounded-2xl p-12 text-center flex flex-col items-center gap-3">
@@ -315,7 +325,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredInstances.map((item) => {
+          {visibleInstances.map((item) => {
             const mon = dex.find((p) => p.id === item.pokemonId);
             const isEditing = editingPokeId === item.pokeId;
             const variations = mon ? getVariationsForPokemon(mon) : [];
@@ -330,6 +340,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             return (
               <div
                 key={item.pokeId}
+                data-testid="inventory-item"
                 className="bg-[#0F1522] border border-slate-800 rounded-2xl p-4 flex flex-col justify-between gap-4 transition-all hover:border-slate-700 relative overflow-hidden shadow-lg"
               >
                 {/* Header: POKEID & Action buttons */}

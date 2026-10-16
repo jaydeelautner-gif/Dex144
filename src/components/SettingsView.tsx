@@ -1,3 +1,4 @@
+import { HomeDesignSettings } from './HomeDesignSettings';
 import React, { useState, useEffect } from 'react';
 import {
   Settings,
@@ -289,6 +290,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <h2 className="text-lg font-bold text-slate-100">Customize Home Screen</h2>
             <p className="text-xs text-slate-400 mt-1">Choose which panels appear on Home. Saved automatically on this device and available offline. Hiding a panel does not delete PokéPets, catches or progress; other pages stay unchanged.</p>
           </div>
+          <HomeDesignSettings />
           {[...new Set(HOME_PANELS.map(p => p.group))].map(group => (
             <fieldset key={group} className="flex flex-col gap-2">
               <legend className="text-sm font-bold text-amber-300 mb-2">{group}</legend>

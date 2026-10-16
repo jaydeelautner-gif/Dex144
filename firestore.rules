@@ -107,6 +107,7 @@ service cloud.firestore {
         'ownedDlcs',
         'gameCatches',
         'homePanels',
+        'homeDesign',
         'avatar',
         'gameProgress',
         'inventory',
@@ -149,6 +150,13 @@ service cloud.firestore {
       data.ownedDlcs.size() <= 20 &&
       (data.ownedDlcs.size() == 0 || (data.ownedDlcs[0] is string && data.ownedDlcs[0].size() <= 40)) &&
       isValidGameCatchesMap(data.gameCatches) &&
+      (!('homeDesign' in data) || (data.homeDesign is map &&
+        data.homeDesign.keys().hasOnly(['layout', 'columns', 'spacing', 'order', 'updatedAt']) &&
+        data.homeDesign.layout in ['left', 'right', 'stacked'] &&
+        data.homeDesign.columns in [1, 2] &&
+        data.homeDesign.spacing in ['comfortable', 'compact'] &&
+        data.homeDesign.order is list && data.homeDesign.order.size() <= 40 &&
+        data.homeDesign.updatedAt is number)) &&
       (!('inventory' in data) || isValidInventory(data.inventory)) &&
       (!('rescueBin' in data) || (data.rescueBin is list && data.rescueBin.size() <= 2000)) &&
       (!('friendCode' in data) || (data.friendCode is string && data.friendCode.size() <= 32)) &&
@@ -277,6 +285,7 @@ service cloud.firestore {
             'ownedDlcs',
             'gameCatches',
             'homePanels',
+            'homeDesign',
             'avatar',
             'gameProgress',
             'inventory',

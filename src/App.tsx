@@ -1,3 +1,5 @@
+import { DisplayLimitSelect, useDisplayLimit } from './components/DisplayControls';
+import { useHomeDesign, adoptHomeDesign } from './hooks/useHomeDesign';
 import { useHomePanels } from './hooks/useHomePanels';
 import { useOfflineUpdateStatus, checkForOfflineUpdate } from './utils/offlineUpdates';
 import { isMilestoneOwned } from './data/dlcOwnership';
@@ -362,6 +364,8 @@ export function App() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [viewLayout, setViewLayout] = useState<'grid' | 'table'>('grid');
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [dexDisplayLimit, setDexDisplayLimit] = useDisplayLimit('homedex_dex_display_count', 60);
+  const {design:homeDesign,rank:homeRank} = useHomeDesign();
   const [activeBox, setActiveBox] = useState<number>(1);
   const [selectedPokemon, setSelectedPokemon] = useState<PokemonEntry | null>(null);
   const [fullPagePokemon, setFullPagePokemon] = useState<PokemonEntry | null>(null);
@@ -876,6 +880,7 @@ export function App() {
           setOwnedDlcs(remoteProfile.ownedDlcs as DlcId[]);
           // Home panel layout sync: adopt the cloud layout unless this device
           // has a pending local change that hasn't been written back yet.
+          if (remoteProfile.homeDesign) adoptHomeDesign(remoteProfile.homeDesign);
           if (!homePanelsTouchedRef.current) {
             const cloudPanels = parseHomePanels(remoteProfile.homePanels);
             if (cloudPanels) setCloudHomePanels(cloudPanels);
@@ -931,6 +936,7 @@ export function App() {
             ownedDlcs,
             gameCatches,
             homePanels,
+            homeDesign,
             avatar: avatar ?? undefined,
             gameProgress: gameProgressForSync,
           }).catch(() => {});
@@ -1115,6 +1121,7 @@ export function App() {
           ownedDlcs,
           gameCatches,
           homePanels,
+          homeDesign,
           avatar: avatar ?? undefined,
           gameProgress: gameProgressForSync,
           inventory: inventory as SerializedPokemonInstance[],
@@ -1138,6 +1145,7 @@ export function App() {
     gameCatches,
     ownedDlcs,
     homePanels,
+    homeDesign,
     avatar,
     gameProgressForSync,
     trainerName,
@@ -1931,7 +1939,7 @@ export function App() {
     getOwnedGamesAvailabilitySummary,
   ]);
 
-  const pageSize = viewLayout === 'grid' ? 60 : 50;
+  const pageSize = dexDisplayLimit === 'all' ? Math.max(1, filteredDex.length) : dexDisplayLimit;
   const totalPages = Math.max(1, Math.ceil(filteredDex.length / pageSize));
   const paginatedDex = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
@@ -2397,32 +2405,32 @@ export function App() {
           />
         ) : (
           <>
-            <div data-testid="home-layout" className={activeTab === 'home' ? `grid grid-cols-1 gap-5 items-start ${homePanels.trainerCard || homePanels.profileBoxes || homePanels.profileInventory || homePanels.profileFriends || homePanels.profileAvatar ? 'lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]' : ''}` : 'contents'}>
+            <div data-testid="home-layout" className={activeTab === 'home' ? `grid grid-cols-1 gap-5 items-start ${(homePanels.trainerCard || homePanels.profileBoxes || homePanels.profileInventory || homePanels.profileFriends || homePanels.profileAvatar) && homeDesign.layout !== 'stacked' ? homeDesign.layout === 'right' ? 'lg:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]' : 'lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]' : ''}` : 'contents'}>
               {activeTab === 'home' && (homePanels.trainerCard || homePanels.profileBoxes || homePanels.profileInventory || homePanels.profileFriends || homePanels.profileAvatar) && (
-                <aside aria-label="Your trainer and profile shortcuts" className="min-w-0 flex flex-col gap-4">
-                  {homePanels.trainerCard && <ProfileCard compact trainerName={displayTrainerName} avatar={avatar} ownedGames={normalizeToCanonicalGames(ownedGames)} gameProgress={gameProgress as Record<string,string[]>} isPublic={isPublic} />}
+                <aside aria-label="Your trainer and profile shortcuts" className="min-w-0 flex flex-col gap-4" style={{order:homeDesign.layout==='right'?2:0}}>
+                  {homePanels.trainerCard && <div style={{order:homeRank('trainerCard')}}><ProfileCard compact trainerName={displayTrainerName} avatar={avatar} ownedGames={normalizeToCanonicalGames(ownedGames)} gameProgress={gameProgress as Record<string,string[]>} isPublic={isPublic} /></div>}
                   {(homePanels.profileBoxes || homePanels.profileInventory || homePanels.profileFriends || homePanels.profileAvatar) && (
-                    <nav aria-label="Home profile shortcuts" className="bg-[#0F1522] border border-slate-800 rounded-2xl p-3 flex flex-col gap-2">
+                    <nav aria-label="Home profile shortcuts" style={{order:Math.min(...['profileBoxes','profileInventory','profileFriends','profileAvatar'].map(id=>homeRank(id as import('./data/homePanels').HomePanelId)))}} className="bg-[#0F1522] border border-slate-800 rounded-2xl p-3 flex flex-col gap-2">
                       {([
                         { visible: homePanels.profileBoxes, tab: 'boxes', label: 'Boxes' },
                         { visible: homePanels.profileInventory, tab: 'inventory', label: 'Inventory' },
                         { visible: homePanels.profileFriends, tab: 'friends', label: 'Friends' },
                         { visible: homePanels.profileAvatar, tab: 'trainer', label: 'Avatar Builder' },
-                      ] as const).filter(link => link.visible).map(link => (
+                      ] as const).filter(link => link.visible).sort((a,b)=>homeRank(({boxes:'profileBoxes',inventory:'profileInventory',friends:'profileFriends',trainer:'profileAvatar'} as const)[a.tab])-homeRank(({boxes:'profileBoxes',inventory:'profileInventory',friends:'profileFriends',trainer:'profileAvatar'} as const)[b.tab])).map(link => (
                         <button key={link.tab} type="button" onClick={() => navigateToProfile(link.tab)} className="text-left px-4 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-sm font-bold text-amber-200">{link.label} <span aria-hidden="true" className="float-right">→</span></button>
                       ))}
                     </nav>
                   )}
                 </aside>
               )}
-              <div className={activeTab === 'home' ? 'min-w-0 flex flex-col gap-5' : 'contents'}>
+              <div className={activeTab === 'home' ? `min-w-0 grid grid-cols-1 ${homeDesign.columns===2?'2xl:grid-cols-2':''} ${homeDesign.spacing==='compact'?'gap-3 [&>section]:p-3 [&>div>section]:p-3':'gap-5'} items-start` : 'contents'} style={activeTab==='home'?{order:1}:undefined}>
             {/* Top Global KPI Progress Strip */}
             <section
-              style={{display: activeTab === 'register' || (activeTab === 'home' && !homePanels.nationalDex && !homePanels.livingDex && !homePanels.runningTotal) ? 'none' : undefined}}
+              style={{display: activeTab === 'register' ? 'none' : activeTab === 'home' ? 'contents' : undefined}}
               aria-label="Global Progress Summary"
               className={`grid grid-cols-1 gap-4 ${activeTab !== 'home' ? 'sm:grid-cols-3' : 'xl:grid-cols-2'}`}
             >
-              <div style={{display: activeTab === 'home' && !homePanels.nationalDex ? 'none' : undefined}} className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-5 flex flex-col justify-between gap-2 shadow-lg">
+              <div style={{display: activeTab === 'home' && !homePanels.nationalDex ? 'none' : undefined, order:activeTab==='home'?homeRank('nationalDex'):undefined}} className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-5 flex flex-col justify-between gap-2 shadow-lg">
                 <div className="flex items-center justify-between text-xs font-mono-tabular text-slate-400">
                   <span>NATIONAL POKÉDEX CAUGHT ({displayTrainerName.toUpperCase()})</span>
                   <span className="text-emerald-400 font-semibold">{caughtPct}%</span>
@@ -2438,7 +2446,7 @@ export function App() {
                 </div>
               </div>
 
-              <div style={{display: activeTab === 'home' && !homePanels.livingDex ? 'none' : undefined}} className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-5 flex flex-col justify-between gap-2 shadow-lg">
+              <div style={{display: activeTab === 'home' && !homePanels.livingDex ? 'none' : undefined, order:activeTab==='home'?homeRank('livingDex'):undefined}} className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-5 flex flex-col justify-between gap-2 shadow-lg">
                 <div className="flex items-center justify-between text-xs font-mono-tabular text-slate-400">
                   <span>STORED IN POKÉMON HOME (LIVING DEX)</span>
                   <span className="text-sky-400 font-semibold">
@@ -2461,7 +2469,7 @@ export function App() {
                 </div>
               </div>
 
-              <div style={{display: activeTab === 'home' && !homePanels.runningTotal ? 'none' : undefined}} className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-5 flex flex-col justify-between gap-2 shadow-lg">
+              <div style={{display: activeTab === 'home' && !homePanels.runningTotal ? 'none' : undefined, order:activeTab==='home'?homeRank('runningTotal'):undefined}} className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-5 flex flex-col justify-between gap-2 shadow-lg">
                 <div className="flex items-center justify-between text-xs font-mono-tabular text-slate-400">
                   <span className="font-semibold text-amber-300">
                     {selectedGame === 'all'
@@ -2748,6 +2756,7 @@ export function App() {
                   </div>
                 </div>
 
+                <DisplayLimitSelect label="Pokédex per page" value={dexDisplayLimit} onChange={value=>{setDexDisplayLimit(value);setCurrentPage(1);}} />
                 {/* Counter Strip */}
                 <div className="flex flex-wrap items-center justify-between gap-4 px-1 text-xs text-slate-400 font-mono-tabular">
                   <div>

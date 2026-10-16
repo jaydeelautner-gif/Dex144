@@ -1,3 +1,5 @@
+import { RecentCommunityPets } from './RecentCommunityPets';
+import { OrderedHomeContent } from '../hooks/useHomeDesign';
 import React, { useState } from 'react';
 import {
   Compass,
@@ -144,15 +146,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
   };
 
   return (
-    <div className="w-full min-w-0 flex flex-col gap-5 pb-8">
-      {!homePanels.trainerCard && !homePanels.profileBoxes && !homePanels.profileInventory && !homePanels.profileFriends && !homePanels.profileAvatar && !homePanels.nationalDex && !homePanels.livingDex && !homePanels.runningTotal && !homePanels.welcome && !homePanels.pokeIdLookup && !(homePanels.catchHub && (homePanels.trainerHints || homePanels.goReplacements)) && !homePanels.quickLinks && !homePanels.bankWatchlist && !homePanels.ownedLibrary && (
+    <div className="contents"><OrderedHomeContent>
+      {!homePanels.recentCommunity && !homePanels.trainerCard && !homePanels.profileBoxes && !homePanels.profileInventory && !homePanels.profileFriends && !homePanels.profileAvatar && !homePanels.nationalDex && !homePanels.livingDex && !homePanels.runningTotal && !homePanels.welcome && !homePanels.pokeIdLookup && !(homePanels.catchHub && (homePanels.trainerHints || homePanels.goReplacements)) && !homePanels.quickLinks && !homePanels.bankWatchlist && !homePanels.ownedLibrary && (
         <div className="p-6 rounded-2xl border border-slate-800 text-slate-300 text-sm">
           No home tools selected. <button onClick={onNavigateToSettings} className="text-amber-300 underline">Customize your Home Screen in Settings</button>.
         </div>
       )}
+      {homePanels.recentCommunity && <div data-home-panel="recentCommunity"><RecentCommunityPets dex={dex} onLookup={onLookupPokeId} /></div>}
       {/* Hero Welcome Banner */}
-      {homePanels.welcome && <div className="relative overflow-hidden bg-gradient-to-br from-[#0F1522] via-[#131B2E] to-[#0A0E18] border border-slate-800/80 rounded-2xl p-6 sm:p-8 shadow-2xl">
-        <div className="relative z-10 flex flex-col 2xl:flex-row 2xl:items-center justify-between gap-4">
+      {homePanels.welcome && <div data-home-panel="welcome" className="relative overflow-hidden bg-gradient-to-br from-[#0F1522] via-[#131B2E] to-[#0A0E18] border border-slate-800/80 rounded-2xl p-6 sm:p-8 shadow-2xl">
+        <div className="relative z-10 flex flex-col justify-between gap-4">
           <div className="flex flex-col gap-2 max-w-2xl">
             <div className="flex items-center gap-2">
               <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[11px] font-mono-tabular font-semibold">
@@ -169,7 +172,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
 
           {/* Quick Action Navigation Grid */}
-          <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 shrink-0">
+          <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
               onClick={() => onNavigateToRegister()}
@@ -199,7 +202,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       </div>}
 
       {/* POKEID UNIVERSAL LOOKUP CARD */}
-      {homePanels.pokeIdLookup && <section className="bg-[#0F1522] border border-amber-500/40 rounded-2xl p-6 shadow-xl flex flex-col gap-3">
+      {homePanels.pokeIdLookup && <section data-home-panel="pokeIdLookup" className="bg-[#0F1522] border border-amber-500/40 rounded-2xl p-6 shadow-xl flex flex-col gap-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-400">
@@ -214,7 +217,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         </div>
 
-        <form onSubmit={handleLookupSubmit} className="flex flex-col sm:flex-row items-stretch gap-3 mt-1">
+        <form onSubmit={handleLookupSubmit} className="flex flex-wrap items-stretch gap-3 mt-1">
           <div className="relative flex-1">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
@@ -273,7 +276,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       {/* MERGED CATCH HUB: one tab per owned game combining Fresh Catches
           (starters + milestone unlocks) with Encounter & Living Dex suggestions
           — GO replacements and uncaught-in-owned-games — for that game. */}
-      {homePanels.catchHub && (homePanels.trainerHints || homePanels.goReplacements) && <section className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 shadow-xl flex flex-col gap-5">
+      {homePanels.catchHub && (homePanels.trainerHints || homePanels.goReplacements) && <section data-home-panel="catchHub" className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 shadow-xl flex flex-col gap-5">
         {/* Hub header */}
         <div className="flex items-start justify-between gap-4 border-b border-slate-800/80 pb-4">
           <div className="flex items-center gap-2.5">
@@ -337,8 +340,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
         {/* Active tab content: Fresh Catches + suggestions for this game */}
         {effectiveCatchGame && ownedCatchGames.length > 0 && (
-          <>
-            {homePanels.trainerHints && <MilestoneUnlocksPanel
+          <div className="flex flex-col gap-4"><OrderedHomeContent>
+            {homePanels.trainerHints && <div data-home-panel="trainerHints"><MilestoneUnlocksPanel
               progress={gameProgress}
               trackedGames={trackedGames}
               ownedGames={ownedGames}
@@ -355,9 +358,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
               onNavigateToProgress={onNavigateToProgress}
               onRestartGame={onRestartGame}
               groupFilter={effectiveCatchGroup ?? undefined}
-            />}
+            /></div>}
 
-            {homePanels.goReplacements && <DexSuggestionsSection
+            {homePanels.goReplacements && <div data-home-panel="goReplacements"><DexSuggestionsSection
               dex={dex}
               caughtSet={caughtSet}
               livingSet={livingSet}
@@ -377,13 +380,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
               starterChoices={starterChoices}
               gameFilter={effectiveCatchGame}
               embedded
-            />}
-          </>
+            /></div>}
+          </OrderedHomeContent></div>
         )}
       </section>}
 
       {/* QUICK HUB NAVIGATION CARDS */}
-      {homePanels.quickLinks && <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {homePanels.quickLinks && <section data-home-panel="quickLinks" className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {/* Card 1: Register Pokémon */}
         <div
           onClick={() => onNavigateToRegister()}
@@ -486,7 +489,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       </section>}
 
       {/* WATCHLIST SECTION: Poké Bank Closure Risks */}
-      {homePanels.bankWatchlist && <section className="flex flex-col gap-4">
+      {homePanels.bankWatchlist && <section data-home-panel="bankWatchlist" className="flex flex-col gap-4">
         <PokeBankClosureAlertSection
           dex={dex}
           caughtSet={caughtSet}
@@ -498,7 +501,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       </section>}
 
       {/* OWNED GAMES SNAPSHOT */}
-      {homePanels.ownedLibrary && <section className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 flex flex-col gap-4 shadow-xl">
+      {homePanels.ownedLibrary && <section data-home-panel="ownedLibrary" className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 flex flex-col gap-4 shadow-xl">
         <div className="flex items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
           <div className="flex items-center gap-2">
             <Layers className="w-4 h-4 text-amber-400" />
@@ -545,6 +548,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         )}
       </section>}
-    </div>
+    </OrderedHomeContent></div>
   );
 };

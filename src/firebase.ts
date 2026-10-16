@@ -1,3 +1,4 @@
+import { normalizeHomeDesign, type HomeDesign } from './hooks/useHomeDesign';
 import { initializeApp } from 'firebase/app';
 import {
   getAuth,
@@ -36,9 +37,11 @@ import {
   runTransaction,
   collection,
   query,
+  orderBy,
   where,
   limit,
   getDocs,
+  getDocsFromServer,
   doc,
   getDoc,
   getDocFromServer,
@@ -209,6 +212,7 @@ export interface UserDexProfileData {
   gameCatches: GameCatchesMap;
   /** Home screen panel visibility, synced across a user's devices. */
   homePanels?: HomePanelVisibility;
+  homeDesign?: HomeDesign;
   /** Trainer avatar configuration, synced across a user's devices. */
   avatar?: TrainerAvatarConfig;
   /** Per-group completed game-progress milestone ids, for public badge display. */
@@ -770,6 +774,8 @@ function parseProfileSnapshotData(uid: string, raw: Record<string, unknown>): Us
       : ALL_GAME_IDS,
     ownedDlcs: sanitizeOwnedDlcs(Array.isArray(raw.ownedDlcs) ? raw.ownedDlcs : []),
     gameCatches: sanitizeGameCatchesMap(raw.gameCatches),
+    homePanels: parseHomePanels(raw.homePanels) ?? undefined,
+    homeDesign: raw.homeDesign ? normalizeHomeDesign(raw.homeDesign) : undefined,
     avatar: parseAvatar(raw.avatar) ?? undefined,
     ...(Object.prototype.hasOwnProperty.call(raw, 'gameProgress')
       ? { gameProgress: sanitizeGameProgress(raw.gameProgress) }
@@ -1133,6 +1139,7 @@ export async function saveUserDexProfile(
     ownedDlcs: string[];
     gameCatches: GameCatchesMap;
     homePanels?: HomePanelVisibility;
+    homeDesign?: HomeDesign;
     avatar?: TrainerAvatarConfig;
     gameProgress?: Record<string, string[]>;
     inventory?: SerializedPokemonInstance[];
@@ -1153,6 +1160,7 @@ export async function saveUserDexProfile(
   const ownedDlcs = sanitizeOwnedDlcs(payload.ownedDlcs);
   const gameCatches = sanitizeGameCatchesMap(payload.gameCatches);
   const homePanels = normalizeHomePanels(payload.homePanels ?? null);
+  const homeDesign = normalizeHomeDesign(payload.homeDesign);
   const avatar = payload.avatar ? normalizeAvatar(payload.avatar) : undefined;
   const gameProgress = sanitizeGameProgress(payload.gameProgress ?? null);
   const inventory = sanitizeInventory(payload.inventory);
@@ -1176,6 +1184,8 @@ export async function saveUserDexProfile(
     ownedDlcs,
     gameCatches,
     homePanels,
+    homeDesign,
+    avatar,
     inventory,
     rescueBin,
     gameProgress,
@@ -1200,6 +1210,7 @@ export async function saveUserDexProfile(
     ownedDlcs,
     gameCatches,
     homePanels,
+    homeDesign,
     avatar,
     gameProgress,
     caughtCount: caughtIds.length,
@@ -1886,6 +1897,30 @@ export const FALLBACK_SHOWCASE_PETS: RandomRegisteredPokepetResult[] = [
     trainerName: 'Leon (Galar Champion)',
   },
 ];
+
+export interface RecentCommunityPet {
+  pokeId: string; pokemonId: number; nickname: string; level: number;
+  variantId: string; isShiny: boolean; trainerName: string; createdAt: number;
+}
+/** Public registry only: never exposes emails, account IDs, notes or private inventories. */
+export async function fetchRecentRegisteredPokepets(): Promise<RecentCommunityPet[]> {
+  if (!navigator.onLine) throw new Error('Connect to the internet to see recent community registrations.');
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const snapshot = await Promise.race([
+    getDocsFromServer(query(collection(db, 'registeredPokepets'), orderBy('createdAt', 'desc'), limit(12))),
+    new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(new Error('Community registrations timed out.')),12000);}),
+  ]).finally(()=>clearTimeout(timer));
+  return snapshot.docs.flatMap(doc => {
+    const data = doc.data();
+    const pokemonId = Number(data.pokemonId);
+    if (!Number.isInteger(pokemonId) || pokemonId < 1 || pokemonId > 1025) return [];
+    return [{pokeId: String(data.pokeId || doc.id), pokemonId,
+      nickname: String(data.nickname || '').slice(0, 10), level: Number(data.level || 1),
+      variantId: String(data.variantId || `${pokemonId}:base`), isShiny: Boolean(data.isShiny),
+      trainerName: String(data.trainerName || 'Trainer').slice(0, 60),
+      createdAt: data.createdAt?.toMillis?.() || 0}];
+  });
+}
 
 export async function fetchRandomRegisteredPokepet(): Promise<RandomRegisteredPokepetResult> {
   // If online, attempt to fetch a random pet from the universal database
