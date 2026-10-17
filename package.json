@@ -32,7 +32,7 @@
     "test:sync": "node --experimental-strip-types tests/syncDiagnostics.test.ts || npx tsx tests/syncDiagnostics.test.ts",
     "test:sync-queue": "npm run build && node tests/syncQueue.browser.mjs",
     "test:sprites": "node tests/sprites.browser.mjs",
-    "generate:sprites": "node scripts/downloadSprites.mjs"
+    "generate:sprites": "tsx scripts/downloadSprites.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
