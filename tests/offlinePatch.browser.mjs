@@ -87,7 +87,9 @@ try {
   const first = await page.evaluate(async () => await window.offlineTest.downloadFullOfflinePackage([{ id: 1 }]));
   assert.equal(first.success, true);
   const aFetches = siteFetches;
-  assert.ok(aFetches > 5, `first install fetches every file (got ${aFetches})`);
+  // The package is now only the files the service worker precache cannot hold
+  // (the data bundle plus a few non-precached types), so a fresh install is small.
+  assert.ok(aFetches >= 5, `first install fetches the package files (got ${aFetches})`);
 
   // 2) Deploy B changing exactly one file, then re-download.
   const changedBytes = Buffer.concat([readFileSync(join(root, CHANGED)), Buffer.from('\n')]);

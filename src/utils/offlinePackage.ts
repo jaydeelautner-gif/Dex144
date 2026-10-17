@@ -28,7 +28,10 @@ export function validateOfflineManifest(raw: unknown): OfflineManifest {
     if (!/^\/(?!\/)/.test(f.url) || f.url.includes('..') || f.url.includes('?') || seen.has(f.url) || !/^[a-f0-9]{64}$/.test(f.sha256) || !Number.isSafeInteger(f.bytes) || f.bytes < 0) throw Error('Invalid offline file entry.');
     seen.add(f.url);
   }
-  for (const required of ['/index.html','/sw.js','/data/encounters.json']) if (!seen.has(required)) throw Error(`Missing required offline file: ${required}`);
+  // The app shell, fonts and sprites are precached by the service worker; the
+  // package only carries the files the precache cannot hold (see
+  // scripts/buildOfflineManifest.mjs), so only the data bundle is required here.
+  for (const required of ['/data/encounters.json']) if (!seen.has(required)) throw Error(`Missing required offline file: ${required}`);
   return m;
 }
 export async function fetchOfflineManifest(signal?: AbortSignal): Promise<OfflineManifest> {

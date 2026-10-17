@@ -266,7 +266,7 @@ export const OfflineSettingsCard: React.FC<OfflineSettingsCardProps> = ({
 
     setDownloadProgress({
       current: 0,
-      total: dex.length,
+      total: 0, // the real total arrives with the first progress event
       percentage: 0,
       bytes: 0,
       status: 'downloading',
@@ -642,21 +642,18 @@ export const OfflineSettingsCard: React.FC<OfflineSettingsCardProps> = ({
                 Download Required Data to Device Storage
               </h3>
               <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                Downloads every app page, sprite (all species, shiny, forms and gender variants), bundled dataset (species, games, encounters, evolutions, items, hints) and font. Allow a few hundred MB of device storage. Registrations/settings remain in their existing local storage; cloud lookups, sign-in and signed-in atomic evolution still require internet.
+                The app shell, fonts and every sprite (all species, shiny, forms and gender variants) are stored automatically when the app is installed. This adds the large data bundles that cannot be precached — encounters and the remaining datasets — so the whole app reopens offline. Registrations/settings remain in their existing local storage; cloud lookups, sign-in and signed-in atomic evolution still require internet.
               </p>
             </div>
           </div>
 
           <div className="space-y-2 border-t border-slate-800/80 pt-3">
             <div className="flex items-center justify-between text-xs font-mono">
-              <span className="text-slate-400">Species with Complete Artwork:</span>
-              <span className="font-bold text-slate-200">
-                {packageMeta?.siteFileCount || 0} / {packageMeta?.totalSiteFileCount || '—'}
-              </span>
+              <span className="text-slate-400">Verified data files:</span>
+              <span className="font-bold text-slate-200">{packageMeta?.siteFileCount || 0} / {packageMeta?.totalSiteFileCount || '—'}</span>
             </div>
-            <div className="flex items-center justify-between text-xs font-mono"><span className="text-slate-400">Verified site files:</span><span className="text-slate-200">{packageMeta?.siteFileCount || 0} / {packageMeta?.totalSiteFileCount || '—'}</span></div>
             {packageMeta?.hasPartialDownload && <p className="text-xs text-amber-300">An interrupted download is saved. Retry to resume, or clear its cached files.</p>}
-            {!!packageMeta?.missingCount && <p className="text-xs text-amber-300">Incomplete: {packageMeta.missingCount} files/groups need downloading again.</p>}
+            {!!packageMeta?.missingCount && <p className="text-xs text-amber-300">Incomplete: {packageMeta.missingCount} files need downloading again.</p>}
             {packageMeta?.totalBytes ? (
               <div className="flex items-center justify-between text-xs font-mono">
                 <span className="text-slate-400">Estimated WebApp Storage Used:</span>

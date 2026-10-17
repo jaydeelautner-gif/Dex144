@@ -1,33 +1,32 @@
 # Offline downloads and updates
 
-## What the tool downloads
+## What is stored, and how
 
-**Settings → (Offline) Storage** installs a *verified offline package*:
+Offline support uses two complementary caches so nothing is downloaded twice:
 
-- **App shell**: the built HTML, JavaScript, CSS and icons, so the app reopens offline.
-- **All bundled datasets**: `dist/offline-manifest.json` lists every file emitted by the
-  production build — the whole national dex, games/regions, encounter bundle
-  (`/data/encounters.json`, ~15 MB), evolution edges, items, forms/variants, gifts and
-  species names.
-- **All sprites**: every species, shiny, form and gender sprite is bundled in the app
-  (`/sprites/...`) and is part of the site data, so no separate artwork download runs and
-  no sprite is ever fetched from a third-party host at runtime.
-- **Fonts**: self-hosted woff/ttf files (`/fonts/site-fonts.css`) plus their OFL licences,
-  so typography and the QR code work with no network.
-The QR code is now generated **locally** (`qrcode.react`) instead of calling
-`api.qrserver.com`, which was the last runtime network dependency.
+**1. The service worker precache (automatic).** On install the service worker caches the
+app shell (HTML/JS/CSS), icons, self-hosted fonts and **every sprite** (all species, shiny,
+form and gender variants). This happens without any user action and makes the app shell and
+all artwork available offline.
+
+**2. The offline data package (Settings → Storage).** This explicit, verified download adds
+only the files the precache cannot hold — the large encounter bundle
+(`/data/encounters.json`, ~6.6 MB) plus a few non-precached types (`.json`, `.webmanifest`,
+`.txt`). It is deliberately small (a handful of files), because re-downloading the ~2,800
+precached files into a second cache duplicated ~14 MB of storage and made the download slow
+and flaky on phones and iPads.
+
+The split is defined in `scripts/buildOfflineManifest.mjs` and must stay in step with the
+PWA `globPatterns`/`globIgnores`/`maximumFileSizeToCacheInBytes` in `vite.config.ts`.
 
 Downloads are stored in CacheStorage under `homedex-package-<version>` with a pointer in
 `homedex-offline-control-v2` that only becomes the active package once every required file
 is verified.
 
-The download runs with bounded parallelism (6 workers) and per-file retries, and resolves
-each file cheapest-first: the package being built (resume) → the previous package (patch
-reuse) → **any existing cache, including the service worker precache, which already holds
-this deployment's sprites** → the network (verified SHA-256, retried with backoff). Because
-sprites are precached by the service worker, a first install on a phone or iPad fetches only
-a handful of files (the large `data/` bundle and a few uncached assets) instead of thousands
-of separate sprite requests, which is what previously caused partial downloads on mobile.
+The download runs with bounded parallelism (6 workers) and per-file retries, resolving each
+file cheapest-first: the package being built (resume) → the previous package (patch reuse) →
+any existing cache → the network (SHA-256 verified, retried with backoff). A version bump
+therefore only fetches the files that actually changed.
 
 ## Integrity and failure handling
 

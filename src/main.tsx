@@ -13,7 +13,7 @@ if ('serviceWorker' in navigator) {
     onRegisteredSW(_url, registration) {
       if (registration) setInterval(() => { if(navigator.onLine) registration.update().catch(() => {}); }, 5 * 60 * 1000);
     },
-    onOfflineReady() { console.log('[HomeDex PWA] App shell cached. Download the full package in Settings for all data/artwork.'); },
+    onOfflineReady() { console.log('[HomeDex PWA] App shell, fonts and sprites cached. Download the offline data package in Settings for the remaining datasets.'); },
   });
   setOfflineWorkerUpdater(() => updateWorker(true));
 }

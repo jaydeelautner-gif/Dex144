@@ -34,7 +34,8 @@ registerRoute(({request})=>request.destination==='image',async({request,event})=
   const pinned=await packaged(request); if(pinned) return pinned;
   return new CacheFirst({cacheName:'homedex-viewed-images-v2',plugins:[new CacheableResponsePlugin({statuses:[200]})]}).handle({request,event});
 });
-// Install a lightweight shell. The explicit download tool installs every site
-// file (including the large encounters dataset) and every artwork variant.
+// Precache the app shell, fonts and all sprites. The explicit download tool in
+// Settings adds the large data bundles the precache cannot hold (see
+// scripts/buildOfflineManifest.mjs).
 precacheAndRoute(self.__WB_MANIFEST);
 cleanupOutdatedCaches();

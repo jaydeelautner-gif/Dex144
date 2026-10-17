@@ -51,7 +51,7 @@ async function inject(){await page.addScriptTag({content:harness});}
 async function meta(){return page.evaluate(()=>window.offlineTest.getOfflinePackageMetadata());}
 async function download(cancel=false){return page.evaluate(async cancel=>{
   const ac=new AbortController();
-  return window.offlineTest.downloadFullOfflinePackage(Array.from({length:1025},(_,i)=>({id:i+1})),p=>{window.lastOfflineProgress=p;if(cancel&&p.current>40)ac.abort();},ac.signal);
+  return window.offlineTest.downloadFullOfflinePackage(Array.from({length:1025},(_,i)=>({id:i+1})),p=>{window.lastOfflineProgress=p;if(cancel&&p.current>=1)ac.abort();},ac.signal);
 },cancel);}
 function deployment(version,extra=false){
   const build=Buffer.from(JSON.stringify({version}));overrides.set('/offline-build.json',build);
