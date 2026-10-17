@@ -15,6 +15,12 @@
   --panel-2: #131c30;
   --accent: #f59e0b;
   --accent-soft: #fbbf24;
+  --app-font: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Font choice applies app-wide; the default keeps the current look. */
+body {
+  font-family: var(--app-font);
 }
 
 html[data-theme='midnight'] {

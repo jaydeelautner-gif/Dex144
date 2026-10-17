@@ -87,7 +87,9 @@ import { FriendsView } from './components/FriendsView';
 import { OpeningScreen } from './components/OpeningScreen';
 import { ClosedDexCover, PokedexClosingAnimation } from './components/DexCover';
 import { TrainerAvatar, AvatarBuilder, loadLocalAvatar, saveLocalAvatar, DEFAULT_AVATAR as DEFAULT_AVATAR_CONFIG, type TrainerAvatarConfig } from './components/TrainerAvatar';
-import { ProfileCard } from './components/ProfileCard';
+import { ProfileCard, loadCardPrefs, type TrainerCardPrefs } from './components/ProfileCard';
+import { TrainerCardSettings } from './components/TrainerCardSettings';
+import { gameBadgeSprites } from './components/GymBadgeStrip';
 import { DexFrame } from './components/DexFrame';
 import { PokedexOpeningAnimation } from './components/PokedexOpeningAnimation';
 import { playGameboyPowerOnSound, playPokepetRegisteredSound } from './utils/gameboySound';
@@ -337,6 +339,7 @@ function isExclusiveLabel(label: string): boolean {
 export function App() {
   const { homePanels, toggleHomePanel, resetHomePanels, setCloudHomePanels } = useHomePanels();
   const [avatar, setAvatar] = useState<TrainerAvatarConfig | null>(() => loadLocalAvatar());
+  const [cardPrefs, setCardPrefs] = useState<TrainerCardPrefs>(() => loadCardPrefs());
   // User edited the avatar locally; cleared once written to the cloud.
   const avatarTouchedRef = useRef(false);
   const gameProgressTouchedRef = useRef(false);
@@ -1747,6 +1750,20 @@ export function App() {
     handleOpenAuth();
   };
 
+  // Sprite numbers of every badge the trainer has actually earned.
+  const earnedBadgeSpriteNumbers = useMemo(() => {
+    const out = new Set<number>();
+    for (const gameId of normalizeToCanonicalGames(ownedGames)) {
+      const mapping = gameBadgeSprites(gameId);
+      if (!mapping) continue;
+      const completed = new Set(gameProgress[mapping.prefix] ?? []);
+      mapping.sprites.forEach((sprite, index) => {
+        if (completed.has(`${mapping.prefix}-badge-${index + 1}`) || completed.has(`${mapping.prefix}-gym-${index + 1}`)) out.add(sprite);
+      });
+    }
+    return [...out].sort((a, b) => a - b);
+  }, [ownedGames, gameProgress]);
+
   const handleToggleHomePanel = useCallback((id: Parameters<typeof toggleHomePanel>[0]) => {
     homePanelsTouchedRef.current = true;
     toggleHomePanel(id);
@@ -2444,7 +2461,7 @@ export function App() {
             <div data-testid="home-layout" className={activeTab === 'home' ? `grid grid-cols-1 gap-5 items-start ${(homePanels.trainerCard || homePanels.profileBoxes || homePanels.profileInventory || homePanels.profileFriends || homePanels.profileAvatar) && homeDesign.layout !== 'stacked' ? homeDesign.layout === 'right' ? 'lg:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]' : 'lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]' : ''}` : 'contents'}>
               {activeTab === 'home' && (homePanels.trainerCard || homePanels.profileBoxes || homePanels.profileInventory || homePanels.profileFriends || homePanels.profileAvatar) && (
                 <aside aria-label="Your trainer and profile shortcuts" className="min-w-0 flex flex-col gap-4" style={{order:homeDesign.layout==='right'?2:0}}>
-                  {homePanels.trainerCard && <div style={{order:homeRank('trainerCard')}}><ProfileCard compact trainerName={displayTrainerName} avatar={avatar} ownedGames={normalizeToCanonicalGames(ownedGames)} gameProgress={gameProgress as Record<string,string[]>} isPublic={isPublic} /></div>}
+                  {homePanels.trainerCard && <div style={{order:homeRank('trainerCard')}}><ProfileCard compact prefs={cardPrefs} trainerName={displayTrainerName} avatar={avatar} ownedGames={normalizeToCanonicalGames(ownedGames)} gameProgress={gameProgress as Record<string,string[]>} isPublic={isPublic} /></div>}
                   {(homePanels.profileBoxes || homePanels.profileInventory || homePanels.profileFriends || homePanels.profileAvatar) && (
                     <nav aria-label="Home profile shortcuts" style={{order:Math.min(...['profileBoxes','profileInventory','profileFriends','profileAvatar'].map(id=>homeRank(id as import('./data/homePanels').HomePanelId)))}} className="bg-[#0F1522] border border-slate-800 rounded-2xl p-3 flex flex-col gap-2">
                       {([
@@ -3019,6 +3036,7 @@ export function App() {
             {activeTab === 'profile' && (
               <div className="flex flex-col gap-4">
                 <ProfileCard
+                  prefs={cardPrefs}
                   trainerName={displayTrainerName}
                   avatar={avatar}
                   ownedGames={normalizeToCanonicalGames(ownedGames)}
@@ -3098,9 +3116,17 @@ export function App() {
                         </p>
                         <AvatarBuilder
                           config={avatar ?? DEFAULT_AVATAR_CONFIG}
+                          earnedBadgeSprites={earnedBadgeSpriteNumbers}
                           onChange={(next) => { setAvatar(next); saveLocalAvatar(next); avatarTouchedRef.current = true; }}
                         />
                       </div>
+                    </section>
+                    <section className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-5 flex flex-col gap-4">
+                      <div>
+                        <h2 className="text-base font-bold text-slate-100">Trainer Card</h2>
+                        <p className="text-xs text-slate-400 mt-0.5">Choose your card frame, title badge and watermark.</p>
+                      </div>
+                      <TrainerCardSettings onChange={setCardPrefs} />
                     </section>
                     
                   </div>

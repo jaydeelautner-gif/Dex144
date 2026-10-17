@@ -127,7 +127,7 @@ try {
   await page.getByRole('navigation',{name:'Settings sections'}).getByRole('button',{name:/^Appearance/}).click();
   const picker=page.getByRole('group',{name:'Theme'});
   await picker.waitFor();
-  assert.equal(await picker.getByRole('button').count(),8,'eight themes offered');
+  assert.equal(await picker.getByRole('button').count(),9,'nine themes offered (8 presets + custom)');
   assert.equal(await page.evaluate(()=>document.documentElement.dataset.theme),'homedex','default theme applied');
   await picker.getByRole('button',{name:/Forest Green/}).click();
   assert.equal(await page.evaluate(()=>document.documentElement.dataset.theme),'forest');

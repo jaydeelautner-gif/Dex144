@@ -1,21 +1,24 @@
 import { useCallback, useEffect, useState } from 'react';
-import { applyTheme, loadTheme, normalizeTheme, saveTheme, THEME_EVENT, type ThemeId } from '../data/themes';
+import {
+  applyTheme, loadCustomTheme, loadTheme, normalizeCustomTheme, normalizeTheme, saveTheme,
+  THEME_EVENT, type CustomTheme, type ThemeId,
+} from '../data/themes';
 
-/** Reads, applies and persists the chosen theme (device-local). */
+/** Reads, applies and persists the theme (preset + custom colours/font). */
 export function useTheme() {
   const [theme, setThemeState] = useState<ThemeId>(() => loadTheme());
+  const [custom, setCustomState] = useState<CustomTheme>(() => loadCustomTheme());
 
-  // Apply on mount and whenever the stored value changes in another tab.
   useEffect(() => {
-    applyTheme(theme);
-    const sync = () => setThemeState(loadTheme());
+    applyTheme(theme, custom);
+    const sync = () => { setThemeState(loadTheme()); setCustomState(loadCustomTheme()); };
     window.addEventListener(THEME_EVENT, sync);
     window.addEventListener('storage', sync);
     return () => {
       window.removeEventListener(THEME_EVENT, sync);
       window.removeEventListener('storage', sync);
     };
-  }, [theme]);
+  }, [theme, custom]);
 
   const setTheme = useCallback((next: ThemeId) => {
     const id = normalizeTheme(next);
@@ -23,5 +26,31 @@ export function useTheme() {
     saveTheme(id);
   }, []);
 
-  return { theme, setTheme };
+  /** Updates one custom colour; switches to the Custom preset automatically. */
+  const setCustomColor = useCallback((key: string, value: string) => {
+    setCustomState((prev) => {
+      const next = normalizeCustomTheme({ ...prev, colors: { ...prev.colors, [key]: value } });
+      setThemeState('custom');
+      saveTheme('custom', next);
+      return next;
+    });
+  }, []);
+
+  const resetCustomColors = useCallback(() => {
+    setCustomState((prev) => {
+      const next = { ...prev, colors: {} };
+      saveTheme('custom', next);
+      return next;
+    });
+  }, []);
+
+  const setFont = useCallback((font: CustomTheme['font']) => {
+    setCustomState((prev) => {
+      const next = { ...prev, font };
+      saveTheme(loadTheme(), next);
+      return next;
+    });
+  }, []);
+
+  return { theme, custom, setTheme, setCustomColor, resetCustomColors, setFont };
 }

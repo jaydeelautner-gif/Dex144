@@ -32,7 +32,9 @@
     "test:sync-queue": "npm run build && node tests/syncQueue.browser.mjs",
     "test:sprites": "node tests/sprites.browser.mjs",
     "generate:sprites": "tsx scripts/downloadSprites.ts && node scripts/bundleSprites.mjs",
-    "bundle:sprites": "node scripts/bundleSprites.mjs"
+    "bundle:sprites": "node scripts/bundleSprites.mjs",
+    "test:customization": "npm run build && node tests/customization.browser.mjs",
+    "test:trainer-card": "npm run build && node tests/trainerCard.browser.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

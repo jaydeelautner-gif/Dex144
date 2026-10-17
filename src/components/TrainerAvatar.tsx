@@ -24,6 +24,23 @@ export type OutfitStyle = (typeof OUTFIT_STYLES)[number];
 export const ACCESSORIES = ['none', 'glasses', 'scarf'] as const;
 export type Accessory = (typeof ACCESSORIES)[number];
 
+/** Square portrait backdrops, themed around Pokémon types. */
+export const BACKDROPS = [
+  { id: 'trainer', label: 'Trainer', from: '#1E293B', to: '#0B0F17', accent: '#F59E0B' },
+  { id: 'fire', label: 'Fire', from: '#7C2D12', to: '#180A05', accent: '#FB923C' },
+  { id: 'water', label: 'Water', from: '#0C4A6E', to: '#04121F', accent: '#38BDF8' },
+  { id: 'grass', label: 'Grass', from: '#14532D', to: '#04140B', accent: '#4ADE80' },
+  { id: 'electric', label: 'Electric', from: '#713F12', to: '#181206', accent: '#FACC15' },
+  { id: 'psychic', label: 'Psychic', from: '#581C87', to: '#150720', accent: '#D8B4FE' },
+  { id: 'ice', label: 'Ice', from: '#155E75', to: '#06161C', accent: '#A5F3FC' },
+  { id: 'dragon', label: 'Dragon', from: '#3730A3', to: '#0B0A24', accent: '#818CF8' },
+  { id: 'ghost', label: 'Ghost', from: '#4C1D95', to: '#0E0619', accent: '#C4B5FD' },
+  { id: 'steel', label: 'Steel', from: '#334155', to: '#0A0F18', accent: '#CBD5E1' },
+  { id: 'dark', label: 'Dark', from: '#1F2937', to: '#05070C', accent: '#9CA3AF' },
+  { id: 'fairy', label: 'Fairy', from: '#831843', to: '#1B0510', accent: '#F9A8D4' },
+] as const;
+export type BackdropId = (typeof BACKDROPS)[number]['id'];
+
 export interface TrainerAvatarConfig {
   skin: number;
   hairStyle: HairStyle;
@@ -36,12 +53,17 @@ export interface TrainerAvatarConfig {
   headwearColor: number;
   accessory: Accessory;
   accessoryColor: number;
+  /** Square portrait backdrop (a Pokémon-type scene). */
+  backdrop: BackdropId;
+  /** Badge sprite number worn on the outfit, or null when none is worn. */
+  wornBadge: number | null;
 }
 
 export const DEFAULT_AVATAR: Required<TrainerAvatarConfig> = {
   skin: 1, hairStyle: 'short', hairColor: 0, eyeStyle: 'friendly',
   outfitStyle: 'jacket', outfit: 0, outfitAccent: 7,
   headwear: 'cap', headwearColor: 0, accessory: 'none', accessoryColor: 4,
+  backdrop: 'trainer', wornBadge: null,
 };
 
 function pickEnum<T extends string>(options: readonly T[], value: unknown, fallback: T): T {
@@ -66,6 +88,10 @@ export function normalizeAvatar(raw: unknown): TrainerAvatarConfig {
     headwearColor: num(c.headwearColor, DEFAULT_AVATAR.headwearColor, OUTFIT_COLORS.length),
     accessory: pickEnum(ACCESSORIES, c.accessory, DEFAULT_AVATAR.accessory),
     accessoryColor: num(c.accessoryColor, DEFAULT_AVATAR.accessoryColor, OUTFIT_COLORS.length),
+    backdrop: pickEnum(BACKDROPS.map((b) => b.id), c.backdrop, DEFAULT_AVATAR.backdrop),
+    wornBadge: Number.isInteger(c.wornBadge) && Number(c.wornBadge) >= 1 && Number(c.wornBadge) <= 77
+      ? Number(c.wornBadge)
+      : null,
   };
 }
 
@@ -137,81 +163,127 @@ const OUTFIT_SHAPES: Record<OutfitStyle, { accent: string; fill: string; extra: 
   },
 };
 
-/** SVG trainer avatar, fully offline (no sprite files needed). */
+/**
+ * Square trainer portrait: a Pokémon-type backdrop scene with a shaded trainer,
+ * plus any badge they have earned worn on the outfit. Fully offline SVG.
+ */
 export const TrainerAvatar: React.FC<{
   config?: TrainerAvatarConfig | null;
   size?: number;
   className?: string;
-}> = ({ config, size = 96, className = '' }) => {
+  /** Renders the rounded portrait frame; off for inline icon use. */
+  framed?: boolean;
+}> = ({ config, size = 96, className = '', framed = true }) => {
   const c = normalizeAvatar(config);
   const skin = SKIN_TONES[c.skin];
   const hair = HAIR_COLORS[c.hairColor];
   const outfit = OUTFIT_COLORS[c.outfit];
+  const accent = OUTFIT_COLORS[c.outfitAccent];
+  const backdrop = BACKDROPS.find((b) => b.id === c.backdrop) ?? BACKDROPS[0];
   const outfitShape = OUTFIT_SHAPES[c.outfitStyle];
+  const uid = React.useId().replace(/:/g, '');
   return (
-    <svg viewBox="0 0 110 110" width={size} height={size} className={className} role="img" aria-label="Trainer avatar">
-      <circle cx="55" cy="55" r="52" fill="#1E293B" stroke="#F59E0B" strokeWidth="2" />
-      {/* shoulders/arms */}
-      <path d="M14 102 Q16 82 28 78 L28 102 Z" fill={skin} />
-      <path d="M96 102 Q94 82 82 78 L82 102 Z" fill={skin} />
-      {/* torso */}
-      <path d="M20 104 Q22 76 40 74 L70 74 Q88 76 90 104 Z" fill={outfit} />
-      {outfitShape.extra}
-      {/* collar */}
-      <path d="M44 74 L55 84 L66 74" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="2.5" strokeLinecap="round" />
-      {/* neck + head */}
-      <rect x="50" y="66" width="10" height="8" rx="3" fill={skin} />
-      <circle cx="55" cy="50" r="21" fill={skin} />
-      {/* ears */}
-      <circle cx="34.5" cy="51" r="3.5" fill={skin} />
-      <circle cx="75.5" cy="51" r="3.5" fill={skin} />
-      {/* hair */}
-      <g fill={hair}>{HAIR_SHAPES[c.hairStyle]}</g>
-      {/* face */}
-      {eyes(c.eyeStyle)}
-      <path d="M50 60 Q55 64.5 60 60" stroke="#111827" strokeWidth="1.7" fill="none" strokeLinecap="round" />
-      {/* accessories over hair */}
-      {c.accessory === 'glasses' && (
-        <g>
-          <circle cx="48" cy="51" r="6" fill="none" stroke={OUTFIT_COLORS[c.accessoryColor]} strokeWidth="2.2" />
-          <circle cx="62" cy="51" r="6" fill="none" stroke={OUTFIT_COLORS[c.accessoryColor]} strokeWidth="2.2" />
-          <line x1="54" y1="51" x2="56" y2="51" stroke={OUTFIT_COLORS[c.accessoryColor]} strokeWidth="2.2" />
+    <svg viewBox="0 0 110 110" width={size} height={size} className={className} role="img" aria-label="Trainer portrait">
+      <defs>
+        <linearGradient id={`bg-${uid}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={backdrop.from} />
+          <stop offset="100%" stopColor={backdrop.to} />
+        </linearGradient>
+        <radialGradient id={`glow-${uid}`} cx="50%" cy="34%" r="62%">
+          <stop offset="0%" stopColor={backdrop.accent} stopOpacity="0.55" />
+          <stop offset="100%" stopColor={backdrop.accent} stopOpacity="0" />
+        </radialGradient>
+        <clipPath id={`clip-${uid}`}>
+          <rect x="1" y="1" width="108" height="108" rx={framed ? 14 : 0} />
+        </clipPath>
+      </defs>
+
+      <g clipPath={`url(#clip-${uid})`}>
+        <rect x="0" y="0" width="110" height="110" fill={`url(#bg-${uid})`} />
+        {/* Stylised scene: sun, ridge line and ground band in the type colour. */}
+        <circle cx="78" cy="30" r="14" fill={backdrop.accent} opacity="0.35" />
+        <rect x="0" y="0" width="110" height="110" fill={`url(#glow-${uid})`} />
+        <path d="M0 84 L18 70 L34 80 L52 66 L70 78 L88 68 L110 80 L110 110 L0 110 Z" fill={backdrop.to} opacity="0.75" />
+        <path d="M0 92 L110 92 L110 110 L0 110 Z" fill="#000" opacity="0.35" />
+
+        <g transform="translate(0,6)">
+          {/* torso */}
+          <path d="M20 104 Q22 76 40 74 L70 74 Q88 76 90 104 Z" fill={outfit} />
+          {outfitShape.extra}
+          {/* shading + rim light for depth */}
+          <path d="M20 104 Q22 76 40 74 L55 74 L55 104 Z" fill="#000" opacity="0.12" />
+          <path d="M86 80 Q90 90 90 104" stroke={backdrop.accent} strokeWidth="2" fill="none" opacity="0.5" />
+          {/* accent stripe on the sleeve */}
+          <path d="M28 82 L28 100" stroke={accent} strokeWidth="3" strokeLinecap="round" opacity="0.9" />
+          <path d="M82 82 L82 100" stroke={accent} strokeWidth="3" strokeLinecap="round" opacity="0.9" />
+          {/* collar */}
+          <path d="M44 74 L55 84 L66 74" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="2.5" strokeLinecap="round" />
+          {/* neck + head */}
+          <rect x="50" y="66" width="10" height="8" rx="3" fill={skin} />
+          <circle cx="55" cy="50" r="21" fill={skin} />
+          {/* cheek shading */}
+          <circle cx="55" cy="50" r="21" fill="#000" opacity="0.06" />
+          <circle cx="34.5" cy="51" r="3.5" fill={skin} />
+          <circle cx="75.5" cy="51" r="3.5" fill={skin} />
+          <g fill={hair}>{HAIR_SHAPES[c.hairStyle]}</g>
+          {eyes(c.eyeStyle)}
+          <path d="M50 60 Q55 64.5 60 60" stroke="#111827" strokeWidth="1.7" fill="none" strokeLinecap="round" />
+          {c.accessory === 'glasses' && (
+            <g>
+              <circle cx="48" cy="51" r="6" fill="none" stroke={OUTFIT_COLORS[c.accessoryColor]} strokeWidth="2.2" />
+              <circle cx="62" cy="51" r="6" fill="none" stroke={OUTFIT_COLORS[c.accessoryColor]} strokeWidth="2.2" />
+              <line x1="54" y1="51" x2="56" y2="51" stroke={OUTFIT_COLORS[c.accessoryColor]} strokeWidth="2.2" />
+            </g>
+          )}
+          {c.accessory === 'scarf' && (
+            <g>
+              <path d="M40 70 Q55 80 70 70 L70 78 Q55 88 40 78 Z" fill={OUTFIT_COLORS[c.accessoryColor]} />
+              <path d="M68 76 L74 92 L66 90 Z" fill={OUTFIT_COLORS[c.accessoryColor]} />
+            </g>
+          )}
+          {c.headwear === 'cap' && (
+            <g>
+              <path d="M33 38 Q33 17 55 17 Q77 17 77 38 L77 41 L33 41 Z" fill={OUTFIT_COLORS[c.headwearColor]} />
+              <path d="M33 38 L77 38 L77 41 L33 41 Z" fill="rgba(0,0,0,0.3)" />
+              <rect x="74" y="35" width="16" height="5" rx="2.5" fill={OUTFIT_COLORS[c.headwearColor]} />
+              <circle cx="55" cy="20" r="3" fill="rgba(255,255,255,0.85)" />
+            </g>
+          )}
+          {c.headwear === 'beanie' && (
+            <g>
+              <path d="M33 40 Q33 18 55 18 Q77 18 77 40 L77 43 L33 43 Z" fill={OUTFIT_COLORS[c.headwearColor]} />
+              <rect x="31" y="40" width="48" height="6" rx="3" fill="rgba(255,255,255,0.8)" />
+              <circle cx="55" cy="16" r="4" fill={OUTFIT_COLORS[c.headwearColor]} />
+            </g>
+          )}
+          {c.headwear === 'strawhat' && (
+            <g>
+              <ellipse cx="55" cy="34" rx="34" ry="7" fill={OUTFIT_COLORS[c.headwearColor]} />
+              <path d="M40 34 Q40 18 55 18 Q70 18 70 34 Z" fill={OUTFIT_COLORS[c.headwearColor]} />
+              <rect x="40" y="29" width="30" height="4" fill="#B45309" />
+            </g>
+          )}
+          {c.headwear === 'visored' && (
+            <g>
+              <path d="M34 40 Q34 22 55 22 Q76 22 76 40 Z" fill={OUTFIT_COLORS[c.headwearColor]} />
+              <rect x="36" y="38" width="38" height="7" rx="3.5" fill="#0EA5E9" opacity="0.85" />
+            </g>
+          )}
+          {/* A badge they earned, worn on the chest */}
+          {c.wornBadge && (
+            <g>
+              <image href={`/badges/${c.wornBadge}.png`} x="63" y="78" width="18" height="18" />
+              <circle cx="72" cy="87" r="10" fill="none" stroke={backdrop.accent} strokeWidth="1" opacity="0.5" />
+            </g>
+          )}
         </g>
-      )}
-      {c.accessory === 'scarf' && (
-        <g>
-          <path d="M40 70 Q55 80 70 70 L70 78 Q55 88 40 78 Z" fill={OUTFIT_COLORS[c.accessoryColor]} />
-          <path d="M68 76 L74 92 L66 90 Z" fill={OUTFIT_COLORS[c.accessoryColor]} />
-        </g>
-      )}
-      {/* headwear */}
-      {c.headwear === 'cap' && (
-        <g>
-          <path d="M33 38 Q33 17 55 17 Q77 17 77 38 L77 41 L33 41 Z" fill={OUTFIT_COLORS[c.headwearColor]} />
-          <path d="M33 38 L77 38 L77 41 L33 41 Z" fill="rgba(0,0,0,0.3)" />
-          <rect x="74" y="35" width="16" height="5" rx="2.5" fill={OUTFIT_COLORS[c.headwearColor]} />
-          <circle cx="55" cy="20" r="3" fill="rgba(255,255,255,0.85)" />
-        </g>
-      )}
-      {c.headwear === 'beanie' && (
-        <g>
-          <path d="M33 40 Q33 18 55 18 Q77 18 77 40 L77 43 L33 43 Z" fill={OUTFIT_COLORS[c.headwearColor]} />
-          <rect x="31" y="40" width="48" height="6" rx="3" fill="rgba(255,255,255,0.8)" />
-          <circle cx="55" cy="16" r="4" fill={OUTFIT_COLORS[c.headwearColor]} />
-        </g>
-      )}
-      {c.headwear === 'strawhat' && (
-        <g>
-          <ellipse cx="55" cy="34" rx="34" ry="7" fill={OUTFIT_COLORS[c.headwearColor]} />
-          <path d="M40 34 Q40 18 55 18 Q70 18 70 34 Z" fill={OUTFIT_COLORS[c.headwearColor]} />
-          <rect x="40" y="29" width="30" height="4" fill="#B45309" />
-        </g>
-      )}
-      {c.headwear === 'visored' && (
-        <g>
-          <path d="M34 40 Q34 22 55 22 Q76 22 76 40 Z" fill={OUTFIT_COLORS[c.headwearColor]} />
-          <rect x="36" y="38" width="38" height="7" rx="3.5" fill="#0EA5E9" opacity="0.85" />
-        </g>
+      </g>
+
+      {framed && (
+        <>
+          <rect x="1" y="1" width="108" height="108" rx="14" fill="none" stroke={backdrop.accent} strokeWidth="2" opacity="0.9" />
+          <rect x="4" y="4" width="102" height="102" rx="11" fill="none" stroke="#000" strokeWidth="1" opacity="0.35" />
+        </>
       )}
     </svg>
   );
@@ -268,7 +340,9 @@ const Chips: React.FC<{
 export const AvatarBuilder: React.FC<{
   config: TrainerAvatarConfig;
   onChange: (next: TrainerAvatarConfig) => void;
-}> = ({ config, onChange }) => {
+  /** Badge sprite numbers the trainer has actually earned. */
+  earnedBadgeSprites?: number[];
+}> = ({ config, onChange, earnedBadgeSprites = [] }) => {
   const randomize = () => {
     const rand = (n: number) => Math.floor(Math.random() * n);
     onChange({
@@ -283,6 +357,8 @@ export const AvatarBuilder: React.FC<{
       headwearColor: rand(OUTFIT_COLORS.length),
       accessory: ACCESSORIES[rand(ACCESSORIES.length)],
       accessoryColor: rand(OUTFIT_COLORS.length),
+      backdrop: BACKDROPS[rand(BACKDROPS.length)].id,
+      wornBadge: null,
     });
   };
   return (
@@ -299,6 +375,35 @@ export const AvatarBuilder: React.FC<{
           🎲 Surprise me
         </button>
       </div>
+      <Chips label="Backdrop" options={BACKDROPS.map((b) => b.id)} active={config.backdrop} onPick={(i) => onChange({ ...config, backdrop: BACKDROPS[i].id })} />
+      <fieldset>
+        <legend className="text-xs font-bold text-amber-300 mb-1.5">Badge to wear (earned only)</legend>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            aria-pressed={config.wornBadge === null}
+            onClick={() => onChange({ ...config, wornBadge: null })}
+            className={`px-3 py-1.5 rounded-lg border-2 text-[11px] font-bold uppercase tracking-wide cursor-pointer ${config.wornBadge === null ? 'border-amber-400 bg-amber-400/15 text-amber-200' : 'border-slate-700 text-slate-300'}`}
+          >
+            None
+          </button>
+          {earnedBadgeSprites.map((sprite) => (
+            <button
+              key={sprite}
+              type="button"
+              aria-label={`Wear badge ${sprite}`}
+              aria-pressed={config.wornBadge === sprite}
+              onClick={() => onChange({ ...config, wornBadge: sprite })}
+              className={`w-9 h-9 rounded-lg border-2 flex items-center justify-center cursor-pointer ${config.wornBadge === sprite ? 'border-amber-400 bg-amber-400/15' : 'border-slate-700 bg-slate-900 hover:border-sky-300'}`}
+            >
+              <img src={`/badges/${sprite}.png`} alt="" width={22} height={22} />
+            </button>
+          ))}
+        </div>
+        {earnedBadgeSprites.length === 0 && (
+          <p className="text-[11px] text-slate-400 mt-1">Earn gym badges in Progress to wear one here.</p>
+        )}
+      </fieldset>
       <Swatches label="Skin tone" options={SKIN_TONES} active={config.skin} onPick={(i) => onChange({ ...config, skin: i })} />
       <Chips label="Hair style" options={HAIR_STYLES} active={config.hairStyle} onPick={(i) => onChange({ ...config, hairStyle: HAIR_STYLES[i] })} />
       <Swatches label="Hair color" options={HAIR_COLORS} active={config.hairColor} onPick={(i) => onChange({ ...config, hairColor: i })} />
