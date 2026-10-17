@@ -3,18 +3,62 @@ import { Sparkles, Power } from 'lucide-react';
 import { playPokedexOpenSound, primeGameboyAudio } from '../utils/gameboySound';
 
 /**
+ * Backdrop for the closed dex. Drop the artwork at `public/backdrop.jpg` (or
+ * .png/.webp) and it is used automatically; otherwise a lightning-storm
+ * gradient stands in, so the screen is never blank. No build step is required —
+ * files in /public are served as-is.
+ */
+const BACKDROP_CANDIDATES = ['/backdrop.jpg', '/backdrop.png', '/backdrop.webp'];
+
+const StormBackdrop: React.FC = () => {
+  const [source, setSource] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    const probe = async () => {
+      for (const candidate of BACKDROP_CANDIDATES) {
+        try {
+          const res = await fetch(candidate, { method: 'HEAD' });
+          if (res.ok && !cancelled) { setSource(candidate); return; }
+        } catch { /* try the next candidate */ }
+      }
+    };
+    void probe();
+    return () => { cancelled = true; };
+  }, []);
+
+  return (
+    <div className="absolute inset-0 z-0 overflow-hidden" aria-hidden="true">
+      {source ? (
+        <img src={source} alt="" className="w-full h-full object-cover" />
+      ) : (
+        <div className="w-full h-full bg-[radial-gradient(120%_90%_at_50%_15%,#f97316_0%,#b91c1c_32%,#1e1b4b_62%,#080b18_100%)]" />
+      )}
+      {/* Readability scrim plus an electric shimmer over the artwork. */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/25 to-black/70" />
+      <div className="absolute inset-0 opacity-25 bg-[linear-gradient(115deg,transparent_35%,rgba(125,211,252,0.35)_48%,transparent_60%)] animate-pulse" />
+      {/* Silhouette ridge, echoing the rocky ledge in the artwork. */}
+      <svg viewBox="0 0 100 22" preserveAspectRatio="none" className="absolute bottom-0 inset-x-0 h-40 w-full opacity-80">
+        <path d="M0 22 L0 12 L10 7 L22 14 L34 8 L46 15 L58 9 L72 16 L86 10 L100 15 L100 22 Z" fill="#05070f" />
+      </svg>
+    </div>
+  );
+};
+
+/**
  * The closed Pokédex screen: what a returning guest/device sees when the app
  * opens or after logging out. Deliberately frame-less — the device is shut,
  * so no screen bezel or interior is shown. Clicking it re-opens the dex,
  * which plays the opening animation before the terminal reappears.
  */
 export const ClosedDexCover: React.FC<{ onOpen: () => void }> = ({ onOpen }) => (
-  <div className="min-h-screen bg-[#070A10] flex items-center justify-center p-4 select-none">
+  <div className="min-h-screen flex items-center justify-center p-4 select-none relative isolate overflow-hidden bg-[#070A10]">
+    <StormBackdrop />
     <button
       type="button"
       onClick={onOpen}
       onMouseEnter={primeGameboyAudio}
-      className="group relative w-full max-w-sm rounded-[2rem] sm:rounded-[2.8rem] bg-gradient-to-b from-[#DC2626] via-[#B91C1C] to-[#881337] border-2 sm:border-4 border-[#7F1D1D] shadow-[0_25px_60px_rgba(0,0,0,0.9),0_0_50px_rgba(220,38,38,0.3)] p-5 sm:p-7 flex flex-col gap-4 transition-transform duration-300 hover:scale-[1.02] active:scale-[0.99] cursor-pointer"
+      className="group relative w-full max-w-sm rounded-[2rem] sm:rounded-[2.8rem] bg-gradient-to-b from-[#DC2626] via-[#B91C1C] to-[#881337] border-2 sm:border-4 border-[#7F1D1D] shadow-[0_25px_60px_rgba(0,0,0,0.9),0_0_50px_rgba(220,38,38,0.3)] backdrop-blur-[2px] p-5 sm:p-7 flex flex-col gap-4 transition-transform duration-300 hover:scale-[1.02] active:scale-[0.99] cursor-pointer"
       title="Open the Pokédex"
     >
       {/* Top sensor strip: lens + LEDs (the closed face) */}

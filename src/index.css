@@ -1,1 +1,117 @@
 @import "tailwindcss";
+
+/*
+ * Theme variables. `html[data-theme]` is set by src/data/themes.ts. Defaults
+ * mirror the HomeDex red chassis so the app looks unchanged without a theme.
+ */
+:root {
+  --chassis-1: #dc2626;
+  --chassis-2: #b91c1c;
+  --chassis-3: #881337;
+  --chassis-border: #7f1d1d;
+  --bg-deep: #070a10;
+  --bg-app: #0b0f17;
+  --panel: #0f1522;
+  --panel-2: #131c30;
+  --accent: #f59e0b;
+  --accent-soft: #fbbf24;
+}
+
+html[data-theme='midnight'] {
+  --chassis-1: #2563eb;
+  --chassis-2: #1d4ed8;
+  --chassis-3: #172554;
+  --chassis-border: #1e3a8a;
+  --bg-deep: #05080f;
+  --bg-app: #0a1020;
+  --panel: #0e1526;
+  --panel-2: #131c33;
+  --accent: #60a5fa;
+  --accent-soft: #93c5fd;
+}
+
+html[data-theme='forest'] {
+  --chassis-1: #16a34a;
+  --chassis-2: #15803d;
+  --chassis-3: #14532d;
+  --chassis-border: #166534;
+  --bg-deep: #050d09;
+  --bg-app: #08140e;
+  --panel: #0c1a13;
+  --panel-2: #10241a;
+  --accent: #86efac;
+  --accent-soft: #bbf7d0;
+}
+
+html[data-theme='lavender'] {
+  --chassis-1: #7c3aed;
+  --chassis-2: #6d28d9;
+  --chassis-3: #4c1d95;
+  --chassis-border: #5b21b6;
+  --bg-deep: #07040f;
+  --bg-app: #0f0a1e;
+  --panel: #150f28;
+  --panel-2: #1c1433;
+  --accent: #c4b5fd;
+  --accent-soft: #ddd6fe;
+}
+
+html[data-theme='amber'] {
+  --chassis-1: #d97706;
+  --chassis-2: #b45309;
+  --chassis-3: #78350f;
+  --chassis-border: #92400e;
+  --bg-deep: #0b0803;
+  --bg-app: #15100a;
+  --panel: #1c1610;
+  --panel-2: #241c13;
+  --accent: #fcd34d;
+  --accent-soft: #fde68a;
+}
+
+html[data-theme='cobalt'] {
+  --chassis-1: #0ea5e9;
+  --chassis-2: #0284c7;
+  --chassis-3: #075985;
+  --chassis-border: #0369a1;
+  --bg-deep: #050b12;
+  --bg-app: #0b1220;
+  --panel: #101a2c;
+  --panel-2: #16233a;
+  --accent: #7dd3fc;
+  --accent-soft: #bae6fd;
+}
+
+html[data-theme='crimson'] {
+  --chassis-1: #e11d48;
+  --chassis-2: #be123c;
+  --chassis-3: #881337;
+  --chassis-border: #9f1239;
+  --bg-deep: #0a0407;
+  --bg-app: #160a10;
+  --panel: #1d0f17;
+  --panel-2: #26141d;
+  --accent: #fda4af;
+  --accent-soft: #fecdd3;
+}
+
+html[data-theme='grayscale'] {
+  --chassis-1: #9bbc0f;
+  --chassis-2: #8bac0f;
+  --chassis-3: #306230;
+  --chassis-border: #0f380f;
+  --bg-deep: #08130a;
+  --bg-app: #0f1a0f;
+  --panel: #14240f;
+  --panel-2: #1b2e14;
+  --accent: #9bbc0f;
+  --accent-soft: #cfe05a;
+}
+
+/* Structure colors re-skin with the theme; accent/text utilities stay Tailwind. */
+.bg-\[\#0B0F17\], .bg-\[\#0B0F19\] { background-color: var(--bg-app) !important; }
+.bg-\[\#0F1522\] { background-color: var(--panel) !important; }
+.bg-\[\#131C30\], .bg-\[\#0E1422\], .bg-\[\#070A10\] { background-color: var(--bg-deep) !important; }
+.bg-\[\#DC2626\] { background-color: var(--chassis-1) !important; }
+.border-\[\#7F1D1D\] { border-color: var(--chassis-border) !important; }
+.border-\[\#1E293B\] { border-color: var(--chassis-border) !important; }

@@ -2,6 +2,7 @@ import type { AdditionalSettingsDraft } from './SettingsDraft';
 import { SettingsDraft } from './SettingsDraft';
 import type { HomeDesign } from '../hooks/useHomeDesign';
 import { HomeDesignSettings } from './HomeDesignSettings';
+import { ThemePicker } from './ThemePicker';
 import React, { useState, useEffect } from 'react';
 import {
   Settings,
@@ -24,6 +25,7 @@ import {
   CloudDownload,
   X,
   Globe,
+  Palette,
 } from 'lucide-react';
 import {
   GAMES,
@@ -47,11 +49,12 @@ import { Volume2 } from 'lucide-react';
 import { areSoundEffectsEnabled } from '../utils/gameboySound';
 import { playPokepetRegisteredSound } from '../utils/gameboySound';
 
-type TabId = 'home' | 'games' | 'sounds' | 'tracker' | 'export' | 'storage' | 'rescue' | 'danger';
+type TabId = 'home' | 'games' | 'appearance' | 'sounds' | 'tracker' | 'export' | 'storage' | 'rescue' | 'danger';
 
 const SETTINGS_TABS: { id: TabId; label: string; hint: string; icon: React.ElementType }[] = [
   { id: 'home', label: 'Home Screen', hint: 'Choose visible panels', icon: Layers },
   { id: 'games', label: 'Games & DLC', hint: 'Owned games & expansions', icon: Layers },
+  { id: 'appearance', label: 'Appearance', hint: 'Theme & colors', icon: Palette },
   { id: 'sounds', label: 'Sounds', hint: 'Sound effects on/off', icon: Volume2 },
   { id: 'tracker', label: 'Tracker', hint: 'Tally & suggestions', icon: Compass },
   { id: 'export', label: 'Export & Sharing', hint: 'Trainer card & backups', icon: Share2 },
@@ -319,6 +322,9 @@ const SettingsContent: React.FC<SettingsViewProps> = ({
           <button type="button" onClick={onResetHomePanels} className="self-start px-4 py-2 rounded-xl bg-amber-500 text-slate-950 text-xs font-bold">Restore default home layout</button>
         </section>
       )}
+
+      {/* SECTION: APPEARANCE (themes) */}
+      {activeTab === 'appearance' && <ThemePicker />}
 
       {/* SECTION: SOUNDS */}
       {activeTab === 'sounds' && (
