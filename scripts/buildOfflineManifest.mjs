@@ -44,5 +44,5 @@ if (!files.some((f) => f.url === '/data/encounters.json')) throw Error('Incomple
 writeFileSync(join(root, 'offline-manifest.json'), JSON.stringify({ schema: 2, version, files }));
 console.log(
   `Offline manifest ${version}: ${files.length} package files (${files.reduce((n, f) => n + f.bytes, 0)} bytes). ` +
-    `The service worker precache covers the app shell, fonts and all sprites.`,
+    `The package holds the data bundle and the sprite archive; the service worker precache covers the app shell and fonts.`,
 );
