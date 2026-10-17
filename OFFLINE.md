@@ -7,21 +7,19 @@
 - **App shell**: the built HTML, JavaScript, CSS and icons, so the app reopens offline.
 - **All bundled datasets**: `dist/offline-manifest.json` lists every file emitted by the
   production build — the whole national dex, games/regions, encounter bundle
-  (`/data/encounters.json`, ~20 MB), evolution edges, items, forms/variants, gifts,
-  species names and the artwork catalog.
+  (`/data/encounters.json`, ~15 MB), evolution edges, items, forms/variants, gifts and
+  species names.
+- **All sprites**: every species, shiny, form and gender sprite is bundled in the app
+  (`/sprites/...`) and is part of the site data, so no separate artwork download runs and
+  no sprite is ever fetched from a third-party host at runtime.
 - **Fonts**: self-hosted woff/ttf files (`/fonts/site-fonts.css`) plus their OFL licences,
   so typography and the QR code work with no network.
-- **Artwork**: **2,594 normal / shiny / form / gender image groups** covering all 1,025
-  species. For each group the tool caches the primary source and keeps ordered fallbacks
-  (custom Showdown images → official artwork → HOME artwork → pixel sprites), so an
-  earlier fallback can be used if a source is unavailable.
-
 The QR code is now generated **locally** (`qrcode.react`) instead of calling
 `api.qrserver.com`, which was the last runtime network dependency.
 
 Downloads are stored in CacheStorage under `homedex-package-<version>` with a pointer in
 `homedex-offline-control-v2` that only becomes the active package once every required file
-and artwork group is verified.
+is verified.
 
 ## Integrity and failure handling
 
@@ -66,12 +64,13 @@ every five minutes; offline it shows the last known status.
 
 ## Known limits
 
-- Bundle size is several hundred MB of CacheStorage once artwork is included; a storage-quota
-  guard refuses to start when the core files cannot fit and points to the storage figures.
+- Bundle size is a few hundred MB of CacheStorage (all app pages, datasets and bundled
+  sprites); a storage-quota guard refuses to start when the core files cannot fit and points
+  to the storage figures.
 - Account sign-in, cloud lookup/sync, friend data and signed-in atomic evolution still need
   internet by design; the app data needed for offline reading and local editing is local.
-- Artwork comes from third-party hosts and a fixture-based test verifies *routing,
-  completeness and failure handling* — not that every source is permanently online.
+- Sprites ship with the app, so there is no third-party artwork source; a test verifies the
+  app makes no external sprite request at runtime.
 - Updating the **service worker** itself (and any bug fix in it) requires one online reload
   for the new `sw.js` to take control; the download tool cannot replace its own controller.
 - Tests: `npm run test:offline` (real production SW + CacheStorage in headless Chromium,
