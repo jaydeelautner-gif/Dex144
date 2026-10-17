@@ -59,7 +59,7 @@ export async function getOfflinePackageMetadata(): Promise<OfflinePackageMeta> {
     const groups: MediaGroup[] = (await media.json()).groups;
     const keys = new Set((await cache.keys()).map(r=>r.url));
     const coreMissing = m.files.filter(f=>!keys.has(url(f.url))).length;
-    const missing = groups.filter(g=>!keys.has(g.id));
+    const missing = groups.filter(g=>!keys.has(url(g.id)));
     const incompleteSpecies = new Set(missing.map(g=>g.speciesId));
     return {...a.meta, isDownloaded:coreMissing===0 && missing.length===0,
       cachedSpeciesCount:new Set(groups.map(g=>g.speciesId).filter(id=>!incompleteSpecies.has(id))).size,

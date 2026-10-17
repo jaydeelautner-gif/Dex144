@@ -86,7 +86,7 @@ function generateUnownForms(): ExtraVariantSpec[] {
     regionTag: 'Unown Form',
     types: ['Psychic'],
     spriteId: 201,
-    imageUrl: `https://play.pokemonshowdown.com/sprites/dex/unown-${letter}.png`,
+    imageUrl: `/sprites/showdown/dex/unown-${letter}.png`,
     findInGames: unownGames,
   }));
 
@@ -96,7 +96,7 @@ function generateUnownForms(): ExtraVariantSpec[] {
     regionTag: 'Unown Form',
     types: ['Psychic'],
     spriteId: 201,
-    imageUrl: 'https://play.pokemonshowdown.com/sprites/dex/unown-exclamation.png',
+    imageUrl: '/sprites/showdown/dex/unown-exclamation.png',
     findInGames: unownGames,
   });
 
@@ -106,7 +106,7 @@ function generateUnownForms(): ExtraVariantSpec[] {
     regionTag: 'Unown Form',
     types: ['Psychic'],
     spriteId: 201,
-    imageUrl: 'https://play.pokemonshowdown.com/sprites/dex/unown-question.png',
+    imageUrl: '/sprites/showdown/dex/unown-question.png',
     findInGames: unownGames,
   });
 
@@ -701,7 +701,7 @@ export function getVariationsForPokemon(pokemon: PokemonEntry): RegionalVariatio
     types: pokemon.types,
     spriteId: pokemon.id,
     imageUrl: isUnown
-      ? 'https://play.pokemonshowdown.com/sprites/dex/unown-a.png'
+      ? '/sprites/showdown/dex/unown-a.png'
       : undefined,
     findInGames: baseGames,
   };

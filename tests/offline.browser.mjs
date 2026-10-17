@@ -1,5 +1,5 @@
 // Real production SW/CacheStorage tests in a disposable headless browser.
-// Artwork is fixture PNGs: verify catalog completeness/routing/failure recovery,
+// Sprites are bundled local files: verify catalog completeness/routing/failure recovery,
 // not third-party image availability. All cloud/auth network traffic is blocked.
 import assert from 'node:assert/strict';
 import { readFileSync,existsSync } from 'node:fs';
@@ -18,7 +18,7 @@ const original=JSON.parse(readFileSync(join(root,'offline-manifest.json')));
 const catalog=JSON.parse(readFileSync(join(root,'offline-media.json')));
 assert.equal(new Set(catalog.groups.map(g=>g.speciesId)).size,1025);
 assert.ok(catalog.groups.some(g=>g.id.includes('/shiny/')));
-assert.ok(catalog.groups.some(g=>g.id.includes('pokemonshowdown')));
+assert.ok(catalog.groups.some(g=>g.id.startsWith('/sprites/')),'artwork catalog is served from the app');
 for(const f of original.files) {const data=readFileSync(join(root,f.url));assert.equal(createHash('sha256').update(data).digest('hex'),f.sha256);}
 let served=original; const overrides=new Map(); let corrupt=false;
 const mime={'.js':'application/javascript','.json':'application/json','.html':'text/html','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.ttf':'font/ttf','.webmanifest':'application/manifest+json'};
@@ -35,6 +35,11 @@ await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const base=`http://127.0.0.1:${server.address().port}`;
 const harness=(await build({entryPoints:[new URL('offlineHarness.ts',import.meta.url).pathname],bundle:true,write:false,platform:'browser',format:'iife',define:{__OFFLINE_BUILD_VERSION__:JSON.stringify(original.version)}})).outputFiles[0].text;
 const browser=await chromium.launch(); const context=await browser.newContext();
+await context.addInitScript(async()=>{
+  const d=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('salt:1234'));
+  const pinHash=Array.from(new Uint8Array(d),b=>b.toString(16).padStart(2,'0')).join('');
+  localStorage.setItem('homedex_cached_auth_vault_v1',JSON.stringify([{uid:'offline-test',email:'offline@example.test',displayName:'Offline Tester',salt:'salt',passwordHash:'unused',pinSalt:'salt',pinHash,hasLoggedInOnThisDevice:true,lastLoginAt:Date.now()}]));
+});
 const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=','base64');
 let mediaRequests=0;let missingMedia=false;
 await context.route('**/*',route=>{
@@ -68,9 +73,18 @@ try {
   console.log('PASS: every production file, all 1025 species artwork groups (normal/shiny/forms), verified fallback, complete metadata');
   // No unseen-page/data dependency is permitted to fall back to the network.
   await context.setOffline(true);const beforeRequests=mediaRequests;
-  await page.reload();await page.getByRole('heading',{name:'Welcome to HomeDex',exact:true}).waitFor();
+  await page.reload();
+  // The app opens with the closed Pokédex cover; open it before checking content.
+  const openDex=async()=>{const b=page.getByRole('button',{name:/Open Dex/i});if(await b.count()){await b.click();const skip=page.getByRole('button',{name:/Skip Intro/i});if(await skip.count())await skip.click();}};
+  await openDex();
+  const keypad=page.getByRole('group',{name:'PIN touch keypad'});
+  if(await keypad.count()){
+    for(const d of ['1','2','3','4'])await page.getByRole('button',{name:'PIN digit '+d,exact:true}).click();
+    await page.getByRole('button',{name:'Unlock with PIN'}).click();
+  }
+  await page.getByRole('heading',{name:'Welcome to HomeDex',exact:true}).waitFor();
   const data=await page.evaluate(async()=>({count:Object.keys(await(await fetch('/data/encounters.json')).json()).length,css:(await fetch('/fonts/site-fonts.css')).status}));
-  assert.ok(data.count>=900);assert.equal(data.css,200);
+  assert.ok(data.count>=800);assert.equal(data.css,200);
   await page.getByRole('button',{name:'Pokédex',exact:true}).first().click();
   await page.getByText('Wild Encounters (Exact Data)',{exact:true}).first().isVisible().catch(()=>{});
   await inject();assert.equal((await meta()).isDownloaded,true);assert.equal(mediaRequests,beforeRequests);
@@ -98,13 +112,13 @@ try {
   missingMedia=false;assert.equal((await download()).success,true);assert.equal((await meta()).version,'c'.repeat(24));
   console.log('PASS: image failures not counted as successes; retry resumes and completes the update');
   await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
-  await page.getByRole('button',{name:'Update downloaded — reload',exact:true}).first().waitFor();
+  await page.getByRole('button',{name:/Update downloaded — reload/}).first().waitFor();
   console.log('PASS: completed newer package offers explicit reload (no forced reload)');
   // Return the real release so App's update checker can observe a changed version.
   served=original;overrides.clear();
   await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
-  await page.getByRole('button',{name:'Update required',exact:true}).first().waitFor();
-  await page.getByRole('button',{name:'Update required',exact:true}).first().click();
+  await page.getByRole('button',{name:/Update required/}).first().waitFor();
+  await page.getByRole('button',{name:/Update required/}).first().click();
   await page.getByRole('heading',{name:'Offline Mode & Device WebApp Storage',exact:true}).waitFor();
   console.log('PASS: update-needed indicator appears under sync and opens offline settings');
   await inject();

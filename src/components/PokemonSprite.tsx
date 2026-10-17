@@ -1,4 +1,4 @@
-import { spriteSources } from '../utils/spriteSources';
+import { spriteSources, isLocalSprite } from '../utils/spriteSources';
 import React, { useState, useEffect } from 'react';
 import { getCachedSpriteObjectUrl, isArtworkAvailableOnDevice } from '../utils/offlineManager';
 
@@ -26,6 +26,8 @@ export const PokemonSprite: React.FC<PokemonSpriteProps> = ({
 
   const sources = spriteSources(id, shiny, imageUrl);
   const currentSrc = sources[errorStage] ?? null;
+  // Local sprite files are served by this app, so they never need the offline artwork cache.
+  const currentIsLocal = isLocalSprite(currentSrc);
 
   useEffect(() => { setErrorStage(0); }, [id, shiny, imageUrl]);
 
@@ -41,7 +43,7 @@ export const PokemonSprite: React.FC<PokemonSpriteProps> = ({
   useEffect(() => {
     let active = true;
     setOfflineBlobUrl(null);
-    if (!currentSrc) return;
+    if (!currentSrc || isLocalSprite(currentSrc)) return;
     getCachedSpriteObjectUrl(currentSrc).then(blobUrl => {
       if (active) setOfflineBlobUrl(blobUrl);
     });
@@ -55,7 +57,7 @@ export const PokemonSprite: React.FC<PokemonSpriteProps> = ({
     xl: 'w-32 h-32',
   };
 
-  if (!currentSrc || errorStage >= sources.length || (deviceFirst && !offlineBlobUrl)) {
+  if (!currentSrc || errorStage >= sources.length || (!currentIsLocal && deviceFirst && !offlineBlobUrl)) {
     return (
       <div
         className={`${sizeClasses[size]} ${className} flex flex-col items-center justify-center rounded-lg bg-slate-900/90 border border-slate-800 text-slate-400 select-none`}
@@ -83,8 +85,8 @@ export const PokemonSprite: React.FC<PokemonSpriteProps> = ({
   return (
     <div className={`${sizeClasses[size]} ${className} relative flex items-center justify-center select-none`}>
       <img
-        key={`${currentSrc}-${errorStage}-${offlineBlobUrl ? 'cached' : 'remote'}`}
-        src={offlineBlobUrl || (deviceFirst ? undefined : currentSrc)}
+        key={`${currentSrc}-${errorStage}-${offlineBlobUrl ? 'cached' : currentIsLocal ? 'local' : 'remote'}`}
+        src={currentIsLocal ? currentSrc : offlineBlobUrl || (deviceFirst ? undefined : currentSrc)}
         alt={`${shiny ? 'Shiny ' : ''}${name} illustration`}
         referrerPolicy="no-referrer"
         loading="lazy"
