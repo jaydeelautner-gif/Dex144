@@ -65,7 +65,7 @@ function pwaPlugin(version: string) {
           filename: 'sw.ts',
           injectManifest: {
             globPatterns: ['**/*.{js,css,html,svg,ico,png,woff,woff2,ttf}'],
-            globIgnores: ['offline-manifest.json', 'offline-media.json', 'data/**'],
+            globIgnores: ['offline-manifest.json', 'data/**'],
             maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
           },
         }
@@ -73,7 +73,7 @@ function pwaPlugin(version: string) {
           strategies: 'generateSW' as const,
           workbox: {
             globPatterns: ['**/*.{js,css,html,svg,ico,png,woff,woff2,ttf}'],
-            globIgnores: ['offline-manifest.json', 'offline-media.json', 'data/**'],
+            globIgnores: ['offline-manifest.json', 'data/**'],
             maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
             runtimeCaching: [
               {

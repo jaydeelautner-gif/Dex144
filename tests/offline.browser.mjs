@@ -1,6 +1,7 @@
 // Real production SW/CacheStorage tests in a disposable headless browser.
-// Sprites are bundled local files: verify catalog completeness/routing/failure recovery,
-// not third-party image availability. All cloud/auth network traffic is blocked.
+// The offline package is site data only (sprites are bundled local files): verify
+// completeness, verification, patch reuse, failure recovery and eviction. All
+// cloud/auth and third-party network traffic is blocked.
 import assert from 'node:assert/strict';
 import { readFileSync,existsSync } from 'node:fs';
 import { join,extname } from 'node:path';
@@ -15,10 +16,6 @@ const { chromium } = await import('@playwright/test').catch(() => {
 import { build } from 'esbuild';
 const root=new URL('../dist/',import.meta.url).pathname;
 const original=JSON.parse(readFileSync(join(root,'offline-manifest.json')));
-const catalog=JSON.parse(readFileSync(join(root,'offline-media.json')));
-assert.equal(new Set(catalog.groups.map(g=>g.speciesId)).size,1025);
-assert.ok(catalog.groups.some(g=>g.id.includes('/shiny/')));
-assert.ok(catalog.groups.some(g=>g.id.startsWith('/sprites/')),'artwork catalog is served from the app');
 for(const f of original.files) {const data=readFileSync(join(root,f.url));assert.equal(createHash('sha256').update(data).digest('hex'),f.sha256);}
 let served=original; const overrides=new Map(); let corrupt=false;
 const mime={'.js':'application/javascript','.json':'application/json','.html':'text/html','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.ttf':'font/ttf','.webmanifest':'application/manifest+json'};
@@ -40,16 +37,13 @@ await context.addInitScript(async()=>{
   const pinHash=Array.from(new Uint8Array(d),b=>b.toString(16).padStart(2,'0')).join('');
   localStorage.setItem('homedex_cached_auth_vault_v1',JSON.stringify([{uid:'offline-test',email:'offline@example.test',displayName:'Offline Tester',salt:'salt',passwordHash:'unused',pinSalt:'salt',pinHash,hasLoggedInOnThisDevice:true,lastLoginAt:Date.now()}]));
 });
-const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=','base64');
-let mediaRequests=0;let missingMedia=false;
+// Counts only artwork/sprite hosts: those must never be contacted now that
+// every sprite is bundled. Cloud/auth traffic is out of scope here.
+let externalSpriteRequests=0;
 await context.route('**/*',route=>{
   const u=new URL(route.request().url());
   if(u.origin===base) return route.continue();
-  if(u.hostname==='raw.githubusercontent.com'||u.hostname==='play.pokemonshowdown.com') {
-    mediaRequests++;
-    if((missingMedia&&u.pathname.includes('offline-test-missing')) || /other\/official-artwork\/1\.png$/.test(u.pathname)) return route.fulfill({status:404,headers:{'access-control-allow-origin':'*'}});
-    return route.fulfill({status:200,contentType:'image/png',body:png,headers:{'access-control-allow-origin':'*'}});
-  }
+  if(/githubusercontent|pokemonshowdown|pokemon\.com/.test(u.hostname)) externalSpriteRequests++;
   return route.abort();
 });
 const page=await context.newPage(); page.setDefaultTimeout(60000);
@@ -57,22 +51,25 @@ async function inject(){await page.addScriptTag({content:harness});}
 async function meta(){return page.evaluate(()=>window.offlineTest.getOfflinePackageMetadata());}
 async function download(cancel=false){return page.evaluate(async cancel=>{
   const ac=new AbortController();
-  return window.offlineTest.downloadFullOfflinePackage(Array.from({length:1025},(_,i)=>({id:i+1})),p=>{window.lastOfflineProgress=p;if(cancel&&p.phase==='artwork'&&p.current>40)ac.abort();},ac.signal);
+  return window.offlineTest.downloadFullOfflinePackage(Array.from({length:1025},(_,i)=>({id:i+1})),p=>{window.lastOfflineProgress=p;if(cancel&&p.current>40)ac.abort();},ac.signal);
 },cancel);}
 function deployment(version,extra=false){
   const build=Buffer.from(JSON.stringify({version}));overrides.set('/offline-build.json',build);
-  const media=Buffer.from(JSON.stringify(extra?{...catalog,groups:[...catalog.groups,{id:'https://raw.githubusercontent.com/offline-test-missing.png',speciesId:1,candidates:['https://raw.githubusercontent.com/offline-test-missing.png']}]}:catalog));overrides.set('/offline-media.json',media);
-  served={...original,version,files:original.files.map(f=>{const b=overrides.get(f.url);return b?{...f,bytes:b.length,sha256:createHash('sha256').update(b).digest('hex')}:f;})};
+  // `extra` adds one brand-new file the server never provides, so it can only
+  // fail verification (nothing on the device can satisfy it).
+  let files=original.files.map(f=>{const b=overrides.get(f.url);return b?{...f,bytes:b.length,sha256:createHash('sha256').update(b).digest('hex')}:f;});
+  if(extra) files=[...files,{url:'/offline-test-missing.png',sha256:'0'.repeat(64),bytes:10}];
+  served={...original,version,files};
 }
 try {
   await page.goto(base);await page.evaluate(()=>navigator.serviceWorker.ready);
   await page.waitForFunction(()=>!!navigator.serviceWorker.controller);
   await inject();
-  const success=await download();assert.equal(success.success,true);assert.equal(success.cachedCount,1025);
-  let m=await meta();assert.equal(m.isDownloaded,true);assert.equal(m.cachedAssetCount,original.files.length+catalog.groups.length);
-  console.log('PASS: every production file, all 1025 species artwork groups (normal/shiny/forms), verified fallback, complete metadata');
+  const success=await download();assert.equal(success.success,true);assert.equal(success.fileCount,original.files.length);
+  let m=await meta();assert.equal(m.isDownloaded,true);assert.equal(m.siteFileCount,original.files.length);
+  console.log('PASS: every production file (app pages, data, all bundled sprites and fonts) verified with complete metadata');
   // No unseen-page/data dependency is permitted to fall back to the network.
-  await context.setOffline(true);const beforeRequests=mediaRequests;
+  await context.setOffline(true);const beforeRequests=externalSpriteRequests;
   await page.reload();
   // The app opens with the closed Pokédex cover; open it before checking content.
   const openDex=async()=>{const b=page.getByRole('button',{name:/Open Dex/i});if(await b.count()){await b.click();const skip=page.getByRole('button',{name:/Skip Intro/i});if(await skip.count())await skip.click();}};
@@ -87,8 +84,8 @@ try {
   assert.ok(data.count>=800);assert.equal(data.css,200);
   await page.getByRole('button',{name:'Pokédex',exact:true}).first().click();
   await page.getByText('Wild Encounters (Exact Data)',{exact:true}).first().isVisible().catch(()=>{});
-  await inject();assert.equal((await meta()).isDownloaded,true);assert.equal(mediaRequests,beforeRequests);
-  console.log('PASS: offline reload, local encounter JSON/fonts, navigation, artwork without provider network');
+  await inject();assert.equal((await meta()).isDownloaded,true);assert.equal(externalSpriteRequests,beforeRequests,'no third-party sprite requests while offline');
+  console.log('PASS: offline reload, local encounter JSON/fonts, navigation and sprites without any third-party network');
   await context.setOffline(false);
   deployment('b'.repeat(24));corrupt=true;
   const failure=await page.evaluate(async()=>{try{await window.offlineTest.downloadFullOfflinePackage([]);return '';}catch(e){return e.message;}});
@@ -101,16 +98,16 @@ try {
   assert.ok(stillGood,'a complete package must remain available after a bad deployment');
   corrupt=false;
   console.log('PASS: corrupt deployment never trusted; a verified complete package always remains');
-  // Add one genuinely new image URL to avoid reuse from the previous package.
-  deployment('c'.repeat(24),true);missingMedia=true;
+  // Add one genuinely new file URL to avoid reuse from the previous package.
+  deployment('c'.repeat(24),true);
   // The failing image is brand new, so nothing on the device can satisfy it;
   // an incomplete download must not silently publish the newer release.
   const versionBefore=('b'.repeat(24));
   const partial=await download();assert.equal(partial.success,false);assert.equal(partial.failedCount,1);
   assert.equal((await meta()).version,versionBefore,'an incomplete download must not be published as the active release');
   assert.notEqual((await page.evaluate(()=>window.lastOfflineProgress)).status,'completed');
-  missingMedia=false;assert.equal((await download()).success,true);assert.equal((await meta()).version,'c'.repeat(24));
-  console.log('PASS: image failures not counted as successes; retry resumes and completes the update');
+  deployment('c'.repeat(24));assert.equal((await download()).success,true);assert.equal((await meta()).version,'c'.repeat(24));
+  console.log('PASS: file failures not counted as successes; retry resumes and completes the update');
   await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
   await page.getByRole('button',{name:/Update downloaded — reload/}).first().waitFor();
   console.log('PASS: completed newer package offers explicit reload (no forced reload)');

@@ -15,7 +15,6 @@
     "test:evolution": "tsx tests/pokepetEvolution.test.ts",
     "test:offline": "node tests/offline.browser.mjs",
     "fetch:offline-fonts": "node scripts/fetchOfflineFonts.mjs",
-    "generate:offline-media": "tsx scripts/prepareOfflineMedia.ts",
     "generate:area-unlocks": "node scripts/generateAreaUnlocks.mjs",
     "generate:areas": "node scripts/generateAreaUnlocks.mjs",
     "test:register-controls": "npm run build && node tests/registerControls.browser.mjs",

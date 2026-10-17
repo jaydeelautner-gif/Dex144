@@ -1,6 +1,5 @@
-import { spriteSources, isLocalSprite } from '../utils/spriteSources';
+import { spriteSources } from '../utils/spriteSources';
 import React, { useState, useEffect } from 'react';
-import { getCachedSpriteObjectUrl, isArtworkAvailableOnDevice } from '../utils/offlineManager';
 
 interface PokemonSpriteProps {
   id: number;
@@ -11,6 +10,7 @@ interface PokemonSpriteProps {
   imageUrl?: string;
 }
 
+/** Sprites are bundled with the app, so this only ever loads local files. */
 export const PokemonSprite: React.FC<PokemonSpriteProps> = ({
   id,
   name,
@@ -20,35 +20,11 @@ export const PokemonSprite: React.FC<PokemonSpriteProps> = ({
   imageUrl,
 }) => {
   const [errorStage, setErrorStage] = useState(0);
-  const [offlineBlobUrl, setOfflineBlobUrl] = useState<string | null>(null);
-  // Once the offline package is installed, artwork must come from the device.
-  const [deviceFirst, setDeviceFirst] = useState(false);
 
   const sources = spriteSources(id, shiny, imageUrl);
   const currentSrc = sources[errorStage] ?? null;
-  // Local sprite files are served by this app, so they never need the offline artwork cache.
-  const currentIsLocal = isLocalSprite(currentSrc);
 
   useEffect(() => { setErrorStage(0); }, [id, shiny, imageUrl]);
-
-  // Is artwork installed on this device? (single cached probe)
-  useEffect(() => {
-    let active = true;
-    isArtworkAvailableOnDevice().then(ok => { if (active) setDeviceFirst(ok); });
-    return () => { active = false; };
-  }, []);
-
-  // Resolve from device storage. The object URL is kept (not revoked on every
-  // re-render) and looked up per source, so a species/form change updates it.
-  useEffect(() => {
-    let active = true;
-    setOfflineBlobUrl(null);
-    if (!currentSrc || isLocalSprite(currentSrc)) return;
-    getCachedSpriteObjectUrl(currentSrc).then(blobUrl => {
-      if (active) setOfflineBlobUrl(blobUrl);
-    });
-    return () => { active = false; };
-  }, [currentSrc]);
 
   const sizeClasses: Record<string, string> = {
     sm: 'w-10 h-10',
@@ -57,7 +33,7 @@ export const PokemonSprite: React.FC<PokemonSpriteProps> = ({
     xl: 'w-32 h-32',
   };
 
-  if (!currentSrc || errorStage >= sources.length || (!currentIsLocal && deviceFirst && !offlineBlobUrl)) {
+  if (!currentSrc || errorStage >= sources.length) {
     return (
       <div
         className={`${sizeClasses[size]} ${className} flex flex-col items-center justify-center rounded-lg bg-slate-900/90 border border-slate-800 text-slate-400 select-none`}
@@ -85,8 +61,8 @@ export const PokemonSprite: React.FC<PokemonSpriteProps> = ({
   return (
     <div className={`${sizeClasses[size]} ${className} relative flex items-center justify-center select-none`}>
       <img
-        key={`${currentSrc}-${errorStage}-${offlineBlobUrl ? 'cached' : currentIsLocal ? 'local' : 'remote'}`}
-        src={currentIsLocal ? currentSrc : offlineBlobUrl || (deviceFirst ? undefined : currentSrc)}
+        key={`${currentSrc}-${errorStage}`}
+        src={currentSrc}
         alt={`${shiny ? 'Shiny ' : ''}${name} illustration`}
         referrerPolicy="no-referrer"
         loading="lazy"

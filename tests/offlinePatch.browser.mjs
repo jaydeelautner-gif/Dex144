@@ -13,7 +13,6 @@ import { build } from 'esbuild';
 const root = fileURLToPath(new URL('../dist/', import.meta.url));
 const mime = { '.js':'application/javascript','.json':'application/json','.html':'text/html','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.ttf':'font/ttf','.woff2':'font/woff2','.webmanifest':'application/manifest+json' };
 const original = JSON.parse(readFileSync(join(root,'offline-manifest.json'),'utf8'));
-const CATALOG = readFileSync(join(root,'offline-media.json'));
 const CHANGED = '/data/encounters.json';
 
 const sha = (b) => createHash('sha256').update(b).digest('hex');
@@ -23,7 +22,6 @@ function deploy(version, patch = null) {
   // the version, so it changes on every release).
   const overrides = new Map([
     ['/offline-build.json', Buffer.from(JSON.stringify({ version }))],
-    ['/offline-media.json', CATALOG],
   ]);
   if (patch) overrides.set(patch.url, patch.bytes);
   const files = original.files.map((f) => {

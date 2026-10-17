@@ -152,11 +152,11 @@ export async function flushOfflineSyncQueue(
   return {syncedCount:result.processed,errors:result.failed ? [`${result.failed} changes remain pending; retry when connected.`] : []};
 }
 
-// Versioned, verified app/data/artwork downloads (separate from cloud sync).
+// Versioned, verified site-data downloads (separate from cloud sync).
 export {
   SPRITE_CACHE_NAME, OFFLINE_DATA_KEY, OFFLINE_PACKAGE_METADATA_KEY,
   getOfflinePackageMetadata, saveOfflinePackageMetadata, downloadFullOfflinePackage,
-  clearOfflinePackage, getCachedSpriteObjectUrl, isArtworkAvailableOnDevice,
+  clearOfflinePackage,
   type OfflinePackageMeta, type DownloadProgress,
 } from './offlinePackage';
 
