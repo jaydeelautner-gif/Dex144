@@ -1,10 +1,16 @@
 import React from 'react';
+import { PokemonSprite } from './PokemonSprite';
 
 interface BoxSlotMiniMapProps {
   boxNumber: number; // 1 to 35
   boxSlot: number; // 1 to 30
   className?: string;
   size?: 'sm' | 'md' | 'lg';
+  slots?: { slot:number; pokemonId:number; name:string; occupied?:boolean }[];
+  onSelectSlot?: (slot:number)=>void;
+  onNavigateBox?: (direction:-1|1)=>void;
+  canPreviousBox?:boolean;
+  canNextBox?:boolean;
 }
 
 /**
@@ -21,6 +27,11 @@ export const BoxSlotMiniMap: React.FC<BoxSlotMiniMapProps> = ({
   boxSlot,
   className = '',
   size = 'md',
+  slots,
+  onSelectSlot,
+  onNavigateBox,
+  canPreviousBox=true,
+  canNextBox=true,
 }) => {
   const row = Math.ceil(boxSlot / 6);
   const col = ((boxSlot - 1) % 6) + 1;
@@ -37,8 +48,10 @@ export const BoxSlotMiniMap: React.FC<BoxSlotMiniMapProps> = ({
       title={`PC Box ${boxNumber} — Slot ${boxSlot} (Row ${row}, Col ${col})`}
     >
       <div className="flex items-center justify-between w-full px-0.5 text-[10px] font-mono-tabular text-slate-400">
+        {onNavigateBox && <button type="button" aria-label="Previous placement box" disabled={!canPreviousBox} onClick={()=>onNavigateBox(-1)} className="w-8 h-8 rounded border border-slate-700 text-slate-200 disabled:opacity-30">‹</button>}
         <span className="font-bold text-sky-300">Box {boxNumber}</span>
         <span className="text-amber-300">Slot {boxSlot} / 30</span>
+        {onNavigateBox && <button type="button" aria-label="Next placement box" disabled={!canNextBox} onClick={()=>onNavigateBox(1)} className="w-8 h-8 rounded border border-slate-700 text-slate-200 disabled:opacity-30">›</button>}
       </div>
 
       {/* 6 columns x 5 rows grid */}
@@ -46,6 +59,13 @@ export const BoxSlotMiniMap: React.FC<BoxSlotMiniMapProps> = ({
         {Array.from({ length: 30 }).map((_, idx) => {
           const slotNum = idx + 1;
           const isTarget = slotNum === boxSlot;
+          const pokemon=slots?.find(p=>p.slot===slotNum);
+          if(onSelectSlot) return <button key={slotNum} type="button" disabled={!pokemon} aria-pressed={isTarget}
+            aria-label={pokemon?`Slot ${slotNum}: ${pokemon.name}${pokemon.occupied?' (registered)':''}`:`Slot ${slotNum}: empty`}
+            title={pokemon?.name || 'Empty slot'} onClick={()=>onSelectSlot(slotNum)}
+            className={`w-8 h-8 rounded border flex items-center justify-center disabled:opacity-20 ${isTarget?'border-amber-300 bg-amber-400/20 ring-1 ring-amber-300':'border-slate-700 bg-slate-800 hover:border-sky-300'}`}>
+            {pokemon && <span className={`pointer-events-none ${pokemon.occupied||isTarget?'':'opacity-60'}`}><PokemonSprite id={pokemon.pokemonId} name={pokemon.name} size="sm" className="!w-6 !h-6" /></span>}
+          </button>;
           return (
             <div
               key={slotNum}
@@ -62,10 +82,10 @@ export const BoxSlotMiniMap: React.FC<BoxSlotMiniMapProps> = ({
         })}
       </div>
 
-      <div className="text-[9px] font-mono-tabular text-slate-400 flex items-center justify-between w-full px-0.5">
+      {!onSelectSlot && <div className="text-[9px] font-mono-tabular text-slate-400 flex items-center justify-between w-full px-0.5">
         <span>Row {row}</span>
         <span className="text-amber-400 font-semibold">Column {col}</span>
-      </div>
+      </div>}
     </div>
   );
 };

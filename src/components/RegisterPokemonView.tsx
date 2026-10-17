@@ -1,3 +1,5 @@
+import { RegistrationToggle } from './RegistrationToggle';
+import { PokerusBadge } from './PokerusBadge';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Search,
@@ -569,7 +571,13 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
                       boxNumber={selectedPokemon.boxNumber}
                       boxSlot={selectedPokemon.boxSlot}
                       size="sm"
+                      slots={dex.filter(p=>p.boxNumber===selectedPokemon.boxNumber).map(p=>({slot:p.boxSlot,pokemonId:p.id,name:p.name,occupied:inventory.some(pet=>pet.pokemonId===p.id && pet.isInLivingBox && pet.storedInHome)}))}
+                      onSelectSlot={slot=>{const mon=dex.find(p=>p.boxNumber===selectedPokemon.boxNumber && p.boxSlot===slot);if(mon)handleSelectCandidate(mon);}}
+                      canPreviousBox={selectedPokemon.boxNumber>1}
+                      canNextBox={selectedPokemon.boxNumber<Math.max(...dex.map(p=>p.boxNumber))}
+                      onNavigateBox={direction=>{const nextBox=selectedPokemon.boxNumber+direction;const mon=dex.find(p=>p.boxNumber===nextBox && p.boxSlot===selectedPokemon.boxSlot) || dex.find(p=>p.boxNumber===nextBox);if(mon)handleSelectCandidate(mon);}}
                     />
+                    <span className="text-[10px] text-slate-400 mt-1">Tap a slot to select that Pokémon.</span>
                   </div>
                 )}
               </div>
@@ -599,7 +607,7 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
                 />
 
                 <div className="flex-1 min-w-0 p-1 rounded-xl bg-[#0B0F17] border border-slate-800 flex flex-col gap-1">
-                  <div className="grid grid-cols-3 lg:grid-cols-5 gap-1">
+                  <div className="grid grid-cols-3 lg:grid-cols-5 gap-1.5">
                     {['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'].map((digit) => (
                       <button
                         key={digit}
@@ -611,7 +619,7 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
                           if (Number.isNaN(num)) return;
                           setLevel(num > 100 ? Number(digit) : num);
                         }}
-                        className={`py-1.5 lg:py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs lg:text-sm font-bold font-mono text-slate-100 cursor-pointer transition-colors active:bg-amber-500 active:text-slate-950 ${digit === '0' ? 'col-start-2 lg:col-start-auto' : ''}`}
+                        className={`min-h-10 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-sm lg:text-base font-bold font-mono text-slate-100 cursor-pointer transition-colors active:bg-amber-500 active:text-slate-950 ${digit === '0' ? 'col-start-2 lg:col-start-auto' : ''}`}
                       >
                         {digit}
                       </button>
@@ -621,7 +629,7 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
                     <button
                       type="button"
                       onClick={() => setLevel('')}
-                      className="py-1.5 lg:py-1 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/50 text-rose-300 text-[10px] font-bold cursor-pointer transition-colors"
+                      className="min-h-9 py-2 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/50 text-rose-300 text-[10px] font-bold cursor-pointer transition-colors"
                     >
                       Clear
                     </button>
@@ -632,7 +640,7 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
                         const next = current.slice(0, -1);
                         setLevel(next === '' ? '' : Number(next));
                       }}
-                      className="py-1.5 lg:py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-[10px] font-bold text-slate-200 cursor-pointer transition-colors"
+                      className="min-h-9 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-[11px] font-bold text-slate-200 cursor-pointer transition-colors"
                     >
                       ⌫ Back
                     </button>
@@ -836,52 +844,17 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
               </div>
             </div>
 
-            {/* Gift and trade origin toggles */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {isGiftEligible && (
-                <label className={`flex items-center gap-2.5 p-3 lg:p-2 rounded-xl border cursor-pointer select-none ${
-                  isHomeGift
-                    ? 'bg-purple-950/25 border-purple-500/50'
-                    : 'bg-slate-900/90 border-slate-800 hover:border-purple-500/50'
-                }`}>
-                  <input
-                    type="checkbox"
-                    checked={isHomeGift}
-                    onChange={(e) => {
-                      const checked = e.target.checked;
-                      setIsHomeGift(checked);
-                      if (checked) {
-                        setIsTraded(false);
-                        setStoredInHome(true);
-                      }
-                    }}
-                    className="w-5 h-5 lg:w-4 lg:h-4 rounded text-purple-600 bg-slate-950 border-purple-500 focus:ring-0 cursor-pointer"
-                  />
-                  <span className="text-xs font-bold text-purple-200 flex items-center gap-1.5">
-                    <Gift className="w-3.5 h-3.5 text-purple-400" />
-                    Gifted from Pokémon HOME
-                  </span>
-                </label>
-              )}
-              <label className={`flex items-center gap-2.5 p-3 lg:p-2 rounded-xl bg-slate-900/90 border border-slate-800 select-none ${
-                isHomeGift ? 'opacity-50 cursor-not-allowed' : 'hover:border-sky-500/50 cursor-pointer'
-              }`}>
-                  <input
-                    type="checkbox"
-                    checked={isTraded}
-                    disabled={isHomeGift}
-                    onChange={(e) => {
-                      setIsTraded(e.target.checked);
-                      if (e.target.checked) setIsHomeGift(false);
-                    }}
-                    className="w-5 h-5 lg:w-4 lg:h-4 rounded text-sky-500 bg-slate-950 border-slate-700 focus:ring-0 cursor-pointer disabled:cursor-not-allowed"
-                  />
-                  <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-                    <ArrowLeftRight className="w-3.5 h-3.5 text-sky-400" />
-                    Received via Trade
-                  </span>
-              </label>
-            </div>
+            {/* Compact flags: keep all acquisition/storage constraints intact. */}
+            <fieldset aria-label="PokéPet status and storage" className="grid grid-cols-2 gap-1.5">
+              <RegistrationToggle label="Pokérus" checked={hasPokerus} onChange={setHasPokerus}><PokerusBadge />Pokérus</RegistrationToggle>
+              <RegistrationToggle label="Shiny Pokepet" checked={isShiny} onChange={setIsShiny}><Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" />Shiny</RegistrationToggle>
+              <RegistrationToggle label="Received via Trade" checked={isTraded} disabled={isHomeGift} onChange={checked=>{setIsTraded(checked);if(checked)setIsHomeGift(false);}}><ArrowLeftRight className="w-3.5 h-3.5 text-sky-300 shrink-0" />Received via trade</RegistrationToggle>
+              {isGiftEligible && <RegistrationToggle label="Gifted from Pokémon HOME" checked={isHomeGift} onChange={checked=>{setIsHomeGift(checked);if(checked){setIsTraded(false);setStoredInHome(true);}}}><Gift className="w-3.5 h-3.5 text-purple-300 shrink-0" />HOME gift</RegistrationToggle>}
+              <RegistrationToggle label="Stored in Pokémon HOME" checked={isHomeGift || storedInHome} disabled={isHomeGift || transferBlockInfo.isBlocked} onChange={checked=>{setStoredInHome(checked);if(!checked)setIsInLivingBox(false);}}><Box className="w-3.5 h-3.5 text-emerald-300 shrink-0" />Stored in HOME</RegistrationToggle>
+              <RegistrationToggle label="Place in Living Dex Slot" checked={isInLivingBox} disabled={!storedInHome || transferBlockInfo.isBlocked} onChange={setIsInLivingBox}><Box className="w-3.5 h-3.5 text-sky-300 shrink-0" />Living Box</RegistrationToggle>
+            </fieldset>
+            {transferBlockInfo.isBlocked ? <p className="text-[11px] text-rose-300" role="status"><Lock className="inline w-3 h-3 mr-1" />{transferBlockInfo.reason} · HOME and Living Box unavailable.</p>
+              : !storedInHome ? <p className="text-[10px] text-slate-400">Stored in console; enable HOME storage to use a Living Dex slot.</p> : null}
 
             {/* Game Origin Selection */}
             {!isHomeGift && (
@@ -919,101 +892,6 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
                 )}
               </div>
             )}
-
-            <label className="flex items-center gap-2.5 p-3 rounded-xl border border-fuchsia-500/40 bg-slate-900 cursor-pointer text-xs font-bold text-fuchsia-200">
-              <input type="checkbox" checked={hasPokerus} onChange={e => setHasPokerus(e.target.checked)} className="accent-fuchsia-400" />
-              Pokérus
-            </label>
-            {/* Shiny Toggle */}
-            <div className="grid grid-cols-1 gap-2 pt-2 border-t border-slate-800">
-              <label className={`flex items-center gap-2.5 p-3 lg:p-2 rounded-xl border cursor-pointer select-none ${
-                isShiny
-                  ? 'bg-amber-950/25 border-amber-500/50'
-                  : 'bg-slate-900/90 border-slate-800 hover:border-amber-500/50'
-              }`}>
-                <input
-                  type="checkbox"
-                  checked={isShiny}
-                  onChange={(e) => setIsShiny(e.target.checked)}
-                  className="w-5 h-5 lg:w-4 lg:h-4 rounded text-amber-500 bg-slate-950 border-slate-700 focus:ring-0 cursor-pointer"
-                />
-                <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  Shiny Pokepet
-                </span>
-              </label>
-            </div>
-
-            {/* Pokémon HOME Transfer Gate & Living Dex Eligibility */}
-            <div className="pt-2 border-t border-slate-800 flex flex-col gap-2">
-              {transferBlockInfo.isBlocked ? (
-                <div className="p-3.5 rounded-xl bg-rose-950/30 border border-rose-500/50 flex flex-col gap-1 text-xs text-rose-300">
-                  <div className="flex items-center gap-1.5 font-bold">
-                    <Lock className="w-4 h-4 text-rose-400" />
-                    <span>Stored in Pokémon HOME Option Unavailable</span>
-                  </div>
-                  <p className="text-[11px] text-rose-200/90 leading-relaxed">
-                    {transferBlockInfo.reason}
-                  </p>
-                  <p className="text-[10px] text-slate-400 mt-1">
-                    This pokepet will be classified as (stored in {GAMES.find((g) => g.id === targetGame)?.platform || 'Console'}) and is ineligible for the Living Dex.
-                  </p>
-                </div>
-              ) : (
-                <label className={`flex items-center gap-2.5 p-2 lg:p-1.5 rounded-xl border cursor-pointer select-none ${
-                  isHomeGift || storedInHome
-                    ? 'bg-emerald-950/25 border-emerald-500/50'
-                    : 'bg-slate-900/90 border-slate-800 hover:border-emerald-500/50'
-                }`}>
-                  <input
-                    type="checkbox"
-                    checked={isHomeGift || storedInHome}
-                    disabled={isHomeGift}
-                    onChange={(e) => {
-                      const checked = e.target.checked;
-                      setStoredInHome(checked);
-                      if (!checked) {
-                        setIsInLivingBox(false);
-                      }
-                    }}
-                    className="w-5 h-5 lg:w-4 lg:h-4 rounded text-emerald-500 bg-slate-950 border-slate-700 focus:ring-0 cursor-pointer"
-                  />
-                  <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
-                    <Box className="w-3.5 h-3.5 text-emerald-400" />
-                    Stored in Pokémon HOME
-                  </span>
-                </label>
-              )}
-
-              {storedInHome && !transferBlockInfo.isBlocked ? (
-                <div className="p-2 rounded-xl bg-sky-950/20 border border-sky-500/40 flex flex-col gap-2">
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={isInLivingBox}
-                      onChange={(e) => setIsInLivingBox(e.target.checked)}
-                      className="w-5 h-5 lg:w-4 lg:h-4 rounded text-sky-500 bg-slate-950 border-slate-700 focus:ring-0 cursor-pointer"
-                    />
-                    <div className="flex flex-col">
-                      <span className="text-xs font-bold text-sky-300 flex items-center gap-1.5">
-                        <Box className="w-3.5 h-3.5 text-sky-400" />
-                        <span>Place in Living Dex Slot</span>
-                      </span>
-                      <span className="text-[10px] text-slate-400">
-                        Assign to Box {selectedPokemon?.boxNumber}, Slot {selectedPokemon?.boxSlot}
-                      </span>
-                    </div>
-                  </label>
-                </div>
-              ) : (
-                <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800 text-xs text-rose-300/90 flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
-                  <span>
-                    Marked as <strong>Ineligible for Living Dex</strong> because pokepet is not stored in Pokémon HOME.
-                  </span>
-                </div>
-              )}
-            </div>
 
             {/* In-flow Save & Reset Buttons — DESKTOP ONLY */}
             <div className="hidden lg:flex items-center justify-between gap-4 pt-4 border-t border-slate-800">
