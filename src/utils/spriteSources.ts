@@ -2,21 +2,19 @@ import {
   SPRITE_FILES,
   FORM_SPRITE_FILES,
   FORM_ID_SPRITE_FILES,
+  type SpriteSlice,
 } from '../data/spriteFiles.generated';
 
 /**
- * Returns sprite candidates that all live inside this app (`/sprites/...`).
- * Nothing is loaded from an external host, so artwork works offline and does
- * not depend on third-party availability. Candidates are tried in order until
- * one loads; the list is derived from sprites downloaded by
- * `scripts/downloadSprites.mjs`.
+ * Sprite candidates for a species, in order of preference. Every candidate is a
+ * slice of the bundled `/sprites.bin`, so no artwork is ever fetched from an
+ * external host. Candidates are tried until one renders.
  */
-export function spriteSources(id: number, shiny = false, imageUrl?: string): string[] {
-  const out: string[] = [];
+export function spriteSources(id: number, shiny = false, imageUrl?: string): SpriteSlice[] {
+  const out: SpriteSlice[] = [];
   if (imageUrl) {
     const mapped = FORM_SPRITE_FILES[imageUrl];
     if (mapped) out.push(mapped);
-    else if (imageUrl.startsWith('/sprites/')) out.push(imageUrl);
   }
   const form = FORM_ID_SPRITE_FILES[id];
   const base = SPRITE_FILES[id];
@@ -24,13 +22,11 @@ export function spriteSources(id: number, shiny = false, imageUrl?: string): str
     ? [form?.shiny, base?.shiny, form?.normal, base?.normal]
     : [form?.normal, base?.normal, form?.shiny, base?.shiny];
   for (const candidate of ordered) if (candidate) out.push(candidate);
-  return [...new Set(out)];
+  const seen = new Set<string>();
+  return out.filter((slice) => {
+    const key = `${slice.o}:${slice.l}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
-
-/** True when a sprite path is served by this app rather than a remote host. */
-export function isLocalSprite(src?: string | null): boolean {
-  return Boolean(src && src.startsWith('/sprites/'));
-}
-
-/** Back-compat export: the local Pokemon Showdown dex folder. */
-export const LOCAL_SPRITE_ROOT = '/sprites';

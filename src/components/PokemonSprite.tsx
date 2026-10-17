@@ -1,4 +1,5 @@
 import { spriteSources } from '../utils/spriteSources';
+import { spriteUrls } from '../utils/spriteArchive';
 import React, { useState, useEffect } from 'react';
 
 interface PokemonSpriteProps {
@@ -10,7 +11,10 @@ interface PokemonSpriteProps {
   imageUrl?: string;
 }
 
-/** Sprites are bundled with the app, so this only ever loads local files. */
+/**
+ * Sprites are bundled in `/sprites.bin` and resolved to object URLs, so this
+ * never contacts an external host. Candidates are tried in order on error.
+ */
 export const PokemonSprite: React.FC<PokemonSpriteProps> = ({
   id,
   name,
@@ -20,11 +24,18 @@ export const PokemonSprite: React.FC<PokemonSpriteProps> = ({
   imageUrl,
 }) => {
   const [errorStage, setErrorStage] = useState(0);
+  const [urls, setUrls] = useState<(string | null)[]>([]);
 
-  const sources = spriteSources(id, shiny, imageUrl);
-  const currentSrc = sources[errorStage] ?? null;
+  useEffect(() => {
+    let active = true;
+    setErrorStage(0);
+    void spriteUrls(spriteSources(id, shiny, imageUrl)).then((resolved) => {
+      if (active) setUrls(resolved);
+    });
+    return () => { active = false; };
+  }, [id, shiny, imageUrl]);
 
-  useEffect(() => { setErrorStage(0); }, [id, shiny, imageUrl]);
+  const currentSrc = urls[errorStage] ?? null;
 
   const sizeClasses: Record<string, string> = {
     sm: 'w-10 h-10',
@@ -33,7 +44,7 @@ export const PokemonSprite: React.FC<PokemonSpriteProps> = ({
     xl: 'w-32 h-32',
   };
 
-  if (!currentSrc || errorStage >= sources.length) {
+  if (!currentSrc || errorStage >= urls.length) {
     return (
       <div
         className={`${sizeClasses[size]} ${className} flex flex-col items-center justify-center rounded-lg bg-slate-900/90 border border-slate-800 text-slate-400 select-none`}

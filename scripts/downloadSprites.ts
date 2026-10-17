@@ -49,15 +49,16 @@ async function listFolder(folder: string): Promise<Set<string>> {
   return names;
 }
 
-const outRoot = join(root, 'public/sprites');
+// Raw downloads live in a git-ignored cache; scripts/bundleSprites.mjs packs them
+// into the single public/sprites.bin the app ships.
+const outRoot = join(root, '.sprite-cache');
 const written = new Set<string>();
 async function saveLocal(rel: string, bytes: Buffer): Promise<void> {
-  const relPath = `sprites/${rel}`;
-  if (written.has(relPath)) return;
-  const file = join(root, 'public', relPath);
+  if (written.has(rel)) return;
+  const file = join(outRoot, rel);
   mkdirSync(dirname(file), { recursive: true });
   writeFileSync(file, bytes);
-  written.add(relPath);
+  written.add(rel);
 }
 
 async function pool<T>(items: T[], worker: (item: T) => Promise<void>): Promise<void> {
@@ -166,7 +167,7 @@ await pool(formIds, async (id) => {
   }
 });
 
-// Prune files from previous runs that this run did not reference.
+// Prune cache files from previous runs that this run did not reference.
 let pruned = 0;
 const walk = (dir: string): string[] => {
   const out: string[] = [];
@@ -179,7 +180,7 @@ const walk = (dir: string): string[] => {
 };
 if (existsSync(outRoot)) {
   for (const file of walk(outRoot)) {
-    const rel = file.slice(join(root, 'public').length + 1);
+    const rel = file.slice(outRoot.length + 1);
     if (!written.has(rel)) { rmSync(file); pruned++; }
   }
 }

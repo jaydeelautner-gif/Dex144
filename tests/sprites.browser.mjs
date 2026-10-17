@@ -54,20 +54,20 @@ try {
   await page.getByRole('button', { name: 'Pokédex', exact: true }).first().click();
   await page.waitForTimeout(2500);
 
-  const imgs = await page.locator('img[src^="/sprites/"]').count();
-  assert.ok(imgs > 10, `renders local sprite images (${imgs})`);
-  const loaded = await page.locator('img[src^="/sprites/"]').evaluateAll(
+  const imgs = await page.locator('img[src^="blob:"]').count();
+  assert.ok(imgs > 10, `renders bundled sprite images (${imgs})`);
+  const loaded = await page.locator('img[src^="blob:"]').evaluateAll(
     (els) => els.filter((el) => el.complete && el.naturalWidth > 0).length,
   );
-  assert.ok(loaded > 10, `local sprites actually load (${loaded} decoded)`);
+  assert.ok(loaded > 10, `bundled sprites actually decode (${loaded} decoded)`);
 
   // Open a detail view to exercise the larger preview.
-  await page.locator('img[src^="/sprites/"]').first().click().catch(() => {});
+  await page.locator('img[src^="blob:"]').first().click().catch(() => {});
   await page.waitForTimeout(1500);
 
   assert.deepEqual(external, [], `no sprite requests to external hosts: ${JSON.stringify(external.slice(0, 3))}`);
   assert.deepEqual(errors, []);
-  console.log(`PASS: all sprites served locally (${imgs} images, ${loaded} decoded) with zero external requests`);
+  console.log(`PASS: all sprites served from the bundled archive (${imgs} images, ${loaded} decoded) with zero external requests`);
 } finally {
   await context.close(); await browser.close();
   await new Promise((r) => server.close(r));
