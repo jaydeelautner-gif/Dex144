@@ -171,6 +171,10 @@ service cloud.firestore {
       data.updatedAt is timestamp;
     }
 
+    function isValidOriginLanguage(data) {
+      return data.get('originLanguage', 'en') in ['en', 'ja', 'fr', 'de', 'it', 'es', 'ko', 'zh-Hans', 'zh-Hant'];
+    }
+
     // Entity Blueprint Validation Helper: RegisteredPokepet
     function isValidRegisteredPokepet(data) {
       return data.keys().hasAll([
@@ -212,6 +216,7 @@ service cloud.firestore {
       data.variantId.size() <= 32 &&
       data.variantName is string &&
       data.variantName.size() <= 60 &&
+      isValidOriginLanguage(data) &&
       (!('hasPokerus' in data) || data.hasPokerus is bool) &&
       data.isShiny is bool &&
       (!('ballType' in data) || isValidBallType(data.ballType)) &&
@@ -309,6 +314,7 @@ service cloud.firestore {
         data.gender in ['male', 'female', 'genderless'] &&
         data.variantId is string && data.variantId.size() <= 32 &&
         data.variantName is string && data.variantName.size() <= 60 &&
+        isValidOriginLanguage(data) &&
         (!('hasPokerus' in data) || data.hasPokerus is bool) &&
         data.isShiny is bool && data.isHomeGift is bool && data.isTraded is bool &&
         (!('ballType' in data) || isValidBallType(data.ballType)) &&

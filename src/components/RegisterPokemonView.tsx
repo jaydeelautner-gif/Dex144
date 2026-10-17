@@ -1,3 +1,5 @@
+import { POKEMON_LANGUAGES, type PokemonLanguage } from '../data/pokemonLanguages';
+import { PokeballIcon } from './PokeballIcon';
 import { RegistrationToggle } from './RegistrationToggle';
 import { PokerusBadge } from './PokerusBadge';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
@@ -112,6 +114,7 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
   const [nickname, setNickname] = useState('');
   const [isShiny, setIsShiny] = useState(false);
   const [hasPokerus, setHasPokerus] = useState(false);
+  const [originLanguage,setOriginLanguage] = useState<PokemonLanguage>('en');
   const [ballType, setBallType] = useState<PokeballId | ''>('');
   const [isTraded, setIsTraded] = useState(false);
   const [isHomeGift, setIsHomeGift] = useState(false);
@@ -307,6 +310,7 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
     setNickname('');
     setIsShiny(false);
     setHasPokerus(false);
+    setOriginLanguage('en');
     setBallType('');
     setIsTraded(false);
     setIsHomeGift(false);
@@ -385,6 +389,7 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
         variantName,
         isShiny,
         hasPokerus,
+        originLanguage,
         ballType: ballType || undefined,
         gameId: isHomeGift ? undefined : (targetGame as GameId),
         isHomeGift,
@@ -427,110 +432,8 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
       {/* Main Registration Panel */}
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 lg:gap-3">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-3 items-start">
-          {/* Left Column: Species Search & Live Artwork Preview */}
-          <div className="lg:col-span-5 flex flex-col gap-2.5 lg:gap-3 bg-[#0F1522] border border-slate-800 rounded-2xl p-3 sm:p-4 shadow-xl">
-            <label className="text-xs font-bold text-slate-200 flex items-center justify-between">
-              <span>Select Species (Dex # or Name) *</span>
-              <span className="text-[10px] text-amber-400 font-mono">1 to 1025</span>
-            </label>
-
-            <div className="relative">
-              <div className="relative">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={query}
-                  onFocus={() => setIsDropdownOpen(true)}
-                  onChange={(e) => {
-                    setQuery(e.target.value);
-                    setIsDropdownOpen(true);
-                    const val = e.target.value.trim().replace(/^#+/, '');
-                    const num = parseInt(val, 10);
-                    if (!isNaN(num) && num >= 1 && num <= 1025) {
-                      const match = dex.find((p) => p.id === num);
-                      if (match) setSelectedPokemon(match);
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      if (filteredMatches.length > 0) {
-                        handleSelectCandidate(filteredMatches[0]);
-                      }
-                    }
-                  }}
-                  placeholder="e.g. 025, Charizard, Gengar..."
-                  className="w-full pl-10 pr-4 py-3 lg:py-2.5 rounded-xl bg-slate-900 border border-slate-700/80 focus:border-amber-400 text-base lg:text-sm font-medium text-slate-100 placeholder:text-slate-500 focus:outline-none transition-colors"
-                />
-              </div>
-
-              {isDropdownOpen && filteredMatches.length > 0 && (
-                <div
-                  ref={dropdownRef}
-                  className="absolute z-30 left-0 right-0 mt-1.5 max-h-60 overflow-y-auto rounded-xl bg-slate-900 border border-slate-700 shadow-2xl divide-y divide-slate-800/80"
-                >
-                  {filteredMatches.map((m) => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => handleSelectCandidate(m)}
-                      className="w-full px-3.5 py-3 lg:py-2.5 text-left flex items-center justify-between hover:bg-slate-800 transition-colors cursor-pointer"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-xs font-mono-tabular text-amber-400 font-bold w-12">
-                          #{String(m.id).padStart(4, '0')}
-                        </span>
-                        <span className="text-sm font-bold text-slate-100">
-                          {m.name}
-                        </span>
-                      </div>
-                      <span className="text-[11px] font-mono text-slate-400">
-                        {m.types.join('/')}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {selectedPokemon && (
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const prevId = selectedPokemon.id > 1 ? selectedPokemon.id - 1 : 1025;
-                    const mon = dex.find((item) => item.id === prevId);
-                    if (mon) handleSelectCandidate(mon);
-                  }}
-                  className="px-3 py-2.5 lg:px-2.5 lg:py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-mono text-slate-300 cursor-pointer flex items-center gap-1"
-                >
-                  <ChevronLeft className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
-                  <span>Prev</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const nextId = selectedPokemon.id < 1025 ? selectedPokemon.id + 1 : 1;
-                    const mon = dex.find((item) => item.id === nextId);
-                    if (mon) handleSelectCandidate(mon);
-                  }}
-                  className="px-3 py-2.5 lg:px-2.5 lg:py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-mono text-slate-300 cursor-pointer flex items-center gap-1"
-                >
-                  <span>Next</span>
-                  <ChevronRight className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onOpenPokemonPage(selectedPokemon)}
-                  className="ml-auto text-xs text-sky-400 hover:text-sky-300 transition-colors flex items-center gap-1 cursor-pointer py-2"
-                >
-                  <span>View Details</span>
-                  <ExternalLink className="w-3 h-3" />
-                </button>
-              </div>
-            )}
-
+          {/* Left Column: Live preview, placement and level keypad */}
+          <div data-testid="register-preview" className="lg:col-span-5 flex flex-col gap-2.5 lg:gap-3 bg-[#0F1522] border border-slate-800 rounded-2xl p-3 sm:p-4 shadow-xl">
             {selectedPokemon && (
               <div className="p-2.5 lg:p-3 rounded-xl bg-[#0B0F17] border border-slate-800 flex flex-col gap-2.5">
                 <div className="flex flex-row items-center gap-3">
@@ -654,7 +557,109 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
           </div>
 
           {/* Right Column: Pokepet Input Attributes */}
-          <div className="lg:col-span-7 flex flex-col gap-3 lg:gap-2.5 bg-[#0F1522] border border-slate-800 rounded-2xl p-3 sm:p-5 lg:p-4 shadow-xl">
+          <div data-testid="register-attributes" className="lg:col-span-7 flex flex-col gap-3 lg:gap-2.5 bg-[#0F1522] border border-slate-800 rounded-2xl p-3 sm:p-5 lg:p-4 shadow-xl">
+            <label className="text-xs font-bold text-slate-200 flex items-center justify-between">
+              <span>Select Species (Dex # or Name) *</span>
+              <span className="text-[10px] text-amber-400 font-mono">1 to 1025</span>
+            </label>
+
+            <div className="relative">
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={query}
+                  onFocus={() => setIsDropdownOpen(true)}
+                  onChange={(e) => {
+                    setQuery(e.target.value);
+                    setIsDropdownOpen(true);
+                    const val = e.target.value.trim().replace(/^#+/, '');
+                    const num = parseInt(val, 10);
+                    if (!isNaN(num) && num >= 1 && num <= 1025) {
+                      const match = dex.find((p) => p.id === num);
+                      if (match) setSelectedPokemon(match);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      if (filteredMatches.length > 0) {
+                        handleSelectCandidate(filteredMatches[0]);
+                      }
+                    }
+                  }}
+                  placeholder="e.g. 025, Charizard, Gengar..."
+                  className="w-full pl-10 pr-4 py-3 lg:py-2.5 rounded-xl bg-slate-900 border border-slate-700/80 focus:border-amber-400 text-base lg:text-sm font-medium text-slate-100 placeholder:text-slate-500 focus:outline-none transition-colors"
+                />
+              </div>
+
+              {isDropdownOpen && filteredMatches.length > 0 && (
+                <div
+                  ref={dropdownRef}
+                  className="absolute z-30 left-0 right-0 mt-1.5 max-h-60 overflow-y-auto rounded-xl bg-slate-900 border border-slate-700 shadow-2xl divide-y divide-slate-800/80"
+                >
+                  {filteredMatches.map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => handleSelectCandidate(m)}
+                      className="w-full px-3.5 py-3 lg:py-2.5 text-left flex items-center justify-between hover:bg-slate-800 transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-xs font-mono-tabular text-amber-400 font-bold w-12">
+                          #{String(m.id).padStart(4, '0')}
+                        </span>
+                        <span className="text-sm font-bold text-slate-100">
+                          {m.name}
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-mono text-slate-400">
+                        {m.types.join('/')}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {selectedPokemon && (
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const prevId = selectedPokemon.id > 1 ? selectedPokemon.id - 1 : 1025;
+                    const mon = dex.find((item) => item.id === prevId);
+                    if (mon) handleSelectCandidate(mon);
+                  }}
+                  className="px-3 py-2.5 lg:px-2.5 lg:py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-mono text-slate-300 cursor-pointer flex items-center gap-1"
+                >
+                  <ChevronLeft className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
+                  <span>Prev</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextId = selectedPokemon.id < 1025 ? selectedPokemon.id + 1 : 1;
+                    const mon = dex.find((item) => item.id === nextId);
+                    if (mon) handleSelectCandidate(mon);
+                  }}
+                  className="px-3 py-2.5 lg:px-2.5 lg:py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-mono text-slate-300 cursor-pointer flex items-center gap-1"
+                >
+                  <span>Next</span>
+                  <ChevronRight className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onOpenPokemonPage(selectedPokemon)}
+                  className="ml-auto text-xs text-sky-400 hover:text-sky-300 transition-colors flex items-center gap-1 cursor-pointer py-2"
+                >
+                  <span>View Details</span>
+                  <ExternalLink className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+
             <h2 className="text-sm sm:text-base font-bold text-slate-100 border-b border-slate-800/80 pb-2">
               Pokepet Attributes & Acquisition Details
             </h2>
@@ -672,24 +677,6 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
                 </ul>
               </div>
             )}
-
-            {/* Optional Poké Ball */}
-            <div className="flex flex-col gap-1">
-              <label htmlFor="pokepet-ball" className="text-xs font-bold text-slate-300">
-                Poké Ball (Optional)
-              </label>
-              <select
-                id="pokepet-ball"
-                value={ballType}
-                onChange={(e) => setBallType(e.target.value as PokeballId | '')}
-                className="w-full px-3 py-2 lg:py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-sm lg:text-xs font-semibold text-slate-200 focus:outline-none focus:border-amber-400 cursor-pointer"
-              >
-                <option value="">Not specified</option>
-                {POKEBALLS.map((ball) => (
-                  <option key={ball.id} value={ball.id}>{ball.name}</option>
-                ))}
-              </select>
-            </div>
 
             {/* Nickname */}
             <div className="flex flex-col gap-1">
@@ -844,6 +831,11 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
               </div>
             </div>
 
+            <label className="flex flex-col gap-1 text-xs font-bold text-slate-300">Origin region / language
+              <select aria-label="Origin region / language" value={originLanguage} onChange={e=>setOriginLanguage(e.target.value as PokemonLanguage)} className="px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-100">
+                {POKEMON_LANGUAGES.map(language=><option key={language.id} value={language.id}>{language.tag} · {language.label}</option>)}
+              </select>
+            </label>
             {/* Compact flags: keep all acquisition/storage constraints intact. */}
             <fieldset aria-label="PokéPet status and storage" className="grid grid-cols-2 gap-1.5">
               <RegistrationToggle label="Pokérus" checked={hasPokerus} onChange={setHasPokerus}><PokerusBadge />Pokérus</RegistrationToggle>
@@ -892,6 +884,14 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
                 )}
               </div>
             )}
+
+            <fieldset className="pt-2 border-t border-slate-800 flex flex-col gap-2" aria-label="Poké Ball selection">
+              <legend className="text-xs font-semibold text-slate-300">Poké Ball (Optional) · {POKEBALLS.find(ball=>ball.id===ballType)?.name || 'Not specified'}</legend>
+              <div className="flex flex-wrap gap-1.5">
+                <button type="button" aria-label="No Poké Ball specified" aria-pressed={ballType===''} onClick={()=>setBallType('')} className={`h-8 px-2 rounded-lg border text-[10px] ${ballType===''?'border-amber-300 text-amber-200 bg-amber-400/10':'border-slate-700 text-slate-400 bg-slate-900'}`}>None</button>
+                {POKEBALLS.map(ball=><button key={ball.id} type="button" aria-label={`Poké Ball: ${ball.name}`} title={ball.name} aria-pressed={ballType===ball.id} onClick={()=>setBallType(ball.id)} className={`w-8 h-8 rounded-lg border flex items-center justify-center [&>svg]:w-5 [&>svg]:h-5 ${ballType===ball.id?'border-amber-300 bg-amber-400/15 ring-1 ring-amber-300':'border-slate-700 bg-slate-900 hover:border-sky-300'}`}><PokeballIcon ballType={ball.id} /></button>)}
+              </div>
+            </fieldset>
 
             {/* In-flow Save & Reset Buttons — DESKTOP ONLY */}
             <div className="hidden lg:flex items-center justify-between gap-4 pt-4 border-t border-slate-800">

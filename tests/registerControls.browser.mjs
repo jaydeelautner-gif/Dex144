@@ -9,7 +9,7 @@ import { chromium } from '@playwright/test';
 
 const root = fileURLToPath(new URL('../dist/', import.meta.url));
 const mime = { '.js':'application/javascript','.json':'application/json','.html':'text/html','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.ttf':'font/ttf','.webmanifest':'application/manifest+json' };
-const fixture=(await (await import('esbuild')).build({entryPoints:['tests/RegisterControlsFixture.tsx'],bundle:true,write:false,format:'esm',define:{'process.env.NODE_ENV':'"production"'}})).outputFiles[0].text;
+const fixture=(await (await import('esbuild')).build({entryPoints:['tests/RegisterControlsFixture.tsx'],bundle:true,write:false,format:'esm',plugins:[{name:'registration-id-fixture',setup(build){build.onResolve({filter:/firebase$/},args=>args.importer.endsWith('RegisterPokemonView.tsx')?{path:'registration-id',namespace:'fixture'}:undefined);build.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:`export async function generateUniqueSiteWidePokeId(){return 'IDTEST123456';}`,loader:'js'}));}}],define:{'process.env.NODE_ENV':'"production"'}})).outputFiles[0].text;
 const css=readdirSync(join(root,'assets')).find(name=>name.endsWith('.css'));
 const server = createServer((req, res) => {
   if(req.url==='/fixture.html'){res.setHeader('Content-Type','text/html');return res.end(`<meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/assets/${css}"><div id="root"></div><script type="module" src="/fixture.js"></script>`);}
@@ -32,6 +32,17 @@ page.on('pageerror', (e) => errors.push(e.message));
 
 try {
   await page.goto(base+'/fixture.html');
+  const preview=page.getByTestId('register-preview');
+  const attributes=page.getByTestId('register-attributes');
+  assert.equal(await attributes.getByPlaceholder('e.g. 025, Charizard, Gengar...').count(),1);
+  assert.equal(await preview.getByPlaceholder('e.g. 025, Charizard, Gengar...').count(),0);
+  assert.equal(await attributes.getByRole('button',{name:'Next',exact:true}).count(),1);
+  assert.equal(await preview.getByRole('spinbutton').count(),1);
+  assert.equal(await page.getByLabel('Origin region / language',{exact:true}).inputValue(),'en');
+  await page.getByLabel('Origin region / language',{exact:true}).selectOption('ja');
+  await attributes.getByRole('button',{name:'Poké Ball: Quick Ball',exact:true}).click();
+  assert.equal(await attributes.getByRole('button',{name:'Poké Ball: Quick Ball',exact:true}).getAttribute('aria-pressed'),'true');
+  assert.equal(await attributes.locator('select#pokepet-ball').count(),0,'old ball dropdown removed');
   await page.getByRole('checkbox',{name:'Pokérus',exact:true}).check();
   await page.getByRole('checkbox',{name:'Shiny Pokepet',exact:true}).check();
   const flags=page.getByRole('group',{name:'PokéPet status and storage'});
@@ -52,6 +63,7 @@ try {
   assert.equal(await page.getByRole('spinbutton').inputValue(),'72');
   const keyHeight=await page.getByRole('button',{name:'7',exact:true}).evaluate(el=>el.getBoundingClientRect().height);
   assert.ok(keyHeight>=40,'keypad has larger touch targets');
+  await page.locator('form').first().screenshot({path:'/tmp/register-panels-desktop.png'});
   assert.equal(await page.getByRole('button',{name:/^Slot /}).count(),30);
   await page.getByRole('button',{name:'Slot 2: Ivysaur',exact:true}).click();
   assert.ok(await page.getByRole('button',{name:'Slot 2: Ivysaur',exact:true}).getAttribute('aria-pressed')==='true');
@@ -69,6 +81,10 @@ try {
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'form fits phone width');
   const slot=await page.getByRole('button',{name:/^Slot 1:/}).boundingBox();assert.ok(slot.width>=32 && slot.height>=32);
   await page.screenshot({path:'/tmp/registration-compact-phone.png',fullPage:true});
+  await page.getByRole('button',{name:'Save Poképet',exact:true}).last().click();
+  await page.getByLabel('Registered specimen',{exact:true}).filter({hasText:'originLanguage'}).waitFor();
+  const saved=JSON.parse(await page.getByLabel('Registered specimen',{exact:true}).textContent());
+  assert.equal(saved.originLanguage,'ja');assert.equal(saved.ballType,'quick-ball');assert.equal(saved.level,72);
   assert.deepEqual(errors,[]);
   console.log('PASS: compact flags and constraints, larger keypad, tappable species slots, box navigation, final empty slots and mobile width');
 } finally {

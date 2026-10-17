@@ -1,3 +1,4 @@
+import { normalizePokemonLanguage } from './data/pokemonLanguages';
 import { DisplayLimitSelect, useDisplayLimit } from './components/DisplayControls';
 import { useHomeDesign, adoptHomeDesign } from './hooks/useHomeDesign';
 import { useHomePanels } from './hooks/useHomePanels';
@@ -279,7 +280,7 @@ function loadInventoryFromStorage(): PokemonInstance[] {
     if (!Array.isArray(parsed)) return [];
     return parsed.filter(
       (item) => item && typeof item === 'object' && typeof item.pokeId === 'string' && typeof item.pokemonId === 'number'
-    );
+    ).map(item=>({...item,originLanguage:normalizePokemonLanguage(item.originLanguage)}));
   } catch {
     return [];
   }
@@ -995,6 +996,7 @@ export function App() {
         variantName: inv.variantName,
         isShiny: inv.isShiny,
                 hasPokerus: Boolean(inv.hasPokerus),
+                originLanguage: normalizePokemonLanguage(inv.originLanguage),
         ballType: inv.ballType,
         gameId: inv.gameId as GameId | undefined,
         isHomeGift: inv.isHomeGift,
@@ -2148,6 +2150,7 @@ export function App() {
                 variantName: inst.variantName,
                 isShiny: inst.isShiny,
                 hasPokerus: Boolean(inst.hasPokerus),
+                originLanguage: normalizePokemonLanguage(inst.originLanguage),
                 ballType: inst.ballType,
                 gameId: inst.gameId as GameId | undefined,
                 isHomeGift: inst.isHomeGift,

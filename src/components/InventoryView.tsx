@@ -1,3 +1,4 @@
+import { POKEMON_LANGUAGES, normalizePokemonLanguage, type PokemonLanguage } from '../data/pokemonLanguages';
 import { PokerusBadge } from './PokerusBadge';
 import React, { useState, useMemo } from 'react';
 import {
@@ -81,6 +82,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   const [editVariantId, setEditVariantId] = useState<string>('');
   const [editIsShiny, setEditIsShiny] = useState<boolean>(false);
   const [editHasPokerus, setEditHasPokerus] = useState(false);
+  const [editOriginLanguage,setEditOriginLanguage] = useState<PokemonLanguage>('en');
   const [editBallType, setEditBallType] = useState<PokeballId | ''>('');
   const [editIsTraded, setEditIsTraded] = useState<boolean>(false);
   const [editIsHomeGift, setEditIsHomeGift] = useState<boolean>(false);
@@ -146,6 +148,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
     setEditVariantId(item.variantId);
     setEditIsShiny(Boolean(item.isShiny));
     setEditHasPokerus(Boolean(item.hasPokerus));
+    setEditOriginLanguage(normalizePokemonLanguage(item.originLanguage));
     setEditBallType(item.ballType || '');
     setEditIsTraded(Boolean(item.isTraded));
     setEditIsHomeGift(Boolean(item.isHomeGift));
@@ -169,6 +172,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       gender: editGender,
       isShiny: editIsShiny,
       hasPokerus: editHasPokerus,
+      originLanguage: editOriginLanguage,
       ballType: editBallType || undefined,
       isTraded: editIsTraded,
       isHomeGift: editIsHomeGift,
@@ -488,6 +492,11 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                       <input type="checkbox" checked={editHasPokerus} onChange={e => setEditHasPokerus(e.target.checked)} className="accent-fuchsia-400" />
                       <PokerusBadge /> Pokérus
                     </label>
+                    <label className="flex flex-col gap-1 text-xs text-slate-300">Origin region / language
+                      <select aria-label="Edit origin region / language" value={editOriginLanguage} onChange={e=>setEditOriginLanguage(e.target.value as PokemonLanguage)} className="px-2 py-2 rounded bg-slate-900 border border-slate-700 text-slate-100">
+                        {POKEMON_LANGUAGES.map(language=><option key={language.id} value={language.id}>{language.tag} · {language.label}</option>)}
+                      </select>
+                    </label>
                     {/* Variant dropdown */}
                     <div>
                       <label className="text-[10px] font-bold text-slate-400">Variant / Form</label>
@@ -638,6 +647,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                         {item.nickname && (
                           <span className="text-[10px] text-slate-500">({mon?.name})</span>
                         )}
+                        <span className="text-[10px] text-slate-400" title="Origin language">{POKEMON_LANGUAGES.find(language=>language.id===normalizePokemonLanguage(item.originLanguage))?.tag}</span>
                         {item.hasPokerus && <PokerusBadge />}
                         {item.isShiny && <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
                       </div>

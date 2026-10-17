@@ -94,6 +94,14 @@ try {
   await page.getByLabel('PokéPets per page').selectOption('all');
   assert.equal(await page.getByTestId('inventory-item').count(),35);
   assert.equal(await page.evaluate(()=>localStorage.getItem('homedex_inventory_display_count')),'all');
+  const firstPet=page.getByTestId('inventory-item').first();
+  await firstPet.getByRole('button',{name:/Edit Pokepet Attributes/}).click();
+  assert.equal(await page.getByLabel('Edit origin region / language',{exact:true}).inputValue(),'en','existing specimen defaults to English');
+  await page.getByLabel('Edit origin region / language',{exact:true}).selectOption('de');
+  await firstPet.getByRole('button',{name:'Save Changes',exact:true}).click();
+  await firstPet.getByRole('button',{name:/Edit Pokepet Attributes/}).click();
+  assert.equal(await page.getByLabel('Edit origin region / language',{exact:true}).inputValue(),'de','edited language survives reopening');
+  await firstPet.getByRole('button',{name:'Cancel',exact:true}).click();
   await page.getByRole('navigation',{name:'Fixture navigation'}).getByRole('button',{name:'boxes',exact:true}).click();
   await page.getByLabel('Boxes shown',{exact:true}).selectOption('2');
   assert.equal(await page.getByTestId('box-slot').count(),60);

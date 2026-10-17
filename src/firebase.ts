@@ -1,3 +1,4 @@
+import { normalizePokemonLanguage, type PokemonLanguage } from './data/pokemonLanguages';
 import { normalizeHomeDesign, type HomeDesign } from './hooks/useHomeDesign';
 import { initializeApp } from 'firebase/app';
 import {
@@ -167,6 +168,7 @@ export interface SerializedPokemonInstance {
   variantName: string;
   isShiny: boolean;
   hasPokerus?: boolean;
+  originLanguage?: PokemonLanguage;
   ballType?: PokeballId;
   gameId?: string;
   isHomeGift: boolean;
@@ -290,6 +292,7 @@ export function sanitizeInventory(raw: unknown): SerializedPokemonInstance[] {
       variantName,
       isShiny,
       hasPokerus: Boolean(rec.hasPokerus),
+      originLanguage: normalizePokemonLanguage(rec.originLanguage),
       isHomeGift,
       isTraded,
       storedInHome,
@@ -361,6 +364,7 @@ export function sanitizeRescueBin(raw: unknown): RescueBinItem[] {
       variantName: rawInst.variantName,
       isShiny: Boolean(rawInst.isShiny),
       hasPokerus: Boolean(rawInst.hasPokerus),
+      originLanguage: normalizePokemonLanguage(rawInst.originLanguage),
       ballType: sanitizePokeballId(rawInst.ballType),
       gameId: rawInst.gameId as GameId | undefined,
       isHomeGift: Boolean(rawInst.isHomeGift),
@@ -1419,6 +1423,7 @@ export async function getUserRegisteredPokepets(uid: string): Promise<Serialized
             variantName: String(data.variantName || 'Standard'),
             isShiny: Boolean(data.isShiny),
       hasPokerus: Boolean(data.hasPokerus),
+      originLanguage: normalizePokemonLanguage(data.originLanguage),
             ballType: sanitizePokeballId(data.ballType),
             isHomeGift: Boolean(data.isHomeGift),
             isTraded: Boolean(data.isTraded),
@@ -1507,6 +1512,7 @@ export async function savePokepetToUniversalDatabase(
     variantName: item.variantName,
     isShiny: item.isShiny,
     hasPokerus: Boolean(item.hasPokerus),
+    originLanguage: normalizePokemonLanguage(item.originLanguage),
     ballType: sanitizePokeballId(item.ballType) ?? null,
     isHomeGift: item.isHomeGift,
     isTraded: item.isTraded,
@@ -1579,6 +1585,7 @@ export async function updatePokepetInUniversalDatabase(
       variantName: item.variantName,
       isShiny: item.isShiny,
     hasPokerus: Boolean(item.hasPokerus),
+    originLanguage: normalizePokemonLanguage(item.originLanguage),
       ballType: sanitizePokeballId(item.ballType) ?? null,
       isHomeGift: item.isHomeGift,
       isTraded: item.isTraded,
@@ -1693,6 +1700,7 @@ export async function searchPokepetByPokeId(
         variantName: String(data.variantName || 'Standard'),
         isShiny: Boolean(data.isShiny),
       hasPokerus: Boolean(data.hasPokerus),
+      originLanguage: normalizePokemonLanguage(data.originLanguage),
         ballType: sanitizePokeballId(data.ballType),
         gameId: data.gameId ? String(data.gameId) : undefined,
         isHomeGift: Boolean(data.isHomeGift),

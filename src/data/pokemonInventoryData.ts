@@ -1,3 +1,4 @@
+import type { PokemonLanguage } from './pokemonLanguages';
 import type { GameId } from './pokemonData';
 import { GAMES } from './pokemonData';
 
@@ -71,6 +72,7 @@ export interface PokemonInstance {
   variantName: string;
   isShiny: boolean;
   hasPokerus?: boolean;
+  originLanguage?: PokemonLanguage;
   ballType?: PokeballId;
   gameId?: GameId; // Origin game (MUST be undefined if isHomeGift is true)
   isHomeGift: boolean; // Tagged as Gifted from Pokémon HOME

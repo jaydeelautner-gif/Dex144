@@ -10,12 +10,13 @@ const dex=buildInitialNationalDex();
 const inventory:PokemonInstance[]=Array.from({length:35},(_,i)=>({pokeId:'ID'+String(i).padStart(10,'0'),pokemonId:i+1,nickname:'',level:10+i,gender:'male',variantId:`${i+1}:base`,variantName:'Standard',isShiny:false,gameId:'red',isHomeGift:false,isTraded:false,storedInHome:true,isInLivingBox:true,createdAt:1000+i,updatedAt:1000+i}));
 const ids=new Set(inventory.map(p=>p.pokemonId));
 function Fixture(){
+  const [pets,setPets]=useState(inventory);
   const [view,setView]=useState('inventory');const [box,setBox]=useState(1);const [lookup,setLookup]=useState('');
-  const common={dex,inventory,caughtSet:ids,shinySet:new Set<number>(),livingSet:ids,caughtVariantsSet:new Set<string>(),boxSelectedVariantsMap:new Map<number,string>(),boxSelectedGamesMap:new Map()};
+  const common={dex,inventory:pets,caughtSet:ids,shinySet:new Set<number>(),livingSet:ids,caughtVariantsSet:new Set<string>(),boxSelectedVariantsMap:new Map<number,string>(),boxSelectedGamesMap:new Map()};
   return <><nav aria-label="Fixture navigation">{['inventory','boxes','living','community'].map(v=><button key={v} onClick={()=>setView(v)}>{v}</button>)}</nav>
     <output aria-label="Selected community POKEID">{lookup}</output>
     {view==='community' && <RecentCommunityPets dex={dex} onLookup={setLookup} />}
-    {view==='inventory' && <InventoryView dex={dex} inventory={inventory} onUpdateInstance={()=>{}} onRequestEvolve={()=>{}} onDeleteInstance={()=>{}} onOpenPokemonPage={()=>{}} onOpenTrainerCardForPokeId={()=>{}} onNavigateToRegister={()=>{}} />}
+    {view==='inventory' && <InventoryView dex={dex} inventory={pets} onUpdateInstance={next=>setPets(prev=>prev.map(p=>p.pokeId===next.pokeId?next:p))} onRequestEvolve={()=>{}} onDeleteInstance={()=>{}} onOpenPokemonPage={()=>{}} onOpenTrainerCardForPokeId={()=>{}} onNavigateToRegister={()=>{}} />}
     {view==='boxes' && <LivingBoxesView {...common} activeBox={box} onChangeBox={setBox} selectedGame="all" onSelectBoxVariant={()=>{}} onSelectPokemon={()=>{}} />}
     {view==='living' && <PublicStatsPageView {...common} trainerName="Display Test" ownedGames={['red']} ownedDlcs={[]} gameCatches={{}} />}
   </>;

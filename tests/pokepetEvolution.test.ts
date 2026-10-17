@@ -17,17 +17,21 @@ const ruleGraph = JSON.parse(rules.match(/let next = ([^\n]+);/)![1]);
 assert.equal(Object.values(ruleGraph).flat().length, EVOLUTION_EDGES.length);
 for (const edge of EVOLUTION_EDGES) assert.ok(ruleGraph[String(edge.from)].includes(edge.to));
 const dex = buildInitialNationalDex();
-const pet: PokemonInstance = { pokeId: 'IDABCDEFGHIJ', pokemonId: 1, nickname: 'Leaf', hasPokerus: true, level: 12, gender: 'male', variantId: '1:base', variantName: 'Standard', isShiny: true, gameId: 'red', isHomeGift: false, isTraded: false, storedInHome: false, isInLivingBox: false, createdAt: 100, updatedAt: 100 };
+const pet: PokemonInstance = { pokeId: 'IDABCDEFGHIJ', pokemonId: 1, nickname: 'Leaf', hasPokerus: true, originLanguage: 'ja', level: 12, gender: 'male', variantId: '1:base', variantName: 'Standard', isShiny: true, gameId: 'red', isHomeGift: false, isTraded: false, storedInHome: false, isInLivingBox: false, createdAt: 100, updatedAt: 100 };
 const request: EvolutionRequest = { pokeId: pet.pokeId, expectedSpeciesId: 1, targetId: 2, level: 1, usedItem: true, itemName: 'Rare Candy', gameId: 'red', returnedToHome: false, placement: 'inventory', homeMoveConfirmed: false };
 assert.deepEqual(getPokepetEvolutionChoices(pet,dex).map(c=>c.target.id), [2]); // no skipped stage
 const evolved = evolvePokepet(pet,request,dex,[pet],200);
 assert.equal(evolved.pokemonId,2); assert.equal(evolved.level,1); // explicit any-level policy
-for (const key of ['pokeId','gender','isShiny','hasPokerus','nickname','gameId','createdAt'] as const) assert.equal(evolved[key],pet[key]);
+for (const key of ['pokeId','gender','isShiny','hasPokerus','originLanguage','nickname','gameId','createdAt'] as const) assert.equal(evolved[key],pet[key]);
 assert.equal(evolved.variantId,'2:base');
 assert.equal(evolved.evolutionHistory?.[0].itemName,'Rare Candy');
 assert.equal(evolved.evolutionHistory?.[0].usedItem,true);
 const reloaded = sanitizeInventory(JSON.parse(JSON.stringify([evolved])))[0];
 assert.equal(reloaded.hasPokerus, true, 'Pokérus survives evolution and serialization');
+assert.equal(reloaded.originLanguage, 'ja', 'origin language survives evolution and serialization');
+const {originLanguage: omittedLanguage, ...legacyLanguagePet} = pet;
+assert.equal(sanitizeInventory([legacyLanguagePet])[0].originLanguage,'en','existing specimens default to English');
+assert.equal(sanitizeInventory([{...pet,originLanguage:'invalid'}])[0].originLanguage,'en','unknown origin tags normalize to English');
 assert.equal(sanitizeInventory([{ ...pet, hasPokerus: false }])[0].hasPokerus, false, 'Pokérus can be cleared');
 const { hasPokerus: ignoredPokerus, ...legacyPet } = pet;
 assert.equal(sanitizeInventory([legacyPet])[0].hasPokerus, false, 'legacy specimens default to unmarked');
