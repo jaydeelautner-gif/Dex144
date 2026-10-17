@@ -4,17 +4,21 @@
 
 Offline support uses two complementary caches so nothing is downloaded twice:
 
-**1. The service worker precache (automatic).** On install the service worker caches the
-app shell (HTML/JS/CSS), icons, self-hosted fonts and **every sprite** (all species, shiny,
-form and gender variants). This happens without any user action and makes the app shell and
-all artwork available offline.
+**1. Sprites ship inside the app as one file.** All 2,763 sprites live in a single
+`/sprites.bin` (a byte concatenation) with an offset index baked into the bundle
+(`spriteFiles.generated.ts`). The app slices it into blob URLs at runtime
+(`src/utils/spriteArchive.ts`). Bundling keeps the repository to a couple of files instead
+of thousands, which hosts with a file-count limit (e.g. Google AI Studio) reject.
 
-**2. The offline data package (Settings → Storage).** This explicit, verified download adds
-only the files the precache cannot hold — the large encounter bundle
-(`/data/encounters.json`, ~6.6 MB) plus a few non-precached types (`.json`, `.webmanifest`,
-`.txt`). It is deliberately small (a handful of files), because re-downloading the ~2,800
-precached files into a second cache duplicated ~14 MB of storage and made the download slow
-and flaky on phones and iPads.
+**2. The service worker precache (automatic).** On install the service worker caches the
+app shell (HTML/JS/CSS), icons and self-hosted fonts, so those reopen without any user action.
+
+**3. The offline data package (Settings → Storage).** This explicit, verified download adds
+the files the precache cannot hold: the large encounter bundle (`/data/encounters.json`,
+~6.6 MB), the sprite archive (`/sprites.bin`, ~9 MB) and a few non-precached types
+(`.json`, `.webmanifest`, `.txt`). It is deliberately small (a handful of files), because
+re-downloading every precached file into a second cache duplicated storage and made the
+download slow and flaky on phones and iPads.
 
 The split is defined in `scripts/buildOfflineManifest.mjs` and must stay in step with the
 PWA `globPatterns`/`globIgnores`/`maximumFileSizeToCacheInBytes` in `vite.config.ts`.
