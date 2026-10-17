@@ -1,7 +1,9 @@
 import { HOME_PANELS, type HomePanelId } from '../data/homePanels';
-import { useHomeDesign, DEFAULT_HOME_DESIGN } from '../hooks/useHomeDesign';
-export function HomeDesignSettings(){
-  const {design,update}=useHomeDesign();
+import { useHomeDesign, DEFAULT_HOME_DESIGN, type HomeDesign } from '../hooks/useHomeDesign';
+export function HomeDesignSettings({value,onChange}:{value?:HomeDesign;onChange?:(next:HomeDesign)=>void} = {}){
+  const applied=useHomeDesign();
+  const design=value ?? applied.design;
+  const update=onChange ?? applied.update;
   const move=(id:HomePanelId,offset:number)=>{const order=[...design.order];const i=order.indexOf(id);const j=i+offset;if(j<0||j>=order.length)return;[order[i],order[j]]=[order[j],order[i]];update({...design,order});};
   const input='bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-100';
   return <div className="flex flex-col gap-4 border border-slate-700 p-4 rounded-xl">

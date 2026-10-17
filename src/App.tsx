@@ -264,6 +264,13 @@ function loadRescueBinFromStorage(): RescueBinItem[] {
   }
 }
 
+function hasPendingProfileSave(uid:string):boolean {
+  try {
+    const queue=JSON.parse(localStorage.getItem('homedex_offline_sync_queue') || '[]');
+    return Array.isArray(queue) && queue.some(action=>action.type==='SYNC_USER_PROFILE' && action.payload?.uid===uid);
+  } catch { return false; }
+}
+
 function loadInventoryFromStorage(): PokemonInstance[] {
   try {
     const raw = localStorage.getItem(LS_INVENTORY_KEY);
@@ -346,7 +353,19 @@ export function App() {
   const [sharedProfileError, setSharedProfileError] = useState<string | null>(null);
 
   // Navigation State
-  const [activeTab, setActiveTab] = useState<MainWorkspaceTab>('home');
+  const [activeTab, setActiveTabState] = useState<MainWorkspaceTab>('home');
+  const settingsDirtyRef = useRef(false);
+  const onSettingsDirtyChange = useCallback((dirty:boolean) => { settingsDirtyRef.current=dirty; }, []);
+  const confirmLeaveSettings = useCallback(() => {
+    if (!settingsDirtyRef.current) return true;
+    if (!window.confirm('You have unsaved settings. Leave without saving? Your pending settings changes will be discarded.')) return false;
+    settingsDirtyRef.current=false;
+    return true;
+  }, []);
+  const setActiveTab = useCallback((tab:MainWorkspaceTab) => {
+    if (tab !== 'settings' && !confirmLeaveSettings()) return;
+    setActiveTabState(tab);
+  }, [confirmLeaveSettings]);
   const [dexPhase, setDexPhase] = useState<'closed' | 'opening' | 'open' | 'closing'>('closed');
   const finishOpening = useCallback(() => setDexPhase('open'), []);
   const finishClosing = useCallback(() => setDexPhase('closed'), []);
@@ -645,6 +664,13 @@ export function App() {
   // Set when the user changes home panels locally; cleared once the change has
   // been written to the cloud so other devices' layouts can arrive again.
   const homePanelsTouchedRef = useRef<boolean>(false);
+  const settingsTouchedRef = useRef(false);
+  const settingsRevisionRef = useRef(0);
+  const onPreferencesApplied = useCallback(()=>{
+    settingsTouchedRef.current=true;
+    homePanelsTouchedRef.current=true;
+    settingsRevisionRef.current++;
+  },[]);
   const prevUserRef = useRef<User | null>(null);
 
   const handleTogglePublic = useCallback(async (nextVal: boolean) => {
@@ -875,13 +901,16 @@ export function App() {
           setCaughtVariants(remoteProfile.caughtVariants);
           setBoxSelectedVariants(remoteProfile.boxSelectedVariants);
           setBoxSelectedGames(remoteProfile.boxSelectedGames);
-          setOwnedGames(normalizeToCanonicalGames(remoteProfile.ownedGames ?? []));
+          const pendingSettings = settingsTouchedRef.current || hasPendingProfileSave(user.uid);
+          if (!pendingSettings) {
+            setOwnedGames(normalizeToCanonicalGames(remoteProfile.ownedGames ?? []));
+            setOwnedDlcs(remoteProfile.ownedDlcs as DlcId[]);
+          }
           setGameCatches(migrateLegacyGameCatches(remoteProfile.gameCatches ?? {}));
-          setOwnedDlcs(remoteProfile.ownedDlcs as DlcId[]);
           // Home panel layout sync: adopt the cloud layout unless this device
           // has a pending local change that hasn't been written back yet.
           if (remoteProfile.homeDesign) adoptHomeDesign(remoteProfile.homeDesign);
-          if (!homePanelsTouchedRef.current) {
+          if (!homePanelsTouchedRef.current && !pendingSettings) {
             const cloudPanels = parseHomePanels(remoteProfile.homePanels);
             if (cloudPanels) setCloudHomePanels(cloudPanels);
           }
@@ -1106,6 +1135,7 @@ export function App() {
     }
 
     if (user && cloudLoaded && !isApplyingRemoteRef.current) {
+      const savedSettingsRevision = settingsRevisionRef.current;
       const timer = setTimeout(() => {
         saveUserDexProfile(user.uid, {
           trainerName,
@@ -1126,7 +1156,9 @@ export function App() {
           gameProgress: gameProgressForSync,
           inventory: inventory as SerializedPokemonInstance[],
           rescueBin,
-        }).then(() => {
+        }).then(result => {
+          if (result !== 'synced' || savedSettingsRevision !== settingsRevisionRef.current) return;
+          settingsTouchedRef.current = false;
           homePanelsTouchedRef.current = false;
           avatarTouchedRef.current = false;
           gameProgressTouchedRef.current = false;
@@ -1723,6 +1755,7 @@ export function App() {
   }, [resetHomePanels]);
 
   const handleSignOut = () => {
+    if (!confirmLeaveSettings()) return;
     // Sign out locally immediately (signOutUser clears the cached session and
     // notifies listeners synchronously), play the closing animation and land
     // on the closed Pokédex cover. The cloud sign-out call is best-effort:
@@ -3147,6 +3180,8 @@ export function App() {
             {/* TAB 6: SETTINGS */}
             {activeTab === 'settings' && (
               <SettingsView
+                onUnsavedChangesChange={onSettingsDirtyChange}
+                onPreferencesApplied={onPreferencesApplied}
                 homePanels={homePanels}
                 onToggleHomePanel={handleToggleHomePanel}
                 onResetHomePanels={handleResetHomePanels}

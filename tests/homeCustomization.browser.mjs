@@ -58,8 +58,9 @@ try {
   await page.getByLabel('Home layout',{exact:true}).selectOption('right');
   await page.getByLabel('Home panel columns').selectOption('2');
   await page.getByLabel('Home spacing').selectOption('compact');
-  const order=await page.evaluate(()=>JSON.parse(localStorage.getItem('homedex_home_design_v1')).order);
-  for(let i=order.indexOf('ownedLibrary');i>0;i--) await page.getByRole('button',{name:'Move ownedLibrary up',exact:true}).click();
+  const steps=await page.getByRole('button',{name:'Move ownedLibrary up',exact:true}).evaluate(el=>Array.from(el.closest('ol').children).indexOf(el.closest('li')));
+  for(let i=steps;i>0;i--) await page.getByRole('button',{name:'Move ownedLibrary up',exact:true}).click();
+  await page.getByRole('button',{name:'Save settings',exact:true}).first().click();
   await page.getByRole('button',{name:'Home',exact:true}).first().click();
   const positions=await page.getByTestId('home-layout').evaluate(el=>{
     const side=el.querySelector('aside').getBoundingClientRect();
@@ -82,6 +83,7 @@ try {
   await page.getByRole('button',{name:'Settings',exact:true}).first().click();
   await page.getByRole('button',{name:/Home Screen.*Choose visible panels/}).click();
   await page.getByRole('checkbox',{name:/Recently registered community PokéPets/}).uncheck();
+  await page.getByRole('button',{name:'Save settings',exact:true}).first().click();
   await page.getByRole('button',{name:'Home',exact:true}).first().click();
   assert.equal(await recent.count(),0,'community panel can be hidden');
   await page.goto(base+'/display-test.html');

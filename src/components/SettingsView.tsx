@@ -1,3 +1,6 @@
+import type { AdditionalSettingsDraft } from './SettingsDraft';
+import { SettingsDraft } from './SettingsDraft';
+import type { HomeDesign } from '../hooks/useHomeDesign';
 import { HomeDesignSettings } from './HomeDesignSettings';
 import React, { useState, useEffect } from 'react';
 import {
@@ -41,7 +44,7 @@ import type { RescueBinItem } from '../data/pokemonInventoryData';
 import type { User } from '../firebase';
 import { HOME_PANELS, type HomePanelVisibility, type HomePanelId } from '../data/homePanels';
 import { Volume2 } from 'lucide-react';
-import { areSoundEffectsEnabled, setSoundEffectsEnabled, SOUND_PREF_EVENT } from '../utils/gameboySound';
+import { areSoundEffectsEnabled } from '../utils/gameboySound';
 import { playPokepetRegisteredSound } from '../utils/gameboySound';
 
 type TabId = 'home' | 'games' | 'sounds' | 'tracker' | 'export' | 'storage' | 'rescue' | 'danger';
@@ -57,7 +60,14 @@ const SETTINGS_TABS: { id: TabId; label: string; hint: string; icon: React.Eleme
   { id: 'danger', label: 'Danger Zone', hint: 'Reset your data', icon: Shield },
 ];
 
-interface SettingsViewProps {
+export interface SettingsViewProps {
+  onUnsavedChangesChange?: (dirty:boolean)=>void;
+  onPreferencesApplied?: ()=>void;
+  onAdditionalDraftChange?: (draft:AdditionalSettingsDraft|null)=>void;
+  draftHomeDesign?: HomeDesign;
+  onDraftHomeDesignChange?: (design:HomeDesign)=>void;
+  draftSoundEffects?: boolean;
+  onDraftSoundEffectsChange?: (enabled:boolean)=>void;
   homePanels: HomePanelVisibility;
   onToggleHomePanel: (id: HomePanelId) => void;
   onResetHomePanels: () => void;
@@ -108,7 +118,14 @@ interface SettingsViewProps {
   onNavigateToTracker: () => void;
 }
 
-export const SettingsView: React.FC<SettingsViewProps> = ({
+export const SettingsView: React.FC<SettingsViewProps> = props => <SettingsDraft {...props} render={draftProps=><SettingsContent {...draftProps} />} />;
+
+const SettingsContent: React.FC<SettingsViewProps> = ({
+  onAdditionalDraftChange,
+  draftHomeDesign,
+  onDraftHomeDesignChange,
+  draftSoundEffects,
+  onDraftSoundEffectsChange,
   homePanels,
   onToggleHomePanel,
   onResetHomePanels,
@@ -147,15 +164,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onResetAllProgress,
   onNavigateToTracker,
 }) => {
-  const [soundEffectsOn, setSoundEffectsOn] = useState(() => areSoundEffectsEnabled());
-  useEffect(() => {
-    const sync = () => setSoundEffectsOn(areSoundEffectsEnabled());
-    window.addEventListener(SOUND_PREF_EVENT, sync);
-    return () => window.removeEventListener(SOUND_PREF_EVENT, sync);
-  }, []);
+  const soundEffectsOn = draftSoundEffects ?? areSoundEffectsEnabled();
   const [confirmReset, setConfirmReset] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>(openOfflineSectionRequest ? 'storage' : 'games');
   useEffect(() => { if(openOfflineSectionRequest) setActiveTab('storage'); },[openOfflineSectionRequest]);
+  const [storageVisited,setStorageVisited]=useState(Boolean(openOfflineSectionRequest));
+  useEffect(()=>{if(activeTab==='storage')setStorageVisited(true);},[activeTab]);
   const [showExportSection, setShowExportSection] = useState(true);
   const [isResetConsentModalOpen, setIsResetConsentModalOpen] = useState(false);
   const [hasPositiveConsent, setHasPositiveConsent] = useState(false);
@@ -288,9 +302,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <section className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 flex flex-col gap-5">
           <div>
             <h2 className="text-lg font-bold text-slate-100">Customize Home Screen</h2>
-            <p className="text-xs text-slate-400 mt-1">Choose which panels appear on Home. Saved automatically on this device and available offline. Hiding a panel does not delete PokéPets, catches or progress; other pages stay unchanged.</p>
+            <p className="text-xs text-slate-400 mt-1">Choose which panels appear on Home, then press Save settings. Applied preferences remain available offline. Hiding a panel does not delete PokéPets, catches or progress; other pages stay unchanged.</p>
           </div>
-          <HomeDesignSettings />
+          <HomeDesignSettings value={draftHomeDesign} onChange={onDraftHomeDesignChange} />
           {[...new Set(HOME_PANELS.map(p => p.group))].map(group => (
             <fieldset key={group} className="flex flex-col gap-2">
               <legend className="text-sm font-bold text-amber-300 mb-2">{group}</legend>
@@ -311,13 +325,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <section className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 flex flex-col gap-4">
           <div>
             <h2 className="text-lg font-bold text-slate-100">Sounds</h2>
-            <p className="text-xs text-slate-400 mt-1">Control the app's synthesized sound effects. Saved on this device and available offline.</p>
+            <p className="text-xs text-slate-400 mt-1">Control the app's synthesized sound effects. Press Save settings to apply changes on this device.</p>
           </div>
           <label className="flex items-start gap-3 p-3 rounded-xl bg-slate-900 border border-slate-800 cursor-pointer">
             <input
               type="checkbox"
               checked={soundEffectsOn}
-              onChange={(e) => setSoundEffectsEnabled(e.target.checked)}
+              onChange={(e) => onDraftSoundEffectsChange?.(e.target.checked)}
               className="mt-1 accent-amber-400"
             />
             <span>
@@ -327,7 +341,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </label>
           <button
             type="button"
-            onClick={() => { void playPokepetRegisteredSound(); }}
+            onClick={() => { if(soundEffectsOn) void playPokepetRegisteredSound(); }}
             className="self-start px-4 py-2 rounded-xl bg-amber-500 text-slate-950 text-xs font-bold cursor-pointer"
           >
             Preview registration jingle
@@ -336,13 +350,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       )}
 
       {/* SECTION: IPAD WEBAPP STORAGE & OFFLINE AVAILABILITY */}
-      {activeTab === 'storage' && (
-      <OfflineSettingsCard
+      {(storageVisited || activeTab === 'storage') && (
+      <div style={{display:activeTab==='storage'?undefined:'none'}}><OfflineSettingsCard
+        onAdditionalDraftChange={onAdditionalDraftChange}
         dex={dex}
         user={user || null}
         trainerName={trainerName}
         onSyncSuccess={onSyncSuccess}
-      />
+      /></div>
       )}
 
       {/* SECTION 1: TRAINER CARD & PROGRESS EXPORT (Moved under Settings as requested) */}

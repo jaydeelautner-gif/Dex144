@@ -1,3 +1,4 @@
+import type { AdditionalSettingsDraft } from './SettingsDraft';
 import { useOfflineUpdateStatus, applyDownloadedOfflineUpdate } from '../utils/offlineUpdates';
 import React, { useState, useEffect, useRef } from 'react';
 import {
@@ -48,6 +49,7 @@ import { usePWAInstall } from '../utils/usePWAInstall';
 import { auth, type User } from '../firebase';
 
 interface OfflineSettingsCardProps {
+  onAdditionalDraftChange?: (draft:AdditionalSettingsDraft|null)=>void;
   dex: PokemonEntry[];
   user: User | null;
   trainerName: string;
@@ -55,6 +57,7 @@ interface OfflineSettingsCardProps {
 }
 
 export const OfflineSettingsCard: React.FC<OfflineSettingsCardProps> = ({
+  onAdditionalDraftChange,
   dex,
   user,
   trainerName,
@@ -102,21 +105,21 @@ export const OfflineSettingsCard: React.FC<OfflineSettingsCardProps> = ({
     }
   }, [user?.uid, cachedAccounts]);
 
-  const handleSavePin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSavePin = async (e?: React.FormEvent):Promise<boolean> => {
+    e?.preventDefault();
     setPinStatusMsg(null);
     if (!user?.uid) {
       setPinStatusMsg({ text: 'You must be signed in to configure a quick-entry PIN.', type: 'error' });
-      return;
+      return false;
     }
     const cleanPin = pinInput.trim();
     if (cleanPin.length < 4 || cleanPin.length > 8 || !/^\d+$/.test(cleanPin)) {
       setPinStatusMsg({ text: 'PIN must be between 4 and 8 digits (numeric only).', type: 'error' });
-      return;
+      return false;
     }
     if (cleanPin !== confirmPinInput.trim()) {
       setPinStatusMsg({ text: 'PINs do not match. Please re-enter to confirm.', type: 'error' });
-      return;
+      return false;
     }
     try {
       await setAccountPin(user.uid, cleanPin);
@@ -125,10 +128,17 @@ export const OfflineSettingsCard: React.FC<OfflineSettingsCardProps> = ({
       setConfirmPinInput('');
       setPinStatusMsg({ text: 'Offline quick-entry PIN saved successfully on this device!', type: 'success' });
       refreshStatus();
+      return true;
     } catch (err: unknown) {
       setPinStatusMsg({ text: (err as Error)?.message || 'Failed to save PIN.', type: 'error' });
+      return false;
     }
   };
+
+  useEffect(()=>{
+    onAdditionalDraftChange?.({dirty:Boolean(pinInput || confirmPinInput),save:()=>handleSavePin(),discard:()=>{setPinInput('');setConfirmPinInput('');setPinStatusMsg(null);}});
+  },[pinInput,confirmPinInput,user?.uid,onAdditionalDraftChange]);
+  useEffect(()=>()=>onAdditionalDraftChange?.(null),[onAdditionalDraftChange]);
 
   const handleRemovePin = () => {
     if (!user?.uid) return;
@@ -862,6 +872,7 @@ export const OfflineSettingsCard: React.FC<OfflineSettingsCardProps> = ({
                 inputMode="numeric"
                 pattern="[0-9]*"
                 maxLength={8}
+                aria-label="Quick-entry PIN"
                 value={pinInput}
                 onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
                 placeholder="••••"
@@ -878,6 +889,7 @@ export const OfflineSettingsCard: React.FC<OfflineSettingsCardProps> = ({
                 inputMode="numeric"
                 pattern="[0-9]*"
                 maxLength={8}
+                aria-label="Confirm quick-entry PIN"
                 value={confirmPinInput}
                 onChange={(e) => setConfirmPinInput(e.target.value.replace(/\D/g, ''))}
                 placeholder="••••"

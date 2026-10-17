@@ -65,6 +65,7 @@ try {
   await fieldset.waitFor();
   assert.equal(await fieldset.getByRole('checkbox').count(),5);
   for (const box of await fieldset.getByRole('checkbox').all()) await box.uncheck();
+  await page.getByRole('button',{name:'Save settings',exact:true}).first().click();
   await page.getByRole('button',{name:'Home',exact:true}).first().click();
   assert.equal(await sidebar.count(),0);
   assert.equal(await page.getByTestId('home-layout').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length),1);

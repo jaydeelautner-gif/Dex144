@@ -1145,7 +1145,7 @@ export async function saveUserDexProfile(
     inventory?: SerializedPokemonInstance[];
     rescueBin?: RescueBinItem[];
   }
-): Promise<void> {
+): Promise<'synced' | 'pending'> {
   if (!uid || uid.length > MAX_OWNER_ID_LENGTH || !OWNER_ID_REGEX.test(uid)) {
     throw new Error('Invalid owner UID format.');
   }
@@ -1222,11 +1222,12 @@ export async function saveUserDexProfile(
       type: 'SYNC_USER_PROFILE',
       payload: { uid, metadata },
     });
-    return;
+    return 'pending';
   }
 
   try {
     await writeProfileMetadataToFirestore(uid, metadata);
+    return 'synced';
   } catch (error) {
     console.warn('Firestore metadata save failed, queued for retry:', error);
     const diagnosis = diagnoseSyncFailure(error, 'SYNC_USER_PROFILE');
@@ -1244,6 +1245,7 @@ export async function saveUserDexProfile(
         failureRaw: diagnosis.raw,
       }),
     });
+    return 'pending';
   }
 }
 
