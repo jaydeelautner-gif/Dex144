@@ -428,7 +428,7 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
   }, [variations, selectedVariantId, selectedPokemon]);
 
   return (
-    <div className="flex flex-col gap-4 sm:gap-6 max-w-5xl mx-auto pb-40 lg:pb-8">
+    <div className="flex flex-col gap-4 sm:gap-6 w-full pb-40 lg:pb-6">
       {/* Main Registration Panel */}
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 lg:gap-3">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-3 items-start">
@@ -553,6 +553,36 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
               <span className="text-[10px] text-slate-400">
                 Required for each instance. Displayed on public living dex and box views.
               </span>
+            </div>
+
+            {/* Desktop Save & Reset — sits directly under the level entry */}
+            <div className="hidden lg:flex items-center gap-2 pt-3 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={handleResetForm}
+                disabled={isSubmitting}
+                className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 text-xs font-semibold cursor-pointer transition-colors shrink-0"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset</span>
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-slate-950 text-xs font-extrabold cursor-pointer transition-colors shadow-lg shadow-amber-500/25"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                    <span>Assigning Unique POKEID...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4 stroke-[3]" />
+                    <span>Save Pet Pokémon to Database</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
 
@@ -837,13 +867,13 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
               </select>
             </label>
             {/* Compact flags: keep all acquisition/storage constraints intact. */}
-            <fieldset aria-label="PokéPet status and storage" className="grid grid-cols-2 gap-1.5">
-              <RegistrationToggle label="Pokérus" checked={hasPokerus} onChange={setHasPokerus}><PokerusBadge />Pokérus</RegistrationToggle>
-              <RegistrationToggle label="Shiny Pokepet" checked={isShiny} onChange={setIsShiny}><Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" />Shiny</RegistrationToggle>
-              <RegistrationToggle label="Received via Trade" checked={isTraded} disabled={isHomeGift} onChange={checked=>{setIsTraded(checked);if(checked)setIsHomeGift(false);}}><ArrowLeftRight className="w-3.5 h-3.5 text-sky-300 shrink-0" />Received via trade</RegistrationToggle>
-              {isGiftEligible && <RegistrationToggle label="Gifted from Pokémon HOME" checked={isHomeGift} onChange={checked=>{setIsHomeGift(checked);if(checked){setIsTraded(false);setStoredInHome(true);}}}><Gift className="w-3.5 h-3.5 text-purple-300 shrink-0" />HOME gift</RegistrationToggle>}
-              <RegistrationToggle label="Stored in Pokémon HOME" checked={isHomeGift || storedInHome} disabled={isHomeGift || transferBlockInfo.isBlocked} onChange={checked=>{setStoredInHome(checked);if(!checked)setIsInLivingBox(false);}}><Box className="w-3.5 h-3.5 text-emerald-300 shrink-0" />Stored in HOME</RegistrationToggle>
-              <RegistrationToggle label="Place in Living Dex Slot" checked={isInLivingBox} disabled={!storedInHome || transferBlockInfo.isBlocked} onChange={setIsInLivingBox}><Box className="w-3.5 h-3.5 text-sky-300 shrink-0" />Living Box</RegistrationToggle>
+            <fieldset aria-label="PokéPet status and storage" className="grid grid-cols-3 gap-1.5">
+              <RegistrationToggle label="Pokérus" title="Infected with Pokérus — shown as a purple marker on box and Living Dex views." checked={hasPokerus} onChange={setHasPokerus}><PokerusBadge />Pokérus</RegistrationToggle>
+              <RegistrationToggle label="Shiny Pokepet" title="This specimen is the shiny (alternate colour) form." checked={isShiny} onChange={setIsShiny}><Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" />Shiny</RegistrationToggle>
+              <RegistrationToggle label="Received via Trade" title="Received through a trade, so it can be registered even without the origin game being marked as owned." checked={isTraded} disabled={isHomeGift} onChange={checked=>{setIsTraded(checked);if(checked)setIsHomeGift(false);}}><ArrowLeftRight className="w-3.5 h-3.5 text-sky-300 shrink-0" />Received via trade</RegistrationToggle>
+              {isGiftEligible && <RegistrationToggle label="Gifted from Pokémon HOME" title="A gift obtained in Pokémon HOME. HOME gifts have no origin game and are always stored in HOME." checked={isHomeGift} onChange={checked=>{setIsHomeGift(checked);if(checked){setIsTraded(false);setStoredInHome(true);}}}><Gift className="w-3.5 h-3.5 text-purple-300 shrink-0" />HOME gift</RegistrationToggle>}
+              <RegistrationToggle label="Stored in Pokémon HOME" title="Deposited into Pokémon HOME. Required before a Living Dex slot can be used." checked={isHomeGift || storedInHome} disabled={isHomeGift || transferBlockInfo.isBlocked} onChange={checked=>{setStoredInHome(checked);if(!checked)setIsInLivingBox(false);}}><Box className="w-3.5 h-3.5 text-emerald-300 shrink-0" />Stored in HOME</RegistrationToggle>
+              <RegistrationToggle label="Place in Living Dex Slot" title="Assign this specimen to its Living Dex box slot (only available while stored in Pokémon HOME)." checked={isInLivingBox} disabled={!storedInHome || transferBlockInfo.isBlocked} onChange={setIsInLivingBox}><Box className="w-3.5 h-3.5 text-sky-300 shrink-0" />Living Box</RegistrationToggle>
             </fieldset>
             {transferBlockInfo.isBlocked ? <p className="text-[11px] text-rose-300" role="status"><Lock className="inline w-3 h-3 mr-1" />{transferBlockInfo.reason} · HOME and Living Box unavailable.</p>
               : !storedInHome ? <p className="text-[10px] text-slate-400">Stored in console; enable HOME storage to use a Living Dex slot.</p> : null}
@@ -893,35 +923,6 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
               </div>
             </fieldset>
 
-            {/* In-flow Save & Reset Buttons — DESKTOP ONLY */}
-            <div className="hidden lg:flex items-center justify-between gap-4 pt-4 border-t border-slate-800">
-              <button
-                type="button"
-                onClick={handleResetForm}
-                disabled={isSubmitting}
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 text-xs font-semibold cursor-pointer transition-colors"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span>Reset Form</span>
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-slate-950 text-xs font-extrabold cursor-pointer transition-colors shadow-lg shadow-amber-500/25"
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
-                    <span>Assigning Unique POKEID...</span>
-                  </>
-                ) : (
-                  <>
-                    <Check className="w-4 h-4 stroke-[3]" />
-                    <span>Save Pet Pokémon to Database</span>
-                  </>
-                )}
-              </button>
-            </div>
           </div>
         </div>
 

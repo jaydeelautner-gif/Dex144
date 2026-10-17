@@ -34,6 +34,15 @@ try {
   await page.goto(base+'/fixture.html');
   const preview=page.getByTestId('register-preview');
   const attributes=page.getByTestId('register-attributes');
+  const flagGroup=page.getByRole('group',{name:'PokéPet status and storage'});
+  assert.equal(await flagGroup.evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length),3,'six flags sit three per row');
+  for (const name of ['Pokérus','Shiny Pokepet','Received via Trade','Gifted from Pokémon HOME','Stored in Pokémon HOME','Place in Living Dex Slot']) {
+    const toggle=page.getByRole('checkbox',{name,exact:true});
+    if (await toggle.count()) assert.ok((await toggle.getAttribute('title'))?.length>10,`${name} has a tooltip`);
+  }
+  const saveButton=page.getByRole('button',{name:'Save Pet Pokémon to Database',exact:true});
+  assert.equal(await saveButton.count(),1,'desktop save sits with the level entry');
+  assert.ok(await saveButton.evaluate(el=>el.closest('[data-testid=register-preview]')!==null),'save is in the left column');
   assert.equal(await attributes.getByPlaceholder('e.g. 025, Charizard, Gengar...').count(),1);
   assert.equal(await preview.getByPlaceholder('e.g. 025, Charizard, Gengar...').count(),0);
   assert.equal(await attributes.getByRole('button',{name:'Next',exact:true}).count(),1);
@@ -81,7 +90,9 @@ try {
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'form fits phone width');
   const slot=await page.getByRole('button',{name:/^Slot 1:/}).boundingBox();assert.ok(slot.width>=32 && slot.height>=32);
   await page.screenshot({path:'/tmp/registration-compact-phone.png',fullPage:true});
-  await page.getByRole('button',{name:'Save Poképet',exact:true}).last().click();
+  const desktopSave=page.getByRole('button',{name:'Save Pet Pokémon to Database',exact:true});
+  if (await desktopSave.isVisible().catch(()=>false)) await desktopSave.click();
+  else await page.getByRole('button',{name:'Save Poképet',exact:true}).click();
   await page.getByLabel('Registered specimen',{exact:true}).filter({hasText:'originLanguage'}).waitFor();
   const saved=JSON.parse(await page.getByLabel('Registered specimen',{exact:true}).textContent());
   assert.equal(saved.originLanguage,'ja');assert.equal(saved.ballType,'quick-ball');assert.equal(saved.level,72);
