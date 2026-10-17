@@ -86,6 +86,9 @@ async function fetchWithDeadline(input: RequestInfo | URL, init: RequestInit, pa
   finally { clearTimeout(timer); parent?.removeEventListener('abort',cancel); }
 }
 let downloadRunning=false;
+/** Files are fetched/verified in parallel; sequential requests drop on mobile. */
+const WORKER_CONCURRENCY = 6;
+const NETWORK_ATTEMPTS = 3;
 export async function downloadFullOfflinePackage(_dex:PokemonEntry[], onProgress?:(p:DownloadProgress)=>void, signal?:AbortSignal) {
   if(downloadRunning) throw Error('An offline download is already running. Wait for it to finish or cancel it.');
   downloadRunning=true;
@@ -121,27 +124,76 @@ async function performDownload(
   const progress=(status:DownloadProgress['status'],errorMessage?:string)=>onProgress?.({current,total,percentage:Math.floor(current/Math.max(total,1)*100),bytes,status,failedCount:failures,errorMessage});
   const checkAbort=()=>{ if(signal?.aborted) throw new DOMException('Download cancelled','AbortError'); };
   progress('downloading');
-  try {
-    // Required local files are hash-verified. A changed deployment cannot be
-    // mixed into a package built for another release, even during a rolling deploy.
-    for (const file of manifest.files) {
-      checkAbort(); let r=await stage.match(url(file.url));
-      if (!r || !(await verifyFile(r,file))) {
-        // PATCH, DON'T RE-DOWNLOAD: a byte-identical copy already on this
-        // device (previous package) is promoted into the new package, so a
-        // version bump only fetches the files that changed.
-        const local=old?await old.match(url(file.url)):undefined;
-        if (local && (await verifyFile(local,file))) {
-          await stage.put(url(file.url),local.clone());
-        } else {
-          const fetchUrl=new URL(file.url,origin()); fetchUrl.searchParams.set('offline-download',manifest.version);
-          r=await fetchWithDeadline(fetchUrl,{cache:'no-store'},signal);
-          if (!(await verifyFile(r,file))) { failures++; current++; progress('downloading'); continue; }
-          await stage.put(url(file.url),r.clone());
-        }
-      }
-      bytes+=file.bytes; current++; progress('downloading');
+
+  /**
+   * Resolves one site file into the package cache, cheapest source first:
+   *   1. the package being built (resume)
+   *   2. the previous package (patch reuse)
+   *   3. any existing cache — notably the service worker precache, which already
+   *      holds this deployment's files, so thousands of sprites never need a
+   *      network round-trip on mobile.
+   *   4. the network, retried with backoff.
+   * Every candidate is SHA-256 verified, so a stale copy is never trusted.
+   */
+  const ensureFile = async (file: OfflineFile): Promise<void> => {
+    const absolute = url(file.url);
+    const staged = await stage.match(absolute);
+    if (staged && (await verifyFile(staged, file))) return;
+    const previousCopy = old ? await old.match(absolute) : undefined;
+    if (previousCopy && (await verifyFile(previousCopy, file))) {
+      await stage.put(absolute, previousCopy.clone());
+      return;
     }
+    const reused = await caches.match(absolute, { ignoreSearch: true });
+    if (reused && (await verifyFile(reused, file))) {
+      await stage.put(absolute, reused.clone());
+      return;
+    }
+    const fetchUrl = new URL(file.url, origin());
+    fetchUrl.searchParams.set('offline-download', manifest.version);
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= NETWORK_ATTEMPTS; attempt++) {
+      checkAbort();
+      try {
+        const response = await fetchWithDeadline(fetchUrl, { cache: 'no-store' }, signal, 60000);
+        if (await verifyFile(response, file)) {
+          await stage.put(absolute, response.clone());
+          return;
+        }
+        lastError = Error(`Offline file verification failed: ${file.url}`);
+      } catch (e) {
+        if (signal?.aborted) throw e;
+        lastError = e;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250 * attempt));
+    }
+    throw lastError ?? Error(`Could not save ${file.url}`);
+  };
+
+  try {
+    let cursor = 0;
+    let workerError: unknown;
+    const workers = Array.from({ length: Math.min(WORKER_CONCURRENCY, manifest.files.length) }, async () => {
+      try {
+        while (cursor < manifest.files.length) {
+          if (workerError) return;
+          checkAbort();
+          const file = manifest.files[cursor++];
+          try {
+            await ensureFile(file);
+            bytes += file.bytes;
+          } catch (e) {
+            if (signal?.aborted) throw e;
+            if (e instanceof DOMException && e.name === 'QuotaExceededError') throw e;
+            failures++;
+          }
+          current++;
+          progress('downloading');
+        }
+      } catch (e) { workerError = e; }
+    });
+    await Promise.all(workers);
+    if (workerError) throw workerError;
     checkAbort();
     const buildInfo=await (await stage.match(url('/offline-build.json')))!.json();
     if(buildInfo.version!==manifest.version) throw Error('Build version does not match the package manifest. Retry after deployment finishes.');

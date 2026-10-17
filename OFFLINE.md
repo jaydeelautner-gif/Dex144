@@ -21,6 +21,14 @@ Downloads are stored in CacheStorage under `homedex-package-<version>` with a po
 `homedex-offline-control-v2` that only becomes the active package once every required file
 is verified.
 
+The download runs with bounded parallelism (6 workers) and per-file retries, and resolves
+each file cheapest-first: the package being built (resume) → the previous package (patch
+reuse) → **any existing cache, including the service worker precache, which already holds
+this deployment's sprites** → the network (verified SHA-256, retried with backoff). Because
+sprites are precached by the service worker, a first install on a phone or iPad fetches only
+a handful of files (the large `data/` bundle and a few uncached assets) instead of thousands
+of separate sprite requests, which is what previously caused partial downloads on mobile.
+
 ## Integrity and failure handling
 
 - Every required site file is hash-verified (SHA-256 + byte length). If a deployment
