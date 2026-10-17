@@ -28,7 +28,7 @@ export const DexFrame: React.FC<{ children: React.ReactNode }> = ({ children }) 
           <span className="w-3 h-3 rounded-full bg-amber-400 border border-amber-200" />
           <span className="w-3 h-3 rounded-full bg-emerald-400 border border-emerald-200" />
         </div>
-        <span className="ml-auto text-red-100 font-black tracking-widest text-sm">POKÉDEX <span className="text-xs text-red-200 font-mono">HANDY909</span></span>
+        <span className="ml-auto text-red-100 font-black tracking-widest text-sm">POKÉDEX <span className="text-xs text-red-200 font-mono">DevRaccoon</span></span>
       </div>
       {/* Screen bezel — app content scrolls inside it */}
       <div className="flex-1 min-h-0 m-1 sm:m-2 lg:m-3 rounded-md sm:rounded-2xl lg:rounded-3xl bg-[#0B0F17] border border-[#1E293B] sm:border-4 lg:border-8 border-[#1E293B] shadow-[inset_0_4px_35px_rgba(0,0,0,0.9)] overflow-hidden">

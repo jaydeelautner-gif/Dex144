@@ -35,7 +35,7 @@ export const PWAInstallButton: React.FC = () => {
         <button
           type="button"
           onClick={() => setShowDeviceModal(true)}
-          title="Open on phone, computer, or iPad with QR code"
+          title="Open on another device"
           className="flex items-center gap-1.5 rounded-xl border border-sky-500/30 bg-sky-500/10 hover:bg-sky-500/20 px-2.5 py-1.5 text-xs font-semibold text-sky-300 transition-all cursor-pointer"
         >
           <Smartphone className="w-3.5 h-3.5" />

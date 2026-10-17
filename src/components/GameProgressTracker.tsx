@@ -348,7 +348,7 @@ export function GameProgressTracker({
             }
           }}
           className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-rose-950 border border-slate-800 text-xs text-slate-300 hover:text-rose-300 cursor-pointer ml-auto"
-          title="Clear milestones and the starter choice to start the game over. Keeps every registered PokéPet."
+          title="Restart this game's progress"
         >
           Restart Game
         </button>

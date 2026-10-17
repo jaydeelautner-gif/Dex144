@@ -59,7 +59,7 @@ export const ClosedDexCover: React.FC<{ onOpen: () => void }> = ({ onOpen }) => 
       onClick={onOpen}
       onMouseEnter={primeGameboyAudio}
       className="group relative w-full max-w-sm rounded-[2rem] sm:rounded-[2.8rem] bg-gradient-to-b from-[#DC2626] via-[#B91C1C] to-[#881337] border-2 sm:border-4 border-[#7F1D1D] shadow-[0_25px_60px_rgba(0,0,0,0.9),0_0_50px_rgba(220,38,38,0.3)] backdrop-blur-[2px] p-5 sm:p-7 flex flex-col gap-4 transition-transform duration-300 hover:scale-[1.02] active:scale-[0.99] cursor-pointer"
-      title="Open the Pokédex"
+      title="Open Pokédex"
     >
       {/* Top sensor strip: lens + LEDs (the closed face) */}
       <div className="flex items-center justify-between border-b-2 border-[#7F1D1D]/70 pb-4">
@@ -76,8 +76,8 @@ export const ClosedDexCover: React.FC<{ onOpen: () => void }> = ({ onOpen }) => 
           </div>
         </div>
         <span className="text-right hidden sm:block">
-          <span className="text-[10px] font-mono tracking-widest text-red-200/90 font-black block">MODEL: HANDY909</span>
-          <span className="text-[9px] font-mono tracking-wider text-red-300/70 block">SILPH CO. • KANTO ED.</span>
+          <span className="text-[10px] font-mono tracking-widest text-red-200/90 font-black block">MODEL: DevRaccoon</span>
+          <span className="text-[9px] font-mono tracking-wider text-red-300/70 block">DEVRACCOON • KANTO ED.</span>
         </span>
       </div>
 
@@ -97,7 +97,7 @@ export const ClosedDexCover: React.FC<{ onOpen: () => void }> = ({ onOpen }) => 
 
       {/* Bottom hardware hint strip */}
       <div className="flex items-center justify-between border-t-2 border-[#7F1D1D]/70 pt-3 text-[9px] font-mono text-red-200/60 tracking-widest uppercase">
-        <span>Silph Co. Hardware</span>
+        <span>DevRaccoon Hardware</span>
         <span className="flex items-center gap-1">
           <Sparkles className="w-2.5 h-2.5" /> Tap to open
         </span>

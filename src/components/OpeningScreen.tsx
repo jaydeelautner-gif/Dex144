@@ -415,11 +415,11 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
                   POKÉDEX
                 </span>
                 <span className="px-2 py-0.5 rounded text-[10px] font-mono font-black bg-red-950/80 text-red-200 border border-red-500/60 uppercase tracking-wider shadow-inner">
-                  HANDY909
+                  DevRaccoon
                 </span>
               </div>
               <span className="text-[10px] font-mono tracking-widest text-red-200/80 uppercase font-semibold">
-                SILPH CO. • LIVING DEX TERMINAL
+                DEVRACCOON • LIVING DEX TERMINAL
               </span>
             </div>
           </div>
@@ -1339,7 +1339,7 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
       {/* Serial Stencil */}
       <div className="text-center hidden md:block">
         <span className="text-[10px] font-mono font-bold text-red-200/80 tracking-widest uppercase">
-          • SILPH CO. LIVING DEX SYSTEM •
+          • DEVRACCOON LIVING DEX SYSTEM •
         </span>
       </div>
 

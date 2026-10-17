@@ -374,7 +374,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
 
                   <div className="flex items-center gap-1">
                     <button type="button" onClick={() => { setEditingPokeId(null); onRequestEvolve(item); }}
-                      className="px-2 py-1.5 rounded-lg bg-teal-900 text-teal-200 text-xs border border-teal-700" title="Evolve this PokéPet while retaining its POKEID">Evolve</button>
+                      className="px-2 py-1.5 rounded-lg bg-teal-900 text-teal-200 text-xs border border-teal-700" title="Evolve">Evolve</button>
                     {/* View Specimen Trainer Card */}
                     <button
                       type="button"
@@ -389,7 +389,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                         type="button"
                         onClick={() => handleStartEdit(item)}
                         className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-sky-300 transition-colors cursor-pointer"
-                        title="Edit Pokepet Attributes (Level, Nickname, Gender, Variant, Origin, Storage, Notes)"
+                        title="Edit PokéPet"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
@@ -442,7 +442,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                               type="button"
                               onClick={() => setEditNickname('')}
                               className="text-[9px] text-sky-400 hover:text-sky-300 flex items-center gap-0.5 cursor-pointer"
-                              title="Revert to in-game species name"
+                              title="Use species name"
                             >
                               <RotateCcw className="w-2.5 h-2.5" />
                               Revert ({mon.name})

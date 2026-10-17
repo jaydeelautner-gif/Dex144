@@ -728,7 +728,7 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
                     type="button"
                     onClick={() => setNickname('')}
                     className="px-3 py-3 lg:px-2.5 lg:py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-sky-400 font-semibold cursor-pointer whitespace-nowrap"
-                    title="Revert back to the Pokémon's species name"
+                    title="Use species name"
                   >
                     Revert
                   </button>
@@ -868,12 +868,12 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
             </label>
             {/* Compact flags: keep all acquisition/storage constraints intact. */}
             <fieldset aria-label="PokéPet status and storage" className="grid grid-cols-3 gap-1.5">
-              <RegistrationToggle label="Pokérus" title="Infected with Pokérus — shown as a purple marker on box and Living Dex views." checked={hasPokerus} onChange={setHasPokerus}><PokerusBadge />Pokérus</RegistrationToggle>
-              <RegistrationToggle label="Shiny Pokepet" title="This specimen is the shiny (alternate colour) form." checked={isShiny} onChange={setIsShiny}><Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" />Shiny</RegistrationToggle>
-              <RegistrationToggle label="Received via Trade" title="Received through a trade, so it can be registered even without the origin game being marked as owned." checked={isTraded} disabled={isHomeGift} onChange={checked=>{setIsTraded(checked);if(checked)setIsHomeGift(false);}}><ArrowLeftRight className="w-3.5 h-3.5 text-sky-300 shrink-0" />Received via trade</RegistrationToggle>
-              {isGiftEligible && <RegistrationToggle label="Gifted from Pokémon HOME" title="A gift obtained in Pokémon HOME. HOME gifts have no origin game and are always stored in HOME." checked={isHomeGift} onChange={checked=>{setIsHomeGift(checked);if(checked){setIsTraded(false);setStoredInHome(true);}}}><Gift className="w-3.5 h-3.5 text-purple-300 shrink-0" />HOME gift</RegistrationToggle>}
-              <RegistrationToggle label="Stored in Pokémon HOME" title="Deposited into Pokémon HOME. Required before a Living Dex slot can be used." checked={isHomeGift || storedInHome} disabled={isHomeGift || transferBlockInfo.isBlocked} onChange={checked=>{setStoredInHome(checked);if(!checked)setIsInLivingBox(false);}}><Box className="w-3.5 h-3.5 text-emerald-300 shrink-0" />Stored in HOME</RegistrationToggle>
-              <RegistrationToggle label="Place in Living Dex Slot" title="Assign this specimen to its Living Dex box slot (only available while stored in Pokémon HOME)." checked={isInLivingBox} disabled={!storedInHome || transferBlockInfo.isBlocked} onChange={setIsInLivingBox}><Box className="w-3.5 h-3.5 text-sky-300 shrink-0" />Living Box</RegistrationToggle>
+              <RegistrationToggle label="Pokérus" title="Pokérus" checked={hasPokerus} onChange={setHasPokerus}><PokerusBadge />Pokérus</RegistrationToggle>
+              <RegistrationToggle label="Shiny Pokepet" title="Shiny form" checked={isShiny} onChange={setIsShiny}><Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" />Shiny</RegistrationToggle>
+              <RegistrationToggle label="Received via Trade" title="Received via trade" checked={isTraded} disabled={isHomeGift} onChange={checked=>{setIsTraded(checked);if(checked)setIsHomeGift(false);}}><ArrowLeftRight className="w-3.5 h-3.5 text-sky-300 shrink-0" />Received via trade</RegistrationToggle>
+              {isGiftEligible && <RegistrationToggle label="Gifted from Pokémon HOME" title="Gifted from Pokémon HOME" checked={isHomeGift} onChange={checked=>{setIsHomeGift(checked);if(checked){setIsTraded(false);setStoredInHome(true);}}}><Gift className="w-3.5 h-3.5 text-purple-300 shrink-0" />HOME gift</RegistrationToggle>}
+              <RegistrationToggle label="Stored in Pokémon HOME" title="Stored in Pokémon HOME" checked={isHomeGift || storedInHome} disabled={isHomeGift || transferBlockInfo.isBlocked} onChange={checked=>{setStoredInHome(checked);if(!checked)setIsInLivingBox(false);}}><Box className="w-3.5 h-3.5 text-emerald-300 shrink-0" />Stored in HOME</RegistrationToggle>
+              <RegistrationToggle label="Place in Living Dex Slot" title="Place in Living Dex" checked={isInLivingBox} disabled={!storedInHome || transferBlockInfo.isBlocked} onChange={setIsInLivingBox}><Box className="w-3.5 h-3.5 text-sky-300 shrink-0" />Living Box</RegistrationToggle>
             </fieldset>
             {transferBlockInfo.isBlocked ? <p className="text-[11px] text-rose-300" role="status"><Lock className="inline w-3 h-3 mr-1" />{transferBlockInfo.reason} · HOME and Living Box unavailable.</p>
               : !storedInHome ? <p className="text-[10px] text-slate-400">Stored in console; enable HOME storage to use a Living Dex slot.</p> : null}

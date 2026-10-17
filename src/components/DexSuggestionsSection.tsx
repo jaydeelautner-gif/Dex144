@@ -397,7 +397,7 @@ export const DexSuggestionsSection: React.FC<DexSuggestionsSectionProps> = ({
             type="button"
             onClick={onNavigateToSettings}
             className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
-            title="Configure owned games & Pokémon GO toggle in Settings"
+            title="Owned games — Settings"
           >
             <SlidersHorizontal className="w-4 h-4" />
           </button>

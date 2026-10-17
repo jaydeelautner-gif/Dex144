@@ -70,7 +70,7 @@ export const GameRunningTotalsPanel: React.FC<GameRunningTotalsPanelProps> = ({
             type="button"
             onClick={onNavigateToSettings}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-medium text-slate-300 hover:text-amber-300 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-            title="Configure your owned games and DLC expansions in Settings"
+            title="Owned games & DLC — Settings"
           >
             <Settings className="w-3.5 h-3.5 text-amber-400" />
             <span>Settings</span>

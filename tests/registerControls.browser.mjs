@@ -38,7 +38,7 @@ try {
   assert.equal(await flagGroup.evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length),3,'six flags sit three per row');
   for (const name of ['Pokérus','Shiny Pokepet','Received via Trade','Gifted from Pokémon HOME','Stored in Pokémon HOME','Place in Living Dex Slot']) {
     const toggle=page.getByRole('checkbox',{name,exact:true});
-    if (await toggle.count()) assert.ok((await toggle.getAttribute('title'))?.length>10,`${name} has a tooltip`);
+    if (await toggle.count()) assert.ok((await toggle.getAttribute('title'))?.length>0,`${name} has a tooltip`);
   }
   const saveButton=page.getByRole('button',{name:'Save Pet Pokémon to Database',exact:true});
   assert.equal(await saveButton.count(),1,'desktop save sits with the level entry');

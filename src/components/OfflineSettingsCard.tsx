@@ -792,7 +792,7 @@ export const OfflineSettingsCard: React.FC<OfflineSettingsCardProps> = ({
                     <button
                       type="button"
                       onClick={() => handleForgetAccount(acc.email)}
-                      title="Forget this account from this device"
+                      title="Remove account from device"
                       className="p-1 rounded text-slate-500 hover:text-rose-400 transition cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />

@@ -2286,8 +2286,8 @@ export function App() {
             <div className="flex flex-col">
               <span className="font-bold text-base tracking-tight text-slate-100 flex items-center gap-1.5">
                 <span>HomeDex</span>
-                <span className="px-1.5 py-0.2 rounded text-[10px] font-mono-tabular font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/40">
-                  HOME
+                <span className="px-1.5 py-0.2 rounded text-[10px] font-mono-tabular font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                  DevRaccoon
                 </span>
               </span>
             </div>

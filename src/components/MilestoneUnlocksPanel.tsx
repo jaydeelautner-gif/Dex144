@@ -668,7 +668,7 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
                         <button
                           type="button"
                           onClick={() => onClearStarter(row.group)}
-                          title="Unselect this starter and show all three choices again"
+                          title="Change starter choice"
                           className="px-2 py-0.5 rounded-md bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white text-[9px] font-bold transition-colors cursor-pointer"
                         >
                           Unselect
@@ -689,7 +689,7 @@ export const MilestoneUnlocksPanel: React.FC<MilestoneUnlocksPanelProps> = ({
                           <button
                             type="button"
                             aria-label="Unselect starter"
-                            title="Unselect this starter and show all three choices again"
+                            title="Change starter choice"
                             onClick={(e) => {
                               e.stopPropagation();
                               onClearStarter(row.group);

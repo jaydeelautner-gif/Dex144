@@ -70,7 +70,7 @@ export const ProfileCard: React.FC<{
             {trainerName || 'Guest'}
           </h2>
           <span className="text-[11px] font-mono text-red-100/80 uppercase tracking-wider">
-            {isPublic ? 'Public Showcase' : 'HomeDex Trainer'} · Silph Co. ID
+            {isPublic ? 'Public Showcase' : 'HomeDex Trainer'} · DevRaccoon ID
           </span>
         </div>
       </div>

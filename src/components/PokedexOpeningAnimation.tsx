@@ -112,7 +112,7 @@ export const PokedexOpeningAnimation: React.FC<PokedexOpeningAnimationProps> = (
 
             <div className="flex flex-col gap-1.5 z-10">
               <span className="text-[10px] font-mono tracking-widest text-cyan-400 uppercase font-black">
-                SILPH CO. HARDWARE INTERFACE
+                DEVRACCOON HARDWARE INTERFACE
               </span>
               <h3 className="text-2xl font-black text-cyan-200 font-mono tracking-widest">
                 HOMEDEX OS v4.2
@@ -231,10 +231,10 @@ export const PokedexOpeningAnimation: React.FC<PokedexOpeningAnimationProps> = (
             {/* Model Tag */}
             <div className="text-right hidden sm:block">
               <span className="text-[10px] font-mono tracking-widest text-red-200/90 font-black block">
-                MODEL: HANDY909
+                MODEL: DevRaccoon
               </span>
               <span className="text-[9px] font-mono tracking-wider text-red-300/70 block">
-                SILPH CO. • KANTO ED.
+                DEVRACCOON • KANTO ED.
               </span>
             </div>
           </div>

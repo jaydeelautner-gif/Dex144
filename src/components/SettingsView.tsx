@@ -305,7 +305,7 @@ const SettingsContent: React.FC<SettingsViewProps> = ({
         <section className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 flex flex-col gap-5">
           <div>
             <h2 className="text-lg font-bold text-slate-100">Customize Home Screen</h2>
-            <p className="text-xs text-slate-400 mt-1">Choose which panels appear on Home, then press Save settings. Applied preferences remain available offline. Hiding a panel does not delete PokéPets, catches or progress; other pages stay unchanged.</p>
+            <p className="text-xs text-slate-400 mt-1">Choose your Home panels, then press Save settings.</p>
           </div>
           <HomeDesignSettings value={draftHomeDesign} onChange={onDraftHomeDesignChange} />
           {[...new Set(HOME_PANELS.map(p => p.group))].map(group => (

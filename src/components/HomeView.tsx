@@ -159,15 +159,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <div className="flex flex-col gap-2 max-w-2xl">
             <div className="flex items-center gap-2">
               <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[11px] font-mono-tabular font-semibold">
-                NATIONAL LIVING DEX & INVENTORY HUB
+                TRAINER TERMINAL — LIVING DEX
               </span>
               <span className="text-xs text-slate-400">Game Boy to Switch + Pokémon HOME</span>
             </div>
             <h1 className="text-2xl xl:text-3xl font-extrabold text-slate-100 tracking-tight">
-              Welcome to HomeDex
+              Welcome, Trainer
             </h1>
             <p className="text-sm text-slate-300 leading-relaxed">
-              Register pet Pokémon with unique 12-digit POKEIDs, track HOME storage eligibility, and monitor 3DS Poké Bank closure risks. The only way to mark Pokémon as caught is by registering a pet Pokémon through the <strong className="text-amber-300 font-semibold">Register Pokémon</strong> page.
+              Register each PokéPet you own with its own POKEID, keep your Living Dex boxes tidy, and watch for Poké Bank risks. A species counts as caught once you register one on the <strong className="text-amber-300 font-semibold">Register Pokémon</strong> page.
             </p>
           </div>
 
