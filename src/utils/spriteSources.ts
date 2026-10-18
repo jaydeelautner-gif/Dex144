@@ -3,8 +3,16 @@ import {
   FORM_SPRITE_FILES,
   FORM_ID_SPRITE_FILES,
   COLOR_SPRITE_FILES,
+  FEMALE_SPRITE_FILES,
   type SpriteSlice,
 } from '../data/spriteFiles.generated';
+
+/** `/sprites/pokeapi/female/{id}.png` → species id for the female map. */
+function femaleSliceFor(imageUrl: string): SpriteSlice | null {
+  const match = imageUrl.match(/\/sprites\/pokeapi\/female\/(\d+)\.png$/);
+  if (!match) return null;
+  return FEMALE_SPRITE_FILES[Number(match[1])] ?? null;
+}
 
 /**
  * Sprite candidates for a species, in order of preference. Every candidate is a
@@ -14,7 +22,7 @@ import {
 export function spriteSources(id: number, shiny = false, imageUrl?: string): SpriteSlice[] {
   const out: SpriteSlice[] = [];
   if (imageUrl) {
-    const mapped = FORM_SPRITE_FILES[imageUrl];
+    const mapped = FORM_SPRITE_FILES[imageUrl] ?? femaleSliceFor(imageUrl);
     if (mapped) out.push(mapped);
   }
   // Cosmetic colour/coat forms are keyed by their own sprite id, so look there
