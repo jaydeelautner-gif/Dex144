@@ -27,7 +27,7 @@ registerRoute(({request})=>request.mode==='navigate',async({request})=>{
 });
 registerRoute(({url})=>url.origin===self.location.origin && !url.pathname.startsWith('/api/'),async({request,event})=>{
   const pinned=await packaged(request); if(pinned) return pinned;
-  const pre=await matchPrecache(request.url); if(pre) return pre;
+  const pre=await matchPrecache(new URL(request.url).pathname); if(pre) return pre;
   return new NetworkFirst({cacheName:`homedex-site-${__OFFLINE_BUILD_VERSION__}`,networkTimeoutSeconds:8,plugins:[new CacheableResponsePlugin({statuses:[200]})]}).handle({request,event});
 });
 registerRoute(({request})=>request.destination==='image',async({request,event})=>{
