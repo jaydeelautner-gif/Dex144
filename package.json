@@ -42,7 +42,9 @@
     "test:items": "tsx tests/items.test.ts && npm run build && node tests/items.browser.mjs",
     "generate:item-sprites": "node scripts/downloadItemSprites.mjs && node scripts/appendItemSprites.mjs",
     "test:region-progress": "npm run build && node tests/regionProgress.browser.mjs",
-    "generate:item-locations": "python3 scripts/fetch_item_locations.py"
+    "generate:item-locations": "python3 scripts/fetch_item_locations.py",
+    "generate:color-variants": "node scripts/generateColorVariants.mjs && node scripts/downloadColorSprites.mjs",
+    "test:color-variants": "tsx tests/colorVariants.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

@@ -36,3 +36,19 @@ Colosseum/XD explain Shadow Pokémon snagging; XD's Poké Spots are included as 
 - `npm run test:maps`: rule/data tests, browser interaction against the real encounter bundle, retry after an HTTP failure, all 40 game selections, DLC visibility, and real app desktop/mobile navigation.
 
 The registration form's layout and scale are unchanged.
+
+## Colour and cosmetic variants
+
+Species with colour or coat variations expose every form in the variant picker:
+
+- **Vivillon** (19 wing patterns — determined by the real-world region the Scatterbug was collected in),
+  **Scatterbug/Spewpa** patterns, **Flabébé/Floette/Florges** flower colours, **Alcremie** (62 creams and
+  sweets, chosen when Milcery evolves), **Furfrou** trims, **Deerling/Sawsbuck** seasons,
+  **Burmy/Wormadam** cloaks, **Unown** letters, **Arceus/Silvally** type forms and **Genesect** drives.
+
+`scripts/generateColorVariants.mjs` builds the list from PokéAPI's canonical form tables
+(178 forms across 15 species), and `scripts/downloadColorSprites.mjs` fetches each sprite — PokeAPI
+publishes them as `<dexId>-<formSlug>.png` rather than under a numeric form id — appending them to
+`public/sprites.bin` so the Pokémon and item slices already in use stay valid. Regenerate with
+`npm run generate:color-variants`; verify with `npm run test:color-variants`, which checks every form
+has a bundled sprite, resolves a local source, has a unique id-safe suffix, and appears on its species.

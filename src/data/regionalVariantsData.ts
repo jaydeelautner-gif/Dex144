@@ -1,6 +1,7 @@
 import type { GameId, DlcId, PokemonEntry } from './pokemonData';
 import { GAMES } from './pokemonData';
 import { getPokemonGenderInfo } from './pokemonGenderData';
+import { COLOR_VARIANTS } from './colorVariants.generated';
 
 export interface VariantGameSource {
   gameId: GameId;
@@ -24,7 +25,8 @@ export interface RegionalVariation {
     | 'Kitakami'
     | 'Mega Evolution'
     | 'Gigantamax'
-    | 'Unown Form';
+    | 'Unown Form'
+    | 'Colour Variant';
   types: string[];
   spriteId: number;
   imageUrl?: string;
@@ -720,6 +722,17 @@ export function getVariationsForPokemon(pokemon: PokemonEntry): RegionalVariatio
     };
   });
 
+  // Cosmetic colour/coat variations (wing patterns, flower colours, trims…).
+  const colorVariantList: RegionalVariation[] = (COLOR_VARIANTS[pokemon.id] ?? []).map((variant) => ({
+    variantId: `${pokemon.id}:${variant.suffix}`,
+    pokemonId: pokemon.id,
+    formName: `${pokemon.name} — ${variant.name}`,
+    regionTag: 'Original',
+    types: pokemon.types,
+    spriteId: variant.spriteId,
+    findInGames: baseGames,
+  }));
+
   const femaleVariantList: RegionalVariation[] = [];
   if (isBothGenders) {
     femaleVariantList.push({
@@ -734,7 +747,7 @@ export function getVariationsForPokemon(pokemon: PokemonEntry): RegionalVariatio
     });
   }
 
-  return [baseVariation, ...femaleVariantList, ...regionalVariants];
+  return [baseVariation, ...femaleVariantList, ...colorVariantList, ...regionalVariants];
 }
 
 export function getVariantsForPokemonInGame(
