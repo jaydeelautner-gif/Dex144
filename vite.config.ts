@@ -36,7 +36,7 @@ function offlineVersion() {
 // production dependencies only, that build would fail, so fall back to the
 // generated service worker instead of breaking startup.
 function hasServiceWorkerDeps() {
-  return ['workbox-core', 'workbox-precaching', 'workbox-routing', 'workbox-strategies', 'workbox-cacheable-response']
+  return ['workbox-core', 'workbox-precaching', 'workbox-routing', 'workbox-strategies', 'workbox-cacheable-response', 'workbox-expiration']
     .every((pkg) => existsSync(path.join('node_modules', pkg, 'package.json')));
 }
 

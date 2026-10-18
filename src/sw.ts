@@ -4,6 +4,7 @@ import { cleanupOutdatedCaches, matchPrecache, precacheAndRoute } from 'workbox-
 import { registerRoute } from 'workbox-routing';
 import { NetworkOnly, NetworkFirst, CacheFirst } from 'workbox-strategies';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
+import { ExpirationPlugin } from 'workbox-expiration';
 import { ACTIVE_CACHE } from './utils/offlinePackage';
 declare const self: ServiceWorkerGlobalScope & { __WB_MANIFEST: Array<{url:string;revision:string|null}> };
 declare const __OFFLINE_BUILD_VERSION__: string;
@@ -11,6 +12,18 @@ clientsClaim();
 self.addEventListener('message',event=>{ if(event.data?.type==='SKIP_WAITING') self.skipWaiting(); });
 // Version checks and verified download requests must NEVER receive old cached bytes.
 registerRoute(({url})=>url.origin===self.location.origin && (url.pathname==='/offline-manifest.json' || url.searchParams.has('offline-download')),new NetworkOnly());
+// The 25 MB sprite archive is versioned by build (`/sprites.bin?<version>`), so
+// identical URLs are byte-identical. Serve it device-first: an active offline
+// package wins, otherwise a cache-first copy from the first online fetch —
+// never a per-session re-download on mobile data. New build versions get a new
+// URL and download once; the oldest copy is evicted automatically.
+registerRoute(({url})=>url.origin===self.location.origin && url.pathname==='/sprites.bin',async({request,event})=>{
+  const pinned=await packaged(request); if(pinned) return pinned;
+  return new CacheFirst({cacheName:'homedex-archive-v1',plugins:[
+    new CacheableResponsePlugin({statuses:[200]}),
+    new ExpirationPlugin({maxEntries:2,maxAgeSeconds:60*60*24*60}),
+  ]}).handle({request,event});
+});
 async function packaged(request:Request, navigation=false):Promise<Response|undefined> {
   const control=await caches.open(ACTIVE_CACHE);
   const r=await control.match(new URL('/__offline-active',self.location.origin).href);
