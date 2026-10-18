@@ -67,7 +67,12 @@ function pwaPlugin(version: string) {
           srcDir: 'src',
           filename: 'sw.ts',
           injectManifest: {
-            globPatterns: ['**/*.{js,css,html,svg,ico,png,bin,woff,woff2,ttf}'],
+            // No .bin: the sprite archive is versioned per build and served
+            // device-first by the dedicated /sprites.bin route in sw.ts. The
+            // precache route matches with ignoreSearch, so a precached archive
+            // would pair the pinned package's old JS with the new archive bytes
+            // and blank every sprite until the package was re-downloaded.
+            globPatterns: ['**/*.{js,css,html,svg,ico,png,woff,woff2,ttf}'],
             globIgnores: ['offline-manifest.json', 'data/**'],
             maximumFileSizeToCacheInBytes: 32 * 1024 * 1024,
           },
@@ -75,7 +80,7 @@ function pwaPlugin(version: string) {
       : {
           strategies: 'generateSW' as const,
           workbox: {
-            globPatterns: ['**/*.{js,css,html,svg,ico,png,bin,woff,woff2,ttf}'],
+            globPatterns: ['**/*.{js,css,html,svg,ico,png,woff,woff2,ttf}'],
             globIgnores: ['offline-manifest.json', 'data/**'],
             maximumFileSizeToCacheInBytes: 32 * 1024 * 1024,
             runtimeCaching: [
