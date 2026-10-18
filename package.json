@@ -40,7 +40,8 @@
     "test:trainer-card": "npm run build && node tests/trainerCard.browser.mjs",
     "generate:items": "node scripts/generateItemsData.mjs",
     "test:items": "tsx tests/items.test.ts && npm run build && node tests/items.browser.mjs",
-    "generate:item-sprites": "node scripts/downloadItemSprites.mjs && node scripts/appendItemSprites.mjs"
+    "generate:item-sprites": "node scripts/downloadItemSprites.mjs && node scripts/appendItemSprites.mjs",
+    "test:region-progress": "npm run build && node tests/regionProgress.browser.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

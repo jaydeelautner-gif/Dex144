@@ -1023,7 +1023,10 @@ export function App() {
         currentGameId: inv.currentGameId as GameId | undefined,
         evolutionHistory: inv.evolutionHistory,
       }));
-      setInventory(mapped);
+      // Never let an empty remote result wipe a populated local inventory:
+      // offline or first-sync responses can be empty, and the local copy is
+      // authoritative for catches/living counts until the server has data.
+      setInventory((previous) => (mapped.length === 0 && previous.length > 0 ? previous : mapped));
     });
 
     const unsubRescueBin = subscribeToUserRescueBin(user.uid, (items) => {
@@ -2484,15 +2487,40 @@ export function App() {
                     <h3 className="text-xs font-bold uppercase tracking-wider text-amber-300">Caught by region</h3>
                     {GENERATIONS.map(gen=>{
                       const [from,to]=gen.range;
-                      const caught=caughtSet.size?dex.filter(p=>p.id>=from&&p.id<=to&&caughtSet.has(p.id)).length:0;
+                      const caught=dex.filter(p=>p.id>=from&&p.id<=to&&caughtSet.has(p.id)).length;
                       const living=dex.filter(p=>p.id>=from&&p.id<=to&&livingSet.has(p.id)).length;
                       const total=to-from+1;
-                      return <div key={gen.id} className="flex items-center justify-between gap-2 text-[11px]">
-                        <span className="text-slate-300 min-w-0 truncate">{gen.region}</span>
-                        <span className="font-mono text-slate-400 shrink-0"><span className="text-emerald-300">{caught}</span>/{total}<span className="ml-1 text-sky-300">{living}L</span></span>
+                      const caughtPct=Math.round((caught/total)*100);
+                      const livingPct=Math.round((living/total)*100);
+                      const complete=caught===total;
+                      return <div key={gen.id} className="flex flex-col gap-1">
+                        <div className="flex items-baseline justify-between gap-2 text-[11px]">
+                          <span className="text-slate-300 min-w-0 truncate">{gen.region}</span>
+                          <span className="font-mono text-slate-400 shrink-0">
+                            <span className={complete?'text-amber-300 font-bold':'text-emerald-300'}>{caught}</span>/{total}
+                            <span className="ml-1 text-slate-300">{caughtPct}%</span>
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-1.5 rounded-full bg-slate-900 overflow-hidden flex">
+                            <div className="h-full bg-emerald-500" style={{width:`${caughtPct}%`}} />
+                            <div className="h-full bg-sky-500/70" style={{width:`${Math.max(0, livingPct-caughtPct)}%`}} />
+                          </div>
+                          <span className="font-mono text-[10px] text-sky-300 shrink-0 w-14 text-right">{living}L · {livingPct}%</span>
+                        </div>
                       </div>;
                     })}
-                    <p className="text-[10px] text-slate-500">Caught / regional total, with Living Dex count. Hidden in Settings → Home Screen.</p>
+                    {(()=>{
+                      const caught=dex.filter(p=>caughtSet.has(p.id)).length;
+                      const living=dex.filter(p=>livingSet.has(p.id)).length;
+                      const total=dex.length;
+                      const pct=(n:number)=>`${Math.round((n/total)*100)}%`;
+                      return <div className="mt-1 pt-2 border-t border-slate-800 flex items-baseline justify-between gap-2 text-[11px]">
+                        <span className="font-bold text-amber-200">All regions</span>
+                        <span className="font-mono font-bold shrink-0"><span className="text-emerald-300">{caught}</span>/{total}<span className="ml-1 text-amber-200">{pct(caught)}</span><span className="ml-2 text-sky-300">{living}L · {pct(living)}</span></span>
+                      </div>;
+                    })()}
+                    <p className="text-[10px] text-slate-500">Percentage caught per region, with Living Dex count and share. Hidden in Settings → Home Screen.</p>
                   </section></div>}
                 </aside>
               )}

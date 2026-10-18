@@ -64,7 +64,12 @@ try {
   await regions.waitFor();
   assert.match(await regions.innerText(),/Kanto/);
   assert.match(await regions.innerText(),/Paldea/);
-  assert.equal(await regions.locator('div').filter({hasText:/\//}).count()>=9,true,'one row per region');
+  const regionText=await regions.innerText();
+  for(const label of ['Kanto','Johto','Hoenn','Sinnoh','Unova','Kalos','Alola','Galar','Paldea']) assert.match(regionText,new RegExp(label),`${label} row present`);
+  const pcts=await regions.locator('span').evaluateAll(es=>es.map(e=>e.textContent??'').filter(t=>/^\d+%$/.test(t.trim())));
+  assert.ok(pcts.length>=10,'a percentage is shown for every region plus the total');
+  assert.match(regionText,/All regions/,'regional total row present');
+  assert.ok(await regions.locator('div[style*="width"]').count()>=9,'a progress bar per region');
   await page.getByRole('navigation',{name:'Primary Workspace'}).getByRole('button',{name:'Maps',exact:true}).click();
   await page.getByTestId('maps-page').waitFor();
   await page.getByRole('heading',{name:'Town Map',exact:true}).waitFor();
