@@ -1,4 +1,4 @@
-import { ITEM_SPRITE_SLICES, SPRITE_BLOB, type SpriteSlice } from '../data/spriteFiles.generated';
+import { ITEM_SPRITE_SLICES, SPRITE_BLOB, SPRITE_FILES, type SpriteSlice } from '../data/spriteFiles.generated';
 
 /**
  * All sprites ship as one binary file (`/sprites.bin`) with a byte-offset index
@@ -8,6 +8,20 @@ import { ITEM_SPRITE_SLICES, SPRITE_BLOB, type SpriteSlice } from '../data/sprit
  */
 let archiveRequest: Promise<ArrayBuffer | null> | null = null;
 
+/**
+ * Highest indexed byte in the bundle. A served archive shorter than this is a
+ * stale or truncated deployment, so it is retried instead of trusted.
+ */
+const REQUIRED_ARCHIVE_BYTES = (() => {
+  let max = 0;
+  const consider = (slice: SpriteSlice | null | undefined) => {
+    if (slice && slice.o + slice.l > max) max = slice.o + slice.l;
+  };
+  for (const entry of Object.values(ITEM_SPRITE_SLICES)) consider(entry);
+  for (const entry of Object.values(SPRITE_FILES)) { consider(entry.normal); consider(entry.shiny); }
+  return max;
+})();
+
 function loadArchive(): Promise<ArrayBuffer | null> {
   if (!archiveRequest) {
     archiveRequest = (async () => {
@@ -15,10 +29,13 @@ function loadArchive(): Promise<ArrayBuffer | null> {
       // failure must not blank out every sprite for the whole session.
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          const response = await fetch(SPRITE_BLOB, { cache: 'force-cache' });
+          const response = await fetch(SPRITE_BLOB, { cache: attempt === 1 ? 'force-cache' : 'reload' });
           if (response.ok) {
             const buffer = await response.arrayBuffer();
-            if (buffer.byteLength > 0) return buffer;
+            // A partial or truncated deploy would silently blank out the later
+            // sprites (their slices fall past the end), so validate the size.
+            if (buffer.byteLength >= REQUIRED_ARCHIVE_BYTES) return buffer;
+            console.warn(`Sprite archive is ${buffer.byteLength} bytes but ${REQUIRED_ARCHIVE_BYTES} are indexed. Retrying with a fresh download.`);
           }
         } catch { /* retry */ }
         await new Promise((resolve) => setTimeout(resolve, 250 * attempt));

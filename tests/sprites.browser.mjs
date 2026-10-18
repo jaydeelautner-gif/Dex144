@@ -65,6 +65,10 @@ try {
   await page.locator('img[src^="blob:"]').first().click().catch(() => {});
   await page.waitForTimeout(1500);
 
+  // The archive must be delivered whole; a truncated deploy blanks later sprites.
+  const archive=await page.evaluate(async()=>{const r=await fetch('/sprites.bin');const b=await r.arrayBuffer();return {status:r.status,bytes:b.byteLength};});
+  assert.equal(archive.status,200,'sprite archive is served');
+  assert.ok(archive.bytes>9_000_000,`sprite archive is complete (${archive.bytes} bytes)`);
   assert.deepEqual(external, [], `no sprite requests to external hosts: ${JSON.stringify(external.slice(0, 3))}`);
   assert.deepEqual(errors, []);
   console.log(`PASS: all sprites served from the bundled archive (${imgs} images, ${loaded} decoded) with zero external requests`);
