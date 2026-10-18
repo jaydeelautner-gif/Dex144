@@ -59,6 +59,12 @@ try {
     await page.getByRole('button',{name:'Home',exact:true}).first().click();
     await sidebar.waitFor();
   }
+  // Caught-by-region panel is optional and lives in the trainer sidebar.
+  const regions=page.getByRole('region',{name:'Caught by region'});
+  await regions.waitFor();
+  assert.match(await regions.innerText(),/Kanto/);
+  assert.match(await regions.innerText(),/Paldea/);
+  assert.equal(await regions.locator('div').filter({hasText:/\//}).count()>=9,true,'one row per region');
   await page.getByRole('navigation',{name:'Primary Workspace'}).getByRole('button',{name:'Maps',exact:true}).click();
   await page.getByTestId('maps-page').waitFor();
   await page.getByRole('heading',{name:'Town Map',exact:true}).waitFor();
@@ -72,7 +78,7 @@ try {
   await page.getByRole('button',{name:/Home Screen.*Choose visible panels/}).click();
   const fieldset=page.locator('fieldset').filter({has:page.locator('legend',{hasText:'Trainer sidebar'})});
   await fieldset.waitFor();
-  assert.equal(await fieldset.getByRole('checkbox').count(),5);
+  assert.equal(await fieldset.getByRole('checkbox').count(),6,'six trainer-sidebar toggles including caught by region');
   for (const box of await fieldset.getByRole('checkbox').all()) await box.uncheck();
   await page.getByRole('button',{name:'Save settings',exact:true}).first().click();
   await page.getByRole('button',{name:'Home',exact:true}).first().click();

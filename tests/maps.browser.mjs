@@ -88,9 +88,12 @@ try {
   await page.getByRole('button',{name:'All games',exact:true}).click();
   const versions=await page.getByLabel('Map game',{exact:true}).locator('option').evaluateAll(options=>options.map(option=>option.value));
   assert.equal(versions.length,40);
-  for(const game of versions){await page.getByLabel('Map game',{exact:true}).selectOption(game);assert.ok(await map.getByRole('button',{name:/^Explore /}).count()>0,game+' has interactive pins');}
+  for(const game of versions){if(game==='pogo')continue;await page.getByLabel('Map game',{exact:true}).selectOption(game);assert.ok(await map.getByRole('button',{name:/^Explore /}).count()>0,game+' has interactive pins');}
+  // GO still appears in the encounter-data game list, but renders no region map.
   await page.getByLabel('Map game',{exact:true}).selectOption('pogo');
-  assert.match(await page.getByTestId('maps-page').innerText(),/not a live GPS map/);
+  assert.equal(await page.getByRole('navigation',{name:'Map regions'}).getByRole('button').count(),0,'Pokemon GO has no region map');
+  assert.equal(await map.getByRole('button',{name:/^Explore /}).count(),0,'Pokemon GO has no map pins');
+  assert.match(await page.getByTestId('maps-page').innerText(),/No encounter rows|No region map/);
   await page.getByLabel('Map game',{exact:true}).selectOption('red');
   await page.setViewportSize({width:390,height:900});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'phone page fits while map pans within its own viewport');

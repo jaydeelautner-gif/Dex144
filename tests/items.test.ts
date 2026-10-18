@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { ITEMS, ITEM_TYPES, MOVE_MACHINE_GROUPS, TM_HM } from '../src/data/items.generated';
 import { CONSTELLATION_NAMES, GAME_VERSION_GROUP, humanItemName, versionGroupFor, VERSION_GROUP_LABEL } from '../src/data/gameVersionGroups';
 import { ALL_CANONICAL_GAME_IDS } from '../src/data/pokemonData';
+import { curatedLocationsForItem } from '../src/data/pokemonItemsData';
 assert.ok(Object.keys(ITEMS).length>=1500);
 for(const [id,item] of Object.entries(ITEMS)){
   assert.ok(typeof item.name==='string'&&item.name.length>0&&item.name.length<=80,`#${id} name`);
@@ -45,4 +46,12 @@ assert.ok(CONSTELLATION_NAMES.UMa==='Ursa Major'&&CONSTELLATION_NAMES.Sgr==='Sag
 assert.equal(humanItemName('Potion','medicine'),'Potion','non-crystal names are untouched');
 assert.equal(humanItemName('★Zzz9','dynamax-crystals'),'★Zzz9','unknown constellations are left alone');
 assert.equal(humanItemName('★Sge','dynamax-crystals'),'Dynamax Crystal — Sagitta');
+// Items expose locations, and GO entries are flagged as not being pickups.
+const thunderStone=curatedLocationsForItem('Thunder Stone');
+assert.ok(thunderStone,'curated item lookup by name');
+assert.ok(thunderStone!.locationsByGame.length>0);
+assert.ok(curatedLocationsForItem('Thunder Stone')===thunderStone);
+assert.equal(curatedLocationsForItem('Definitely Not An Item'),null);
+const readCrystal=curatedLocationsForItem('Dynamax Crystal — Andromeda 458');
+assert.ok(!readCrystal || typeof readCrystal==='object','readable crystal name lookup does not throw');
 console.log(`Items tests passed: ${Object.keys(ITEMS).length} items, ${Object.values(TM_HM).reduce((n,l)=>n+l.length,0)} TM/HM entries, ${MOVE_MACHINE_GROUPS.length} version groups and game mapping.`);

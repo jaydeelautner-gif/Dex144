@@ -2464,8 +2464,8 @@ export function App() {
           />
         ) : (
           <>
-            <div data-testid="home-layout" className={activeTab === 'home' ? `grid grid-cols-1 gap-5 items-start ${(homePanels.trainerCard || homePanels.profileBoxes || homePanels.profileInventory || homePanels.profileFriends || homePanels.profileAvatar) && homeDesign.layout !== 'stacked' ? homeDesign.layout === 'right' ? 'lg:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]' : 'lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]' : ''}` : 'contents'}>
-              {activeTab === 'home' && (homePanels.trainerCard || homePanels.profileBoxes || homePanels.profileInventory || homePanels.profileFriends || homePanels.profileAvatar) && (
+            <div data-testid="home-layout" className={activeTab === 'home' ? `grid grid-cols-1 gap-5 items-start ${(homePanels.trainerCard || homePanels.profileBoxes || homePanels.profileInventory || homePanels.profileFriends || homePanels.profileAvatar || homePanels.regionProgress) && homeDesign.layout !== 'stacked' ? homeDesign.layout === 'right' ? 'lg:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]' : 'lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]' : ''}` : 'contents'}>
+              {activeTab === 'home' && (homePanels.trainerCard || homePanels.profileBoxes || homePanels.profileInventory || homePanels.profileFriends || homePanels.profileAvatar || homePanels.regionProgress) && (
                 <aside aria-label="Your trainer and profile shortcuts" className="min-w-0 flex flex-col gap-4" style={{order:homeDesign.layout==='right'?2:0}}>
                   {homePanels.trainerCard && <div style={{order:homeRank('trainerCard')}}><ProfileCard compact prefs={cardPrefs} trainerName={displayTrainerName} avatar={avatar} ownedGames={normalizeToCanonicalGames(ownedGames)} gameProgress={gameProgress as Record<string,string[]>} isPublic={isPublic} /></div>}
                   {(homePanels.profileBoxes || homePanels.profileInventory || homePanels.profileFriends || homePanels.profileAvatar) && (
@@ -2480,6 +2480,20 @@ export function App() {
                       ))}
                     </nav>
                   )}
+                  {homePanels.regionProgress && <div style={{order:homeRank('regionProgress')}}><section aria-label="Caught by region" className="bg-[#0F1522] border border-slate-800 rounded-2xl p-3 flex flex-col gap-2">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-amber-300">Caught by region</h3>
+                    {GENERATIONS.map(gen=>{
+                      const [from,to]=gen.range;
+                      const caught=caughtSet.size?dex.filter(p=>p.id>=from&&p.id<=to&&caughtSet.has(p.id)).length:0;
+                      const living=dex.filter(p=>p.id>=from&&p.id<=to&&livingSet.has(p.id)).length;
+                      const total=to-from+1;
+                      return <div key={gen.id} className="flex items-center justify-between gap-2 text-[11px]">
+                        <span className="text-slate-300 min-w-0 truncate">{gen.region}</span>
+                        <span className="font-mono text-slate-400 shrink-0"><span className="text-emerald-300">{caught}</span>/{total}<span className="ml-1 text-sky-300">{living}L</span></span>
+                      </div>;
+                    })}
+                    <p className="text-[10px] text-slate-500">Caught / regional total, with Living Dex count. Hidden in Settings → Home Screen.</p>
+                  </section></div>}
                 </aside>
               )}
               <div className={activeTab === 'home' ? `min-w-0 grid grid-cols-1 ${homeDesign.columns===2?'2xl:grid-cols-2':''} ${homeDesign.spacing==='compact'?'gap-3 [&>section]:p-3 [&>div>section]:p-3':'gap-5'} items-start` : 'contents'} style={activeTab==='home'?{order:1}:undefined}>

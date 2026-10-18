@@ -4,6 +4,8 @@ export interface GameItemLocation {
   gameId: GameId;
   gameShortTitle: string;
   location: string;
+  /** When true the location text is not a real pickup spot (e.g. GO needs Candy). */
+  notPickup?: boolean;
 }
 
 export interface PokemonItemInfo {
@@ -389,4 +391,21 @@ export function getItemInfoForPokemon(pokemonId: number): PokemonItemInfo[] {
   return POKEMON_ITEMS_DATABASE.filter((item) =>
     item.usedForPokemon.some((target) => target.pokemonId === pokemonId)
   );
+}
+
+const NAME_INDEX = new Map(POKEMON_ITEMS_DATABASE.map((item) => [item.id, item]));
+/** Curated per-game locations for one item, matched by its id or display name. */
+export function curatedLocationsForItem(itemName: string): PokemonItemInfo | null {
+  const wanted = itemName.toLowerCase().replace(/[^a-z0-9]/g, '');
+  for (const item of POKEMON_ITEMS_DATABASE) {
+    if (item.name.toLowerCase().replace(/[^a-z0-9]/g, '') === wanted) return item;
+  }
+  // Accept the readable suffix form, e.g. "Dynamax Crystal — Andromeda 458".
+  const suffix = itemName.split('—').pop()?.trim();
+  if (suffix && suffix !== itemName) {
+    for (const item of POKEMON_ITEMS_DATABASE) {
+      if (item.name.toLowerCase().includes(suffix.toLowerCase())) return item;
+    }
+  }
+  return NAME_INDEX.get(itemName) ?? null;
 }

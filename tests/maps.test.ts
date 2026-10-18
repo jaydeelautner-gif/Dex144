@@ -5,6 +5,8 @@ import { areaRegion, indexMapEncounters, placeMatchesArea } from '../src/utils/m
 import type { EncounterDataset } from '../src/data/encountersData';
 for(const game of ALL_CANONICAL_GAME_IDS){
   const regions=mapRegionsForGame(game);
+  // Pokemon GO has no region map (it uses real-world locations).
+  if(game==='pogo'){assert.deepEqual(regions,[],'GO has no map');continue;}
   assert.ok(regions.length>0,`${game} has a map`);
   for(const region of regions){
     assert.ok(region.places.length>0,`${region.id} has labelled places`);
@@ -38,4 +40,6 @@ assert.equal(areaRegion('kanto-route-1-area','heartgold',['johto','kanto']),'kan
 assert.equal(areaRegion('johto-route-29-area','heartgold',['johto','kanto']),'johto');
 assert.equal(areaRegion('berry-forest-area','firered',['kanto','sevii']),'sevii');
 assert.equal(areaRegion('fields-of-honor-area','sword',['galar','isle-armor']),'isle-armor');
+assert.ok(!('world' in REGION_MAPS),'GO guide map is removed');
+assert.deepEqual(mapRegionsForGame('pogo'),[]);
 console.log(`Maps tests passed: ${ALL_CANONICAL_GAME_IDS.length} game versions, region coverage, version-specific encounters, DLC ownership, subareas and multi-region classification.`);

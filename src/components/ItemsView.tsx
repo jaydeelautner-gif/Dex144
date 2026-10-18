@@ -3,7 +3,7 @@ import { Backpack, Search } from 'lucide-react';
 import { ITEMS, ITEM_TYPES, TM_HM } from '../data/items.generated';
 import { ALL_CANONICAL_GAME_IDS, GAMES, normalizeToCanonicalGames, type DlcId, type GameId } from '../data/pokemonData';
 import { humanItemName, versionGroupFor, VERSION_GROUP_LABEL } from '../data/gameVersionGroups';
-import { POKEMON_ITEMS_DATABASE } from '../data/pokemonItemsData';
+import { curatedLocationsForItem, POKEMON_ITEMS_DATABASE } from '../data/pokemonItemsData';
 import { DisplayLimitSelect, PageControls, useDisplayLimit } from './DisplayControls';
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -19,6 +19,8 @@ const CATEGORY_LABELS: Record<string, string> = {
   'tera-shard': 'Tera Shards', 'tm-materials': 'TM Materials', 'material': 'Materials', 'quest': 'Quest items',
   'gameplay': 'Gameplay', 'unused': 'Unused', 'other': 'Other', 'unknown': 'Other',
 };
+const gamesGroup=(gameId:string)=>versionGroupFor(gameId as GameId);
+const entryGenerations=(generations:number[])=>generations;
 const label = (id: string) => CATEGORY_LABELS[id] ?? id.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 export const GENERATION_LABELS = ['—', 'Gen I', 'Gen II', 'Gen III', 'Gen IV', 'Gen V', 'Gen VI', 'Gen VII', 'Gen VIII', 'Gen IX'];
 
@@ -47,6 +49,7 @@ export function ItemsView({ownedGames,ownedDlcs}:{ownedGames:GameId[];ownedDlcs:
   const [query,setQuery]=useState('');
   const [category,setCategory]=useState('all');
   const [generation,setGeneration]=useState('all');
+  const [gameFilter,setGameFilter]=useState('all');
   const [limit,setLimit]=useDisplayLimit('homedex_items_count',30);
   const [page,setPage]=useState(1);
   const owned=normalizeToCanonicalGames(ownedGames);
@@ -66,11 +69,18 @@ export function ItemsView({ownedGames,ownedDlcs}:{ownedGames:GameId[];ownedDlcs:
     return Object.entries(ITEMS).filter(([,item])=>{
       if(category!=='all'&&item.category!==category)return false;
       if(generation!=='all'&&!item.generations.includes(Number(generation)))return false;
+      if(gameFilter!=='all'){
+        const curated=curatedLocationsForItem(item.name);
+        const group=versionGroupFor(gameFilter as GameId);
+        const matchesCurated=Boolean(curated?.locationsByGame.some(entry=>!entry.notPickup && [gameFilter,group].includes(entry.gameId)));
+        const matchesGeneration=entryGenerations(item.generations).includes(Number(GAMES.find(game=>game.id===gameFilter)?.generation ?? 0));
+        if(!matchesCurated && !matchesGeneration) return false;
+      }
       if(!needle)return true;
       const readable=humanItemName(item.name,item.category);
       return readable.toLowerCase().includes(needle)||item.name.toLowerCase().includes(needle)||item.effect.toLowerCase().includes(needle)||item.category.includes(needle);
     }).sort((a,b)=>humanItemName(a[1].name,a[1].category).localeCompare(humanItemName(b[1].name,b[1].category)));
-  },[query,category,generation]);
+  },[query,category,generation,gameFilter]);
   const machineRows=useMemo(()=>{
     const needle=query.trim().toLowerCase();
     return machines.filter(entry=>!needle||entry.move.toLowerCase().includes(needle)||entry.item.toLowerCase().includes(needle)||String(entry.n)===needle);
@@ -93,6 +103,7 @@ export function ItemsView({ownedGames,ownedDlcs}:{ownedGames:GameId[];ownedDlcs:
       <div className="flex flex-wrap gap-2">
         <label className="text-xs text-slate-300">Category<select aria-label="Item category" value={category} onChange={event=>{setCategory(event.target.value);setPage(1);}} className="ml-2 rounded bg-slate-900 p-2 border border-slate-700"><option value="all">All categories</option>{categories.map(value=><option key={value} value={value}>{label(value)}</option>)}</select></label>
         <label className="text-xs text-slate-300">Generation<select aria-label="Item generation" value={generation} onChange={event=>{setGeneration(event.target.value);setPage(1);}} className="ml-2 rounded bg-slate-900 p-2 border border-slate-700"><option value="all">All generations</option>{GENERATION_LABELS.slice(1).map((text,index)=><option key={text} value={index+1}>{text}</option>)}</select></label>
+        <label className="text-xs text-slate-300">Game<select aria-label="Item game" value={gameFilter} onChange={event=>{setGameFilter(event.target.value);setPage(1);}} className="ml-2 rounded bg-slate-900 p-2 border border-slate-700 text-slate-100"><option value="all">All games</option>{GAMES.filter(entry=>(ALL_CANONICAL_GAME_IDS as GameId[]).includes(entry.id)).map(entry=><option key={entry.id} value={entry.id}>{entry.title}</option>)}</select></label>
         <DisplayLimitSelect label="Items per page" value={limit} onChange={value=>{setLimit(value);setPage(1);}} />
       </div>
       <PageControls page={current} pages={pages} total={rows.length} onChange={setPage} />
@@ -100,6 +111,18 @@ export function ItemsView({ownedGames,ownedDlcs}:{ownedGames:GameId[];ownedDlcs:
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">{shown.map(([id,item])=><article key={id} className="p-3 rounded-xl border border-slate-800 bg-[#0F1522] flex flex-col gap-1">
         <div className="flex items-start justify-between gap-2"><h2 className="font-bold text-slate-100 text-sm">{humanItemName(item.name,item.category)}</h2><span className="text-[10px] font-mono text-amber-300 shrink-0">{label(item.category)}</span></div>
         {item.effect&&<p className="text-xs text-slate-300">{item.effect}</p>}
+        {(() => {
+          const curated=curatedLocationsForItem(item.name);
+          if(!curated) return null;
+          const wanted=[gameFilter,gamesGroup(gameFilter)].filter(Boolean);
+          const entries=curated.locationsByGame.filter(entry=>gameFilter==='all' || wanted.includes(entry.gameId));
+          const isPickup=(entry:{notPickup?:boolean})=>!entry.notPickup;
+          return <details className="text-[11px] text-slate-300">
+            <summary className="cursor-pointer text-sky-200">Locations ({entries.filter(isPickup).length})</summary>
+            <ul className="mt-1 flex flex-col gap-0.5 max-h-40 overflow-auto">{entries.map((entry,index)=><li key={index}><span className="text-slate-400">{entry.gameShortTitle}:</span> {entry.location}{entry.notPickup&&<span className="text-amber-300"> · not a pickup</span>}</li>)}</ul>
+            {entries.filter(isPickup).length===0&&<p className="text-[10px] text-slate-500">No recorded pickup spots for this game.</p>}
+          </details>;
+        })()}
         <p className="text-[10px] text-slate-500">{item.generations.length?'Available: '+item.generations.map(gen=>GENERATION_LABELS[gen]??`Gen ${gen}`).join(', '):'Availability not recorded'}{item.flingPower?` · Fling power ${item.flingPower}`:''}{item.cost?` · ${item.cost} coins`:''}</p>
       </article>)}</div>}
     </>:<>

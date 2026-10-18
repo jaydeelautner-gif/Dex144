@@ -216,12 +216,7 @@ export const REGION_MAPS:Record<string,RegionMap>={
     p('central-plaza','Central Plaza',500,330,['Central Plaza Services']),p('savanna-biome','Savanna Biome',250,450,[]),p('coastal-biome','Coastal Biome',750,450,[]),
     p('canyon-biome','Canyon Biome',250,150,[]),p('polar-biome','Polar Biome',750,150,[]),p('chargestone-cavern','Chargestone Cavern',350,230,[]),p('blueberry-academy','Blueberry Academy',500,570,['Entrance','League Club Room','Cafeteria','School Store']),
   ]},
-  world:{id:'world',name:'Pokémon GO · activity guide',color:'#38bdf8',islands:true,places:[
-    p('wild-habitats','Wild Habitats',220,220,[],'Wild spawns depend on your real-world location, weather, season and current events.'),
-    p('pokestops','PokéStops',710,190,[],'Spin eligible real-world PokéStops for items and research. No live coordinates are provided here.'),
-    p('gyms','Gyms & Raids',300,460,[],'Real-world Gyms host battles and rotating Raid encounters.'),
-    p('research','Research & Eggs',760,460,[],'Encounter pools rotate. Consult current in-game research and Egg lists.'),
-  ]},
+
 };
 // Schematic hub connections, not tile-by-tile walking directions.
 export const REGION_LINKS:Record<string,string[][]>={
@@ -235,7 +230,7 @@ export const REGION_LINKS:Record<string,string[][]>={
 };
 export function mapRegionsForGame(gameId:GameId,ownedDlcs:readonly DlcId[]=[]):RegionMap[]{
   const group=GAME_ID_TO_TRACKABLE[gameId]??gameId;
-  const byGroup:Record<string,string[]>={rb:['kanto'],frlg:['kanto','sevii'],gs:['johto','kanto'],hgss:['johto','kanto'],rse:['hoenn'],oras:['hoenn'],dppt:['sinnoh'],bdsp:['sinnoh'],bw:['unova'],b2w2:['unova'],xy:['kalos'],sm:['alola'],usum:['alola'],lgpe:['kanto'],swsh:['galar','isle-armor','crown-tundra'],pla:['hisui'],sv:['paldea','kitakami','blueberry'],colo:['orre'],xd:['orre'],pogo:['world']};
+  const byGroup:Record<string,string[]>={rb:['kanto'],frlg:['kanto','sevii'],gs:['johto','kanto'],hgss:['johto','kanto'],rse:['hoenn'],oras:['hoenn'],dppt:['sinnoh'],bdsp:['sinnoh'],bw:['unova'],b2w2:['unova'],xy:['kalos'],sm:['alola'],usum:['alola'],lgpe:['kanto'],swsh:['galar','isle-armor','crown-tundra'],pla:['hisui'],sv:['paldea','kitakami','blueberry'],colo:['orre'],xd:['orre']};
   return (byGroup[group]??[]).map(id=>REGION_MAPS[id]).filter(region=>!region.dlc||ownedDlcs.includes(region.dlc));
 }
 
@@ -362,11 +357,5 @@ export const REGION_TERRAIN:Record<string,TerrainFeature[]>={
     {kind:'water',points:[[620,380],[900,380],[920,540],[640,550]],label:'Coastal Biome'},
     {kind:'desert',points:[[100,100],[360,100],[380,240],[120,250]],label:'Canyon Biome'},
     {kind:'snow',points:[[620,100],[900,100],[920,250],[640,260]],label:'Polar Biome'},
-  ],
-  world:[
-    {kind:'urban',points:[[120,120],[400,120],[400,320],[120,320]],label:'Wild habitats'},
-    {kind:'urban',points:[[600,90],[920,90],[920,290],[600,290]],label:'PokéStops'},
-    {kind:'urban',points:[[180,380],[460,380],[460,560],[180,560]],label:'Gyms & Raids'},
-    {kind:'urban',points:[[640,370],[930,370],[930,560],[640,560]],label:'Research & Eggs'},
   ],
 };

@@ -25,7 +25,7 @@ These are **schematic region guides**, not tile-accurate overworld maps, buildin
 
 The current encounter bundle has rows for 32 of 40 versions. Colosseum, XD, GO, BD, SP, PLA, Scarlet and Violet currently have **no encounter rows** in that bundle. Their region guides/landmarks are still available, with a visible coverage warning. Empty data does not claim that an area has no Pokémon. No sample encounters, fabricated rates, or unverified remake copies are used to hide gaps. Extending encounter coverage is a separate data-generation task; new rows appear automatically in the map directory.
 
-Colosseum/XD explain Shadow Pokémon snagging; XD's Poké Spots are included as locations. GO has an explicitly labeled activity guide, **not a live real-world GPS map**, and does not claim to track current event pools.
+Colosseum/XD explain Shadow Pokémon snagging; XD's Poké Spots are included as locations. **Pokémon GO has no region map** — it appears in the game list only for its encounter data, and the page states that GO uses real-world locations instead of plotting a guide.
 
 ## Files and tests
 

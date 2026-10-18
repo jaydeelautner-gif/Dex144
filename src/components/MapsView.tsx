@@ -21,7 +21,7 @@ export function MapsView({dex,ownedGames,ownedDlcs,gameProgress,onSelectPokemon}
   const game=games.find(g=>g.id===gameChoice)??games[0];
   const [regionChoice,setRegionChoice]=useState('');
   const regions=useMemo(()=>mapRegionsForGame(game.id,ownedDlcs),[game.id,ownedDlcs]);
-  const region=regions.find(r=>r.id===regionChoice)??regions[0];
+  const region=regions.find(r=>r.id===regionChoice)??regions[0]??null;
   const [dataset,setDataset]=useState<EncounterDataset|null>(null);
   const [loading,setLoading]=useState(true);
   const [retry,setRetry]=useState(0);
@@ -39,14 +39,15 @@ export function MapsView({dex,ownedGames,ownedDlcs,gameProgress,onSelectPokemon}
   const [page,setPage]=useState(1);
   const [limit,setLimit]=useDisplayLimit('homedex_map_encounters_count',30);
   const index=useMemo(()=>indexMapEncounters(dataset,game.id,ownedDlcs),[dataset,game.id,ownedDlcs]);
-  const areas=useMemo(()=>[...index.keys()].filter(area=>areaRegion(area,game.id,regions.map(r=>r.id))===region.id).sort(),[index,region.id,regions,game.id]);
+  const areas=useMemo(()=>{if(!region)return [];const ids=regions.map(r=>r.id);return [...index.keys()].filter(area=>areaRegion(area,game.id,ids)===region.id).sort();},[index,region,regions,game.id]);
   const johtoEra=['gold','silver','crystal','heartgold','soulsilver'].includes(game.id);
-  const places=region.places.filter(place=>(!place.games || place.games.includes(game.id)) && !(region.id==='unova' && ['aspertia-city','virbank-city','humilau-city'].includes(place.id) && !['black2','white2'].includes(game.id)) && !(region.id==='kanto' && place.id==='pokemon-mansion' && johtoEra)).map(place=>place.id==='cinnabar-island' && johtoEra?{...place,buildings:['Pokémon Center'],notes:'The eruption changed Cinnabar. Its Gym moved to the Seafoam Islands.'}:place);
+  const places=region?region.places.filter(place=>(!place.games || place.games.includes(game.id)) && !(region.id==='unova' && ['aspertia-city','virbank-city','humilau-city'].includes(place.id) && !['black2','white2'].includes(game.id)) && !(region.id==='kanto' && place.id==='pokemon-mansion' && johtoEra)).map(place=>place.id==='cinnabar-island' && johtoEra?{...place,buildings:['Pokémon Center'],notes:'The eruption changed Cinnabar. Its Gym moved to the Seafoam Islands.'}:place):[];
   const routePins=useMemo(()=>{
+    if(!region)return [];
     // Areas already covered by a curated city/landmark pin are not repeated.
     const unconsumed=areas.filter(area=>!places.some(place=>placeMatchesArea(place,area)));
     return routePinsFor(region.id,unconsumed,REGION_LINKS[region.id]??[],places,[]);
-  },[region.id,areas,places]);
+  },[region,areas,places]);
   const place=places.find(p=>p.id===placeChoice)??null;
   const pickups=useMemo(()=>place?curatedLocationsForPlace(place.name):[],[place]);
   const activeRoute=routePins.find(pin=>pin.id===placeChoice)??null;
@@ -92,10 +93,11 @@ export function MapsView({dex,ownedGames,ownedDlcs,gameProgress,onSelectPokemon}
     <nav aria-label="Map regions" className="flex flex-wrap gap-2">{regions.map(r=><button key={r.id} type="button" aria-pressed={region.id===r.id} onClick={()=>{setRegionChoice(r.id);resetArea();setZoom(1);}} className={`px-3 py-2 rounded-xl border text-xs font-bold ${region.id===r.id?'bg-amber-400 text-slate-950 border-amber-300':'bg-slate-900 text-slate-300 border-slate-700'}`}>{r.name}</button>)}</nav>
     {(game.id==='colo'||game.id==='xd') && <p role="status" className="text-xs text-sky-200">{game.id==='colo'?'Colosseum focuses on snagging and purifying Shadow Pokémon, not standard wild encounters.':'XD includes wild Pokémon at the Rock, Oasis and Cave Poké Spots; most other captures use Shadow Pokémon snagging.'}</p>}
     {game.id==='pogo' && <p role="status" className="text-sm text-sky-200">GO uses real-world locations. This is an activity guide, not a live GPS map; current event pools are not included.</p>}
+    {!region && <p role="status" className="text-sm text-slate-300">{game.title} has no region map. Pokémon GO uses real-world locations, so there is no area guide to plot.</p>}
     {loading && <p role="status" className="text-sm text-slate-400">Loading local encounter data…</p>}
     {!loading && !dataset && <div role="alert" className="text-xs text-amber-200">Encounter data is unavailable on this device. <button type="button" onClick={()=>setRetry(v=>v+1)} className="underline">Retry</button> or install the offline data package.</div>}
     {!loading && dataset && index.size===0 && <p role="status" className="text-xs text-amber-200">No encounter rows are recorded for {game.title} in the current bundle. Landmarks remain available; no species, rates or locations are invented to fill the gap.</p>}
-    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(300px,1fr)] gap-4 items-start">
+    {region && <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(300px,1fr)] gap-4 items-start">
       <section aria-label="Interactive region map" className={`${fullscreen?'fixed inset-0 z-50 rounded-none':'min-w-0 rounded-2xl border border-slate-800'} p-3 bg-[#0F1522] flex flex-col gap-3`}>
         <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-bold text-slate-100">{region.name} {fullscreen&&<span className="text-xs text-amber-300">Full screen</span>}</h2><div className="flex gap-2"><button type="button" aria-label={fullscreen?'Exit full screen map':'Full screen map'} onClick={()=>setFullscreen(v=>!v)} className="p-2 border border-slate-700 rounded text-slate-200">{fullscreen?<Minimize2 className="w-4 h-4" />:<Maximize2 className="w-4 h-4" />}</button><button type="button" aria-label="Zoom map out" disabled={zoom<=0.8} onClick={()=>setZoom(v=>Math.max(0.8,v-0.2))} className="p-2 border border-slate-700 rounded text-slate-200 disabled:opacity-30"><ZoomOut className="w-4 h-4" /></button><button type="button" aria-label="Zoom map in" disabled={zoom>=2} onClick={()=>setZoom(v=>Math.min(2,v+0.2))} className="p-2 border border-slate-700 rounded text-slate-200 disabled:opacity-30"><ZoomIn className="w-4 h-4" /></button><button type="button" onClick={()=>setZoom(1)} className="text-xs text-amber-200">Reset zoom</button></div></div>
         <div className="overflow-auto rounded-xl border border-slate-700 bg-sky-950/60" style={{maxHeight:fullscreen?'calc(100vh - 250px)':600}}>
@@ -159,6 +161,6 @@ export function MapsView({dex,ownedGames,ownedDlcs,gameProgress,onSelectPokemon}
         </>}
         {!place && !activeArea && <p className="text-sm text-slate-400">Tap a labeled map pin or choose any recorded encounter area from the directory. Version-specific records stay separate; gifts and NPC trades appear where the data records them.</p>}
       </section>
-    </div>
+    </div>}
   </div>;
 }
