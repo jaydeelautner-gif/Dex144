@@ -55,7 +55,15 @@ const FIRST_SLICE = (() => {
   return first;
 })();
 
-const ARCHIVE_URL = `${SPRITE_BLOB}?${ARCHIVE_VERSION}`;
+// The build version rides along so the service worker can tell whether a
+// device-pinned offline package belongs to the running build. Old package
+// bytes + new slice offsets would render wrong/no sprites, so a mismatched
+// package must never satisfy an archive request.
+declare const __OFFLINE_BUILD_VERSION__: string;
+const RUNNING_BUILD_VERSION: string = typeof __OFFLINE_BUILD_VERSION__ === 'undefined'
+  ? 'development'
+  : __OFFLINE_BUILD_VERSION__;
+const ARCHIVE_URL = `${SPRITE_BLOB}?${ARCHIVE_VERSION}&b=${encodeURIComponent(RUNNING_BUILD_VERSION)}`;
 
 /** The archive is a plain concatenation of PNGs, so it must start with the PNG signature. */
 function startsWithPngSignature(buffer: ArrayBuffer): boolean {

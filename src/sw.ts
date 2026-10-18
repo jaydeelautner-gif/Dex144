@@ -12,13 +12,19 @@ clientsClaim();
 self.addEventListener('message',event=>{ if(event.data?.type==='SKIP_WAITING') self.skipWaiting(); });
 // Version checks and verified download requests must NEVER receive old cached bytes.
 registerRoute(({url})=>url.origin===self.location.origin && (url.pathname==='/offline-manifest.json' || url.searchParams.has('offline-download')),new NetworkOnly());
-// The 25 MB sprite archive is versioned by build (`/sprites.bin?<version>`), so
-// identical URLs are byte-identical. Serve it device-first: an active offline
-// package wins, otherwise a cache-first copy from the first online fetch —
-// never a per-session re-download on mobile data. New build versions get a new
-// URL and download once; the oldest copy is evicted automatically.
+// The 25 MB sprite archive is versioned by build (`/sprites.bin?<slices>&b=<build>`), so
+// identical URLs are byte-identical. Serve it device-first: an offline package wins ONLY
+// when its build version matches the running app — old package bytes against new slice
+// offsets would render wrong or no sprites — otherwise a cache-first copy from the first
+// online fetch, never a per-session re-download on mobile data. New build versions get a
+// new URL and download once; the oldest copy is evicted automatically.
 registerRoute(({url})=>url.origin===self.location.origin && url.pathname==='/sprites.bin',async({request,event})=>{
-  const pinned=await packaged(request); if(pinned) return pinned;
+  const buildVersion=new URL(request.url).searchParams.get('b');
+  const packageVersion=await activePackageVersion();
+  // Legacy clients (pre-b-param) expect the package-era archive they run with.
+  if(!buildVersion || (packageVersion && buildVersion===packageVersion)) {
+    const pinned=await packaged(request); if(pinned) return pinned;
+  }
   return new CacheFirst({cacheName:'homedex-archive-v1',plugins:[
     new CacheableResponsePlugin({statuses:[200]}),
     new ExpirationPlugin({maxEntries:2,maxAgeSeconds:60*60*24*60}),
@@ -33,6 +39,15 @@ async function packaged(request:Request, navigation=false):Promise<Response|unde
   const cache=await caches.open(cacheName);
   const key=navigation?new URL('/index.html',self.location.origin).href:request.url;
   return cache.match(key,{ignoreSearch:true});
+}
+/** Build version of the active offline package, if any. */
+async function activePackageVersion():Promise<string|null> {
+  const control=await caches.open(ACTIVE_CACHE);
+  const r=await control.match(new URL('/__offline-active',self.location.origin).href);
+  if(!r) return null;
+  const {cacheName,meta}=await r.json();
+  if(typeof cacheName!=='string' || !cacheName.startsWith('homedex-package-')) return null;
+  return typeof meta?.version==='string' ? meta.version : null;
 }
 registerRoute(({request})=>request.mode==='navigate',async({request})=>{
   const pinned=await packaged(request,true); if(pinned) return pinned;
