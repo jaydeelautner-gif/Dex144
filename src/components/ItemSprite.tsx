@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { itemSpriteUrl } from '../utils/spriteArchive';
+import { itemSpriteUrl, prefetchSpriteArchive } from '../utils/spriteArchive';
 
 /** Bundled item artwork, resolved from the local sprite archive (no network). */
 export function ItemSprite({ slug, name, size = 32, className = '' }: { slug: string; name: string; size?: number; className?: string }) {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
+    prefetchSpriteArchive();
     let active = true;
     setUrl(null);
     void itemSpriteUrl(slug).then((resolved) => { if (active) setUrl(resolved); });

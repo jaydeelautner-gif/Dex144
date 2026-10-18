@@ -64,17 +64,17 @@ function pwaPlugin(version: string) {
           srcDir: 'src',
           filename: 'sw.ts',
           injectManifest: {
-            globPatterns: ['**/*.{js,css,html,svg,ico,png,woff,woff2,ttf}'],
+            globPatterns: ['**/*.{js,css,html,svg,ico,png,bin,woff,woff2,ttf}'],
             globIgnores: ['offline-manifest.json', 'data/**'],
-            maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+            maximumFileSizeToCacheInBytes: 32 * 1024 * 1024,
           },
         }
       : {
           strategies: 'generateSW' as const,
           workbox: {
-            globPatterns: ['**/*.{js,css,html,svg,ico,png,woff,woff2,ttf}'],
+            globPatterns: ['**/*.{js,css,html,svg,ico,png,bin,woff,woff2,ttf}'],
             globIgnores: ['offline-manifest.json', 'data/**'],
-            maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+            maximumFileSizeToCacheInBytes: 32 * 1024 * 1024,
             runtimeCaching: [
               {
                 urlPattern: /\/data\/.+\.json$/,

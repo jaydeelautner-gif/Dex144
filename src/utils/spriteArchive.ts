@@ -10,9 +10,23 @@ let archiveRequest: Promise<ArrayBuffer | null> | null = null;
 
 function loadArchive(): Promise<ArrayBuffer | null> {
   if (!archiveRequest) {
-    archiveRequest = fetch(SPRITE_BLOB, { cache: 'force-cache' })
-      .then((response) => (response.ok ? response.arrayBuffer() : null))
-      .catch(() => null);
+    archiveRequest = (async () => {
+      // The archive is large, so retry before giving up: a single transient
+      // failure must not blank out every sprite for the whole session.
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const response = await fetch(SPRITE_BLOB, { cache: 'force-cache' });
+          if (response.ok) {
+            const buffer = await response.arrayBuffer();
+            if (buffer.byteLength > 0) return buffer;
+          }
+        } catch { /* retry */ }
+        await new Promise((resolve) => setTimeout(resolve, 250 * attempt));
+      }
+      // Allow a later call (a new sprite render) to try again.
+      archiveRequest = null;
+      return null;
+    })();
   }
   return archiveRequest;
 }
@@ -29,7 +43,8 @@ export async function spriteUrl(slice: SpriteSlice | null | undefined): Promise<
   if (buffer && slice.o >= 0 && slice.o + slice.l <= buffer.byteLength) {
     url = URL.createObjectURL(new Blob([buffer.slice(slice.o, slice.o + slice.l)], { type: 'image/png' }));
   }
-  urlCache.set(key, url);
+  // Only remember successes; a failure must be retried on the next render.
+  if (url) urlCache.set(key, url);
   return url;
 }
 
@@ -46,6 +61,11 @@ export function clearSpriteUrlCache(): void {
 }
 
 /** Object URL for an item sprite by its PokeAPI identifier, or null when unbundled. */
+/** Starts the archive download early; safe to call repeatedly. */
+export function prefetchSpriteArchive(): void {
+  void loadArchive();
+}
+
 export function itemSpriteSlice(slug: string): SpriteSlice | null {
   return ITEM_SPRITE_SLICES[slug] ?? null;
 }

@@ -31,7 +31,7 @@ export function validateOfflineManifest(raw: unknown): OfflineManifest {
   // The app shell, fonts and sprites are precached by the service worker; the
   // package only carries the files the precache cannot hold (see
   // scripts/buildOfflineManifest.mjs), so only the data bundle is required here.
-  for (const required of ['/data/encounters.json']) if (!seen.has(required)) throw Error(`Missing required offline file: ${required}`);
+  for (const required of ['/data/encounters.json','/sprites.bin']) if (!seen.has(required)) throw Error(`Missing required offline file: ${required}`);
   return m;
 }
 export async function fetchOfflineManifest(signal?: AbortSignal): Promise<OfflineManifest> {

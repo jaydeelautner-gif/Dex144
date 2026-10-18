@@ -41,6 +41,7 @@ function walk(dir) {
 walk(root);
 files.sort((a, b) => a.url.localeCompare(b.url));
 if (!files.some((f) => f.url === '/data/encounters.json')) throw Error('Incomplete offline build output: encounters data missing.');
+if (!files.some((f) => f.url === '/sprites.bin')) throw Error('Incomplete offline build output: sprite archive missing.');
 writeFileSync(join(root, 'offline-manifest.json'), JSON.stringify({ schema: 2, version, files }));
 console.log(
   `Offline manifest ${version}: ${files.length} package files (${files.reduce((n, f) => n + f.bytes, 0)} bytes). ` +

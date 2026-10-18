@@ -79,7 +79,7 @@ try {
     for(const d of ['1','2','3','4'])await page.getByRole('button',{name:'PIN digit '+d,exact:true}).click();
     await page.getByRole('button',{name:'Unlock with PIN'}).click();
   }
-  await page.getByRole('heading',{name:'Welcome to HomeDex',exact:true}).waitFor();
+  await page.getByRole('heading',{name:'Welcome, Trainer',exact:true}).waitFor();
   const data=await page.evaluate(async()=>({count:Object.keys(await(await fetch('/data/encounters.json')).json()).length,css:(await fetch('/fonts/site-fonts.css')).status}));
   assert.ok(data.count>=800);assert.equal(data.css,200);
   await page.getByRole('button',{name:'Pokédex',exact:true}).first().click();

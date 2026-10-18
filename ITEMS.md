@@ -20,6 +20,12 @@ and load from the local sprite archive with no network request. Regenerate with
 `npm run generate:item-sprites`. Appending rather than rebuilding keeps the Pokémon slices already in
 use valid; the binary grew from 9 MB to 19 MB.
 
+Because the archive is larger than a normal precache limit, it is **precached by the service worker**
+(the `.bin` extension is included in the PWA `globPatterns` and the size limit raised) **and** listed in
+the verified offline package, so it is present whether or not the offline package has been installed.
+A failed archive request is retried (three attempts with backoff) and never cached as a permanent
+failure, and the download starts as soon as a sprite first renders.
+
 ## Locations
 
 Clicking an item card expands it: its sprite, full effect text, available generations, Fling power and
