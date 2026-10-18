@@ -35,6 +35,9 @@ const wanted = [];
 for (const match of colorTable.matchAll(/"(\d+)":(\[[^\]]*\])/g)) {
   const dexId = Number(match[1]);
   for (const entry of JSON.parse(match[2])) {
+    // A base form (e.g. Shellos West Sea, Unown A) uses the species sprite, which
+    // is already bundled, so it needs no separate download.
+    if (entry.base) continue;
     const form = formsBySprite.get(entry.spriteId);
     if (form) wanted.push({ dexId, form, spriteId: entry.spriteId });
   }

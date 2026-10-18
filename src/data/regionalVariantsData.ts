@@ -723,7 +723,9 @@ export function getVariationsForPokemon(pokemon: PokemonEntry): RegionalVariatio
   });
 
   // Cosmetic colour/coat variations (wing patterns, flower colours, trims…).
-  const colorVariantList: RegionalVariation[] = (COLOR_VARIANTS[pokemon.id] ?? []).map((variant) => ({
+  const colorVariants = COLOR_VARIANTS[pokemon.id] ?? [];
+  const hasSpeciesFormVariant = colorVariants.some((variant) => variant.base);
+  const colorVariantList: RegionalVariation[] = colorVariants.map((variant) => ({
     variantId: `${pokemon.id}:${variant.suffix}`,
     pokemonId: pokemon.id,
     formName: `${pokemon.name} — ${variant.name}`,
@@ -747,7 +749,10 @@ export function getVariationsForPokemon(pokemon: PokemonEntry): RegionalVariatio
     });
   }
 
-  return [baseVariation, ...femaleVariantList, ...colorVariantList, ...regionalVariants];
+  // A species whose own form is a named variant (Shellos West Sea) would
+  // otherwise be listed twice, once as the plain species and once as the form.
+  const baseList = hasSpeciesFormVariant ? [] : [baseVariation];
+  return [...baseList, ...femaleVariantList, ...colorVariantList, ...regionalVariants];
 }
 
 export function getVariantsForPokemonInGame(

@@ -18,7 +18,8 @@ export function spriteSources(id: number, shiny = false, imageUrl?: string): Spr
     if (mapped) out.push(mapped);
   }
   // Cosmetic colour/coat forms are keyed by their own sprite id, so look there
-  // first; the numeric form map does not contain them.
+  // first; the numeric form map does not contain them. A base form has no
+  // separate artwork, so it falls through to the species sprite below.
   const form = COLOR_SPRITE_FILES[id] ?? FORM_ID_SPRITE_FILES[id];
   const base = SPRITE_FILES[id];
   const ordered = shiny
