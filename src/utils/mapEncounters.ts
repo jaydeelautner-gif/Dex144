@@ -36,3 +36,63 @@ export function areaRegion(area:string,gameId:GameId,regionIds:readonly string[]
   if(regionIds.includes('johto'))return KANTO.test(area)?'kanto':'johto';
   return regionIds[0]??'';
 }
+
+export interface RoutePin { id:string; name:string; x:number; y:number; area:string }
+/**
+ * Marks every recorded route/area as a labelled clickable pin, exactly like the
+ * curated city pins. Positions are schematic: routes are spread along the
+ * region's hub path (or a ring when the region has no plotted path), because no
+ * dataset records true walking coordinates. Nothing is invented except position.
+ */
+export function routePinsFor(regionId:string, areas:readonly string[], links:readonly string[][], hubs:readonly {id:string;x:number;y:number}[], curatedIds:readonly string[]):RoutePin[] {
+  const picked=areas.filter(area=>!curatedIds.includes(area) && /(^|-)route-\d|route-\d+-/.test(area)).sort((a,b)=>{
+    const na=Number(a.match(/route-(\d+)/)?.[1]??0),nb=Number(b.match(/route-(\d+)/)?.[1]??0);
+    return na-nb || a.localeCompare(b);
+  });
+  if(!picked.length)return [];
+  const hubOf=(id:string)=>hubs.find(hub=>hub.id===id);
+  const path:string[]=[];
+  for(const link of links)for(const id of link){if(!path.length || path[path.length-1]!==id)path.push(id);}
+  const points=path.map(hubOf).filter((pin):pin is {id:string;x:number;y:number}=>Boolean(pin));
+  const routeName=(area:string)=>{
+    const number=area.match(/route-(\d+)/)?.[1];
+    const region=area.split('-')[0];
+    return number?`Route ${number}`:`${region.charAt(0).toUpperCase()+region.slice(1)} route`;
+  };
+  const seenLabels=new Map<string,number>();
+  return picked.map((area,index)=>{
+    const ratio=(index+1)/(picked.length+1);
+    let x:number,y:number;
+    if(points.length>=2){
+      const segment=ratio*(points.length-1);
+      const i=Math.min(points.length-2,Math.floor(segment));
+      const t=segment-i;
+      const a=points[i],b=points[i+1];
+      x=a.x+(b.x-a.x)*t;y=a.y+(b.y-a.y)*t;
+      const dx=b.x-a.x,dy=b.y-a.y,len=Math.hypot(dx,dy)||1;
+      const side=index%2===0?1:-1;
+      x+=(-dy/len)*30*side;y+=(dx/len)*30*side;
+    }else{
+      const angle=(index/Math.max(1,picked.length))*Math.PI*2;
+      x=500+Math.cos(angle)*300;y=330+Math.sin(angle)*230;
+    }
+    x=Math.max(40,Math.min(960,x));y=Math.max(40,Math.min(620,y));
+    const base=routeName(area);
+    const count=(seenLabels.get(base)??0)+1;
+    seenLabels.set(base,count);
+    // Keep short, unique labels: Route 3, Route 3b, Route 3c…
+    const name=count===1?base:`${base}${String.fromCharCode(96+count)}`;
+    return {id:`route-${regionId}-${index}`,name,x,y,area};
+  });
+}
+
+/** Colourful biome zones for the schematic map, seeded per region. */
+export function terrainBlobs(regionId:string,colour:string):{x:number;y:number;rx:number;ry:number;fill:string;opacity:number}[]{
+  let seed=0;for(const char of regionId)seed=(seed*31+char.charCodeAt(0))%9973;
+  const random=()=>{seed=(seed*1103515245+12345)%2147483648;return seed/2147483648;};
+  const palette=[colour,'#22c55e','#38bdf8','#facc15','#a5b4fc','#f97316','#e2e8f0'];
+  return Array.from({length:9},(_,i)=>({
+    x:90+random()*820,y:70+random()*520,rx:90+random()*120,ry:60+random()*90,
+    fill:palette[i%palette.length],opacity:0.13+random()*0.12,
+  }));
+}

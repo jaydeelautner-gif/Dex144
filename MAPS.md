@@ -4,6 +4,10 @@ Open **Maps** in the desktop menu or phone navigation. Every one of the app's 40
 
 ## Interaction
 
+- **Full screen:** the map expands to the whole viewport; Escape or the toggle returns to the page layout.
+- **Routes and cities are both clickable pins:** cities/landmarks use squares (facilities) or circles, and every recorded route appears as a labelled diamond pin with a unique short name (Route 3, Route 3b…). Both open location details, by pointer/touch or keyboard Tab/Enter/Space.
+- **Colourful schematic terrain:** deterministic biome blobs plus the region silhouette and hub roads, so regions read as distinct landscapes rather than flat outlines.
+- **Local encounter maps:** opening a route, area or city draws a little themed map. Each recorded Pokémon is plotted as a sprite pin inside the zone its method and terrain belong to — Grass & fields, Water, Cave/interior, or Gift/trade & special. A level range sits under each sprite and hovering shows weather/time conditions. Pins are keyboard selectable and open the species detail view.
 - Labeled SVG pins open location details. Pins support pointer/touch and keyboard Tab/Enter/Space.
 - Zoom controls and a scrollable map viewport allow panning without overflowing the page.
 - Location shortcut buttons offer an alternative to selecting SVG pins.
@@ -15,7 +19,7 @@ Open **Maps** in the desktop menu or phone navigation. Every one of the app's 40
 
 ## Accuracy and scope
 
-These are **schematic region guides**, not tile-accurate overworld maps, building floor plans or turn-by-turn walking routes. Shapes and pin coordinates are approximate. Building lists cover major known landmarks rather than every NPC house; roles and access can vary between versions. Unova sequel-only hubs and Johto-era Cinnabar changes are treated separately.
+These are **schematic region guides**, not tile-accurate overworld maps, building floor plans or turn-by-turn walking routes. Shapes and pin coordinates are approximate, and route-pin positions are spread along the region's hub path (or a ring when no path is plotted) — no dataset records true walking coordinates. On a local encounter map, encounters are grouped into the zone their method and terrain belong to; this shows *which zone and sub-area* a Pokémon is found in, not a pixel-accurate tile. Building lists cover major known landmarks rather than every NPC house; roles and access can vary between versions. Unova sequel-only hubs and Johto-era Cinnabar changes are treated separately.
 
 `src/utils/mapEncounters.ts` indexes only `dataset[species][selectedGame]`: it never unions the sibling version's exclusives or rates. DLC ownership uses the shared `isAreaOwned` rules. Each title's actual data is authoritative, not copied from its prequel/remake.
 

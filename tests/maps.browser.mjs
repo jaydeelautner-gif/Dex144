@@ -51,6 +51,23 @@ try {
   assert.ok(await details.locator('article').count()>0);
   await page.getByRole('button',{name:'Zoom map in',exact:true}).click();
   assert.equal(await map.locator('svg[role=group]').getAttribute('width'),'1200');
+  // Route pins are labelled/clickable like city pins, and open a local map.
+  const mapSvg=page.getByRole('group',{name:/schematic map/});
+  assert.ok(await mapSvg.getByRole('button',{name:/^Explore Route \d+/}).count()>3,'routes are clickable pins');
+  await mapSvg.getByRole('button',{name:/^Explore Route \d+/}).first().click();
+  const mini=page.getByRole('group',{name:/little map of/i});
+  await mini.waitFor();
+  assert.ok(await mini.locator('g[role=button]').count()>0,'encounters plotted on the little map');
+  const firstPlot=mini.locator('g[role=button]').first();
+  const plottedName=(await firstPlot.getAttribute('aria-label'))?.split(' — ')[0];
+  await firstPlot.click();
+  assert.equal(await page.getByLabel('Selected map Pokémon').textContent(),plottedName);
+  await page.screenshot({path:'/tmp/homedex-map-route-mini.png'});
+  // Full-screen toggle.
+  await page.getByRole('button',{name:'Full screen map'}).click();
+  assert.equal(await page.getByRole('region',{name:'Interactive region map'}).evaluate(el=>el.className.includes('fixed inset-0')),true,'map goes full screen');
+  await page.getByRole('button',{name:'Exit full screen map'}).click();
+  assert.equal(await page.getByRole('region',{name:'Interactive region map'}).evaluate(el=>el.className.includes('fixed inset-0')),false,'full screen exits');
   await page.getByLabel('Map game',{exact:true}).selectOption('sword');
   assert.equal(await page.getByRole('navigation',{name:'Map regions'}).getByRole('button',{name:'Isle of Armor',exact:true}).count(),0);
   await page.getByRole('button',{name:'Toggle Isle of Armor ownership',exact:true}).click();

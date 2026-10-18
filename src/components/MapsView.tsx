@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Map as MapIcon, Search, ZoomIn, ZoomOut } from 'lucide-react';
+import { Map as MapIcon, Search, ZoomIn, ZoomOut, Maximize2, Minimize2 } from 'lucide-react';
 import { ALL_CANONICAL_GAME_IDS, GAMES, normalizeToCanonicalGames, type DlcId, type GameId, type PokemonEntry } from '../data/pokemonData';
 import { mapRegionsForGame, REGION_LINKS, type MapPlace } from '../data/gameMaps';
 import { loadEncounterDataset, prettifyAreaName, prettyEncounterCondition, prettyEncounterMethod, type EncounterDataset } from '../data/encountersData';
-import { areaRegion, indexMapEncounters, placeMatchesArea, type MapEncounter } from '../utils/mapEncounters';
+import { areaRegion, indexMapEncounters, placeMatchesArea, routePinsFor, terrainBlobs, type MapEncounter, type RoutePin } from '../utils/mapEncounters';
+import { LocationMiniMap } from './LocationMiniMap';
 import { AREA_UNLOCKS } from '../data/areaUnlocks.generated';
 import { GAME_ID_TO_TRACKABLE, MILESTONE_INDEX, milestonesFor } from '../data/milestones';
 import { catchLevelCap, countBadges } from '../utils/catchability';
@@ -32,13 +33,22 @@ export function MapsView({dex,ownedGames,ownedDlcs,gameProgress,onSelectPokemon}
   const [pokemonSearch,setPokemonSearch]=useState('');
   const [method,setMethod]=useState('all');
   const [zoom,setZoom]=useState(1);
+  const [fullscreen,setFullscreen]=useState(false);
+  useEffect(()=>{const close=(event:KeyboardEvent)=>{if(event.key==='Escape')setFullscreen(false);};window.addEventListener('keydown',close);return()=>window.removeEventListener('keydown',close);},[]);
   const [page,setPage]=useState(1);
   const [limit,setLimit]=useDisplayLimit('homedex_map_encounters_count',30);
   const index=useMemo(()=>indexMapEncounters(dataset,game.id,ownedDlcs),[dataset,game.id,ownedDlcs]);
   const areas=useMemo(()=>[...index.keys()].filter(area=>areaRegion(area,game.id,regions.map(r=>r.id))===region.id).sort(),[index,region.id,regions,game.id]);
   const johtoEra=['gold','silver','crystal','heartgold','soulsilver'].includes(game.id);
   const places=region.places.filter(place=>(!place.games || place.games.includes(game.id)) && !(region.id==='unova' && ['aspertia-city','virbank-city','humilau-city'].includes(place.id) && !['black2','white2'].includes(game.id)) && !(region.id==='kanto' && place.id==='pokemon-mansion' && johtoEra)).map(place=>place.id==='cinnabar-island' && johtoEra?{...place,buildings:['Pokémon Center'],notes:'The eruption changed Cinnabar. Its Gym moved to the Seafoam Islands.'}:place);
+  const routePins=useMemo(()=>{
+    // Areas already covered by a curated city/landmark pin are not repeated.
+    const unconsumed=areas.filter(area=>!places.some(place=>placeMatchesArea(place,area)));
+    return routePinsFor(region.id,unconsumed,REGION_LINKS[region.id]??[],places,[]);
+  },[region.id,areas,places]);
+  const blobs=useMemo(()=>terrainBlobs(region.id,region.color),[region.id,region.color]);
   const place=places.find(p=>p.id===placeChoice)??null;
+  const activeRoute=routePins.find(pin=>pin.id===placeChoice)??null;
   const subareas=place?areas.filter(area=>placeMatchesArea(place,area)):[];
   const activeArea=areaChoice && areas.includes(areaChoice)?areaChoice:null;
   const selectedAreas=activeArea?[activeArea]:subareas;
@@ -69,7 +79,7 @@ export function MapsView({dex,ownedGames,ownedDlcs,gameProgress,onSelectPokemon}
   };
   const resetArea=()=>{setPlaceChoice(null);setAreaChoice(null);setMethod('all');setPokemonSearch('');setPage(1);};
   const openPlace=(next:MapPlace)=>{setPlaceChoice(next.id);setAreaChoice(null);setMethod('all');setPokemonSearch('');setPage(1);showDetails();};
-  const openArea=(area:string)=>{setAreaChoice(area);setPlaceChoice(places.find(p=>placeMatchesArea(p,area))?.id??null);setMethod('all');setPokemonSearch('');setPage(1);showDetails();};
+  const openArea=(area:string)=>{setAreaChoice(area);setPlaceChoice(places.find(p=>placeMatchesArea(p,area))?.id??routePins.find(pin=>pin.area===area)?.id??null);setMethod('all');setPokemonSearch('');setPage(1);showDetails();};
   const filteredAreas=areas.filter(area=>prettifyAreaName(area).toLowerCase().includes(search.toLowerCase()));
   const buildingAreas=subareas.filter(area=>/gym|tower|mansion|lab|station|museum|factory|house|headquarters|prize-corner|dojo/.test(area));
   return <div className="flex flex-col gap-4 min-w-0" data-testid="maps-page">
@@ -85,15 +95,21 @@ export function MapsView({dex,ownedGames,ownedDlcs,gameProgress,onSelectPokemon}
     {!loading && !dataset && <div role="alert" className="text-xs text-amber-200">Encounter data is unavailable on this device. <button type="button" onClick={()=>setRetry(v=>v+1)} className="underline">Retry</button> or install the offline data package.</div>}
     {!loading && dataset && index.size===0 && <p role="status" className="text-xs text-amber-200">No encounter rows are recorded for {game.title} in the current bundle. Landmarks remain available; no species, rates or locations are invented to fill the gap.</p>}
     <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(300px,1fr)] gap-4 items-start">
-      <section aria-label="Interactive region map" className="min-w-0 p-3 rounded-2xl border border-slate-800 bg-[#0F1522] flex flex-col gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-bold text-slate-100">{region.name}</h2><div className="flex gap-2"><button type="button" aria-label="Zoom map out" disabled={zoom<=0.8} onClick={()=>setZoom(v=>Math.max(0.8,v-0.2))} className="p-2 border border-slate-700 rounded text-slate-200 disabled:opacity-30"><ZoomOut className="w-4 h-4" /></button><button type="button" aria-label="Zoom map in" disabled={zoom>=2} onClick={()=>setZoom(v=>Math.min(2,v+0.2))} className="p-2 border border-slate-700 rounded text-slate-200 disabled:opacity-30"><ZoomIn className="w-4 h-4" /></button><button type="button" onClick={()=>setZoom(1)} className="text-xs text-amber-200">Reset zoom</button></div></div>
-        <div className="overflow-auto rounded-xl border border-slate-700 bg-sky-950/60" style={{maxHeight:600}}>
+      <section aria-label="Interactive region map" className={`${fullscreen?'fixed inset-0 z-50 rounded-none':'min-w-0 rounded-2xl border border-slate-800'} p-3 bg-[#0F1522] flex flex-col gap-3`}>
+        <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-bold text-slate-100">{region.name} {fullscreen&&<span className="text-xs text-amber-300">Full screen</span>}</h2><div className="flex gap-2"><button type="button" aria-label={fullscreen?'Exit full screen map':'Full screen map'} onClick={()=>setFullscreen(v=>!v)} className="p-2 border border-slate-700 rounded text-slate-200">{fullscreen?<Minimize2 className="w-4 h-4" />:<Maximize2 className="w-4 h-4" />}</button><button type="button" aria-label="Zoom map out" disabled={zoom<=0.8} onClick={()=>setZoom(v=>Math.max(0.8,v-0.2))} className="p-2 border border-slate-700 rounded text-slate-200 disabled:opacity-30"><ZoomOut className="w-4 h-4" /></button><button type="button" aria-label="Zoom map in" disabled={zoom>=2} onClick={()=>setZoom(v=>Math.min(2,v+0.2))} className="p-2 border border-slate-700 rounded text-slate-200 disabled:opacity-30"><ZoomIn className="w-4 h-4" /></button><button type="button" onClick={()=>setZoom(1)} className="text-xs text-amber-200">Reset zoom</button></div></div>
+        <div className="overflow-auto rounded-xl border border-slate-700 bg-sky-950/60" style={{maxHeight:fullscreen?'calc(100vh - 250px)':600}}>
           <svg viewBox="0 0 1000 660" width={1000*zoom} role="group" aria-label={`${region.name} schematic map`} className="block max-w-none">
             <rect width="1000" height="660" fill="#082f49" />
             <g stroke="#164e63" strokeWidth="1" opacity="0.6">{Array.from({length:20},(_,i)=><path key={i} d={`M${i*55} 0V660M0 ${i*55}H1000`} />)}</g>
+            {blobs.map((blob,i)=><ellipse key={i} cx={blob.x} cy={blob.y} rx={blob.rx} ry={blob.ry} fill={blob.fill} opacity={blob.opacity} />)}
             <RegionTerrain region={region} />
             <g fill="none" stroke={region.color} strokeWidth="5" strokeOpacity="0.45" strokeLinejoin="round">{(REGION_LINKS[region.id]??[]).map((link,i)=><polyline key={i} points={link.flatMap(id=>{const pin=places.find(p=>p.id===id);return pin?[`${pin.x},${pin.y}`]:[];}).join(' ')} />)}</g>
 
+            {routePins.map(pin=>{const active=pin.id===placeChoice;return <g key={pin.id} role="button" tabIndex={0} aria-label={`Explore ${pin.name}`} aria-pressed={active} onClick={()=>openArea(pin.area)} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();openArea(pin.area);}}} className="cursor-pointer focus:outline-none">
+              <circle cx={pin.x} cy={pin.y} r="18" fill="transparent" />
+              <polygon points={`${pin.x},${pin.y-8} ${pin.x+8},${pin.y} ${pin.x},${pin.y+8} ${pin.x-8},${pin.y}`} fill={active?'#fbbf24':'#0f172a'} stroke={active?'#fef3c7':region.color} strokeWidth="2.5" />
+              <text x={pin.x} y={pin.y+22} textAnchor="middle" fill={active?'#fef3c7':'#cbd5e1'} stroke="#082f49" strokeWidth="4" paintOrder="stroke" fontSize="11">{pin.name}</text>
+            </g>;})}
             {places.map(pin=>{const active=pin.id===placeChoice;return <g key={pin.id} role="button" tabIndex={0} aria-label={`Explore ${pin.name}`} aria-pressed={active} onClick={()=>openPlace(pin)} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();openPlace(pin);}}} className="cursor-pointer focus:outline-none focus:brightness-150">
               <circle cx={pin.x} cy={pin.y} r="22" fill="transparent" />
               {pin.buildings.length?<rect x={pin.x-10} y={pin.y-10} width="20" height="20" rx="4" fill={active?'#fbbf24':'#0f172a'} stroke={active?'#fef3c7':region.color} strokeWidth="3" />:<circle cx={pin.x} cy={pin.y} r={active?14:10} fill={active?'#fbbf24':'#0f172a'} stroke={active?'#fef3c7':region.color} strokeWidth="3" />}
@@ -109,6 +125,7 @@ export function MapsView({dex,ownedGames,ownedDlcs,gameProgress,onSelectPokemon}
       </section>
       <section ref={detailsRef} aria-label="Map location details" className="min-w-0 p-4 rounded-2xl border border-slate-800 bg-[#0F1522] flex flex-col gap-3">
         <div><button type="button" onClick={resetArea} className="text-xs text-amber-300 underline">{region.name} overview</button><h2 className="text-lg font-bold text-slate-100 mt-1">{activeArea?prettifyAreaName(activeArea):place?.name??'Choose a location'}</h2></div>
+        {activeRoute && !activeArea && <p className="text-xs text-slate-400">This is a recorded route area. Open it to see its encounters grouped on a local map.</p>}
         {place?.notes && <p className="text-sm text-slate-300">{place.notes}</p>}
         {place && <div><h3 className="text-xs font-bold text-sky-200 mb-2">Buildings & landmarks</h3>{place.buildings.length>0?<ul className="list-disc pl-4 text-xs text-slate-300 space-y-1">{place.buildings.map(building=><li key={building}>{building}</li>)}</ul>:<p className="text-xs text-slate-400">No additional building notes recorded for this location.</p>}</div>}
         {buildingAreas.length>0 && <div className="flex flex-wrap gap-1.5">{buildingAreas.map(area=><button key={area} type="button" onClick={()=>openArea(area)} className="p-2 rounded border border-slate-700 text-xs text-sky-200">{prettifyAreaName(area)}</button>)}</div>}
@@ -118,6 +135,7 @@ export function MapsView({dex,ownedGames,ownedDlcs,gameProgress,onSelectPokemon}
           {activeArea && <p className="text-xs text-slate-400">{progressLabel(activeArea)}</p>}
           {Number.isFinite(cap) && <p className="text-[11px] text-slate-400">Marked badge progress: catch cap Lv. {cap}. Higher-level rows remain visible.</p>}
           {!loading && records.length===0 && <p role="status" className="text-xs text-slate-400">No encounter records for this location in {game.title}. This does not prove that no Pokémon can be obtained here.</p>}
+          {records.length>0 && <LocationMiniMap area={activeArea??subareas[0]??place?.name??''} encounters={records} names={names} onSelectPokemon={onSelectPokemon} />}
           {records.length>0 && <>
             <input aria-label="Find map Pokémon" value={pokemonSearch} onChange={e=>{setPokemonSearch(e.target.value);setPage(1);}} placeholder="Pokémon name or dex #" className="w-full rounded-lg bg-slate-900 border border-slate-700 p-2 text-xs text-slate-100" />
             <label className="text-xs text-slate-300">Method<select aria-label="Map encounter method" value={method} onChange={e=>{setMethod(e.target.value);setPage(1);}} className="ml-2 rounded bg-slate-900 p-2 border border-slate-700"><option value="all">All methods</option>{methods.map(value=><option key={value} value={value}>{prettyEncounterMethod(value)}</option>)}</select></label>
@@ -129,7 +147,7 @@ export function MapsView({dex,ownedGames,ownedDlcs,gameProgress,onSelectPokemon}
                 <span className="block text-sky-200">{prettifyAreaName(row.area)}</span>
                 {prettyEncounterMethod(row.method)} · Lv. {row.minLevel}{row.maxLevel!==row.minLevel?`–${row.maxLevel}`:''} · {row.chance>0?`${row.chance}%`:'Rate not recorded'}
                 {row.minLevel>cap && <span className="ml-1 text-amber-200">Above catch cap</span>}
-                {row.conditions.length>0 && <span className="block text-fuchsia-200">{row.conditions.map(condition=>prettyEncounterCondition(condition)??prettifyAreaName(condition)).join(' · ')}</span>}
+                {row.conditions.length>0 && <span className="block text-fuchsia-200">{row.conditions.map((condition:string)=>prettyEncounterCondition(condition)??prettifyAreaName(condition)).join(' · ')}</span>}
                 <span className="block text-slate-500">{progressLabel(row.area)}</span>
               </li>)}</ul>
             </article>;})}</div>
