@@ -39,47 +39,85 @@ def item_slugs():
     return sorted(set(re.findall(r'"slug":"([a-z0-9-]+)"', body)))
 
 def parse_locations(html):
-    """game label -> location text, from the item page's Locations table."""
-    idx = html.find('id="locations"')
-    if idx < 0:
-        m = re.search(r'>\s*Locations\s*<', html)
-        idx = m.start() if m else -1
-    if idx < 0:
-        return {}
-    seg = html[idx:idx + 20000]
-    end = seg.find('</table>')
-    if end > 0:
-        seg = seg[:end + 8]
+    """game label -> location text, from the item page's Locations section.
+
+    Rows are structured, not a flat table: a `<td colspan=...>` names an area
+    (e.g. "The Crown Tundra", "Routes and Caves"), and the following rows carry
+    `<td>Game</td><td>where</td>`. Reading only the first table, or flattening
+    every cell, loses rows and merges headings into the results.
+    """
     out = {}
+    # The Locations heading is followed by its table; take that whole table.
+    m = re.search(r'>\s*Locations\s*<', html)
+    if not m:
+        m = re.search(r'id="locations"', html)
+    if not m:
+        # Some pages (e.g. Dynite Ore) only document raid/dynamax sources.
+        m = re.search(r'>\s*Max Raid Battle Locations\s*<', html)
+    if not m:
+        return {}
+    seg = html[m.end():]
+    end = seg.find('</table>')
+    if end < 0:
+        end = min(len(seg), 40000)
+    seg = seg[:end]
     for row in re.findall(r'<tr[^>]*>(.*?)</tr>', seg, re.S):
-        cells = [strip_tags(c) for c in re.findall(r'<td[^>]*>(.*?)</td>', row, re.S)]
-        cells = [c for c in cells if c]
-        if len(cells) < 2:
+        cells = re.findall(r'<td[^>]*>(.*?)</td>', row, re.S)
+        clean = [strip_tags(c) for c in cells]
+        spanned = re.search(r'<td[^>]*colspan', row, re.I)
+        if spanned and len(clean) == 1:
+            # A single spanning cell is a section heading, not data.
             continue
-        where = cells[-1]
-        # A row lists one or more game names then the location text.
-        games = [c for c in cells[:-1] if len(c) <= 40]
-        if not games or not where:
+        clean = [c for c in clean if c]
+        if len(clean) < 2:
+            continue
+        where = clean[-1]
+        games = clean[:-1]
+        if not where or re.match(r'^(yes|no)$', where, re.I):
             continue
         for game in games:
-            if game.lower() in ('locations', 'game', 'games'):
+            if len(game) > 40 or game.lower() in ('locations', 'game', 'games', 'event description'):
                 continue
             out[game] = (out[game] + ' , ' + where) if game in out else where
-    # Tidy: collapse the empty table cells into single separators.
     cleaned = {}
     for game, where in out.items():
-        text_ = re.sub(r'\s*,\s*(,\s*)+', ' , ', where).strip(' ,')
-        if text_:
-            cleaned[game] = text_
+        text = re.sub(r'\s*,\s*(,\s*)+', ' , ', where).strip(' ,')
+        if text:
+            cleaned[game] = text
     return cleaned
 
+def candidate_names(slug):
+    """Serebii page names to try, most specific first.
+
+    PokeAPI identifiers sometimes carry a form suffix (e.g. "normalium-z--held"
+    for Normalium Z) that the page name omits.
+    """
+    base = slug.replace('-', '')
+    names = [base]
+    if '--' in slug:
+        names.append(slug.split('--')[0].replace('-', ''))
+    if slug.endswith('-held'):
+        names.append(slug[:-len('-held')].replace('-', ''))
+    if slug.endswith('-bag'):
+        names.append(slug[:-len('-bag')].replace('-', ''))
+    seen, out = set(), []
+    for n in names:
+        if n and n not in seen:
+            seen.add(n)
+            out.append(n)
+    return out
+
 def scrape(slug):
-    url = f'https://www.serebii.net/itemdex/{slug.replace("-", "")}.shtml'
     cache_file = os.path.join(CACHE, slug + '.html')
     if os.path.exists(cache_file) and os.path.getsize(cache_file) > 1000:
         html = open(cache_file, encoding='latin-1').read()
     else:
-        html = fetch(url)
+        html = ''
+        for name in candidate_names(slug):
+            html = fetch(f'https://www.serebii.net/itemdex/{name}.shtml')
+            if html and 'Locations' in html:
+                break
+            html = ''
         if html:
             os.makedirs(CACHE, exist_ok=True)
             with open(cache_file, 'w', encoding='latin-1') as f:

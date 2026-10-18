@@ -29,10 +29,18 @@ failure, and the download starts as soon as a sprite first renders.
 ## How to acquire each item
 
 `scripts/fetch_item_locations.py` scrapes the per-game **Locations** table from each item's page into
-`src/data/itemLocations.generated.ts`: **1,162 items with 9,200 per-game acquisition entries** (for
+`src/data/itemLocations.generated.ts`: **1,259 items with 9,584 per-game acquisition entries** (for
 example Thunder Stone → *Black: Route 9, Chargestone Cave, Wellspring Cave (Dustcloud)…*, *Emerald:
 Route 124 (Trade for Yellow Shard)*). Rerun with `python3 scripts/fetch_item_locations.py`; pages are
 cached in `.item-cache/` so reruns only fetch what is missing, and nothing is fetched at app runtime.
+
+The parser reads the section heading plus its table without flattening cells, so area headings
+("The Crown Tundra") are not mistaken for locations, and PokeAPI form suffixes are tried with and
+without their suffix (`normalium-z--held` → Normalium Z), which is what brings Z-Crystals, Mega Stones
+and the raid-only items into the dataset. The 624 items still without data are almost all
+**Dynamax Crystals (300)** and internal or non-pickup entries — mail, sandwich ingredients, data cards,
+miracle shooter, unused items — which have no acquisition table upstream. They show their sprite and
+effect and state that no acquisition data is recorded rather than inventing it.
 
 Opening an item shows **How to get it in games you own** first (matched through the game-label map in
 `src/data/gameVersionGroups.ts`), then **How to get it** for every game, with spin-off sources such as
