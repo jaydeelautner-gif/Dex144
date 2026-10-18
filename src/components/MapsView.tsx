@@ -5,6 +5,7 @@ import { mapRegionsForGame, REGION_LINKS, type MapPlace } from '../data/gameMaps
 import { loadEncounterDataset, prettifyAreaName, prettyEncounterCondition, prettyEncounterMethod, type EncounterDataset } from '../data/encountersData';
 import { areaRegion, indexMapEncounters, placeMatchesArea, routePinsFor, type MapEncounter, type RoutePin } from '../utils/mapEncounters';
 import { LocationMiniMap } from './LocationMiniMap';
+import { curatedLocationsForPlace } from './ItemsView';
 import { AREA_UNLOCKS } from '../data/areaUnlocks.generated';
 import { GAME_ID_TO_TRACKABLE, MILESTONE_INDEX, milestonesFor } from '../data/milestones';
 import { catchLevelCap, countBadges } from '../utils/catchability';
@@ -47,6 +48,7 @@ export function MapsView({dex,ownedGames,ownedDlcs,gameProgress,onSelectPokemon}
     return routePinsFor(region.id,unconsumed,REGION_LINKS[region.id]??[],places,[]);
   },[region.id,areas,places]);
   const place=places.find(p=>p.id===placeChoice)??null;
+  const pickups=useMemo(()=>place?curatedLocationsForPlace(place.name):[],[place]);
   const activeRoute=routePins.find(pin=>pin.id===placeChoice)??null;
   const subareas=place?areas.filter(area=>placeMatchesArea(place,area)):[];
   const activeArea=areaChoice && areas.includes(areaChoice)?areaChoice:null;
@@ -126,6 +128,10 @@ export function MapsView({dex,ownedGames,ownedDlcs,gameProgress,onSelectPokemon}
         {activeRoute && !activeArea && <p className="text-xs text-slate-400">This is a recorded route area. Open it to see its encounters grouped on a local map.</p>}
         {place?.notes && <p className="text-sm text-slate-300">{place.notes}</p>}
         {place && <div><h3 className="text-xs font-bold text-sky-200 mb-2">Buildings & landmarks</h3>{place.buildings.length>0?<ul className="list-disc pl-4 text-xs text-slate-300 space-y-1">{place.buildings.map(building=><li key={building}>{building}</li>)}</ul>:<p className="text-xs text-slate-400">No additional building notes recorded for this location.</p>}</div>}
+        {place && pickups.length>0 && <div>
+          <h3 className="text-xs font-bold text-amber-200 mb-2">Items found here</h3>
+          <ul className="flex flex-col gap-1 text-xs text-slate-300 max-h-40 overflow-auto">{pickups.map((pickup,index)=><li key={`${pickup.name}-${index}`} className="border-t border-slate-800 pt-1"><span className="font-semibold text-slate-100">{pickup.name}</span><span className="block text-[11px] text-slate-400">{pickup.note}</span></li>)}</ul>
+        </div>}
         {buildingAreas.length>0 && <div className="flex flex-wrap gap-1.5">{buildingAreas.map(area=><button key={area} type="button" onClick={()=>openArea(area)} className="p-2 rounded border border-slate-700 text-xs text-sky-200">{prettifyAreaName(area)}</button>)}</div>}
         {place && subareas.length>0 && <label className="text-xs text-slate-300">Encounter subarea<select aria-label="Map encounter subarea" value={activeArea??'all'} onChange={e=>{setAreaChoice(e.target.value==='all'?null:e.target.value);setMethod('all');setPokemonSearch('');setPage(1);}} className="block mt-1 w-full rounded-lg p-2 bg-slate-900 border border-slate-700 text-slate-100"><option value="all">All recorded subareas</option>{subareas.map(area=><option key={area} value={area}>{prettifyAreaName(area)}</option>)}</select></label>}
         {(place || activeArea) && <>

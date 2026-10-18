@@ -1,4 +1,5 @@
 import { MapsView } from './components/MapsView';
+import { ItemsView } from './components/ItemsView';
 import { normalizePokemonLanguage } from './data/pokemonLanguages';
 import { DisplayLimitSelect, useDisplayLimit } from './components/DisplayControls';
 import { useHomeDesign, adoptHomeDesign } from './hooks/useHomeDesign';
@@ -141,6 +142,7 @@ type MainWorkspaceTab =
   | 'register'
   | 'pokedex'
   | 'maps'
+  | 'items'
   | 'profile'
   | 'progress'    // ── GAME PROGRESS TRACKING ──
   | 'public_stats'
@@ -2324,6 +2326,7 @@ export function App() {
               { id: 'register', label: 'Register' },
               { id: 'pokedex', label: 'Pokédex' },
               { id: 'maps', label: 'Maps' },
+              { id: 'items', label: 'Items' },
               { id: 'profile', label: displayTrainerName || 'Profile' },
               { id: 'progress', label: 'Progress' },  // ── GAME PROGRESS TRACKING ──
               { id: 'public_stats', label: 'Living Dex' },
@@ -3154,6 +3157,8 @@ export function App() {
                 )}
               </div>
             )}
+
+            {activeTab === 'items' && <ItemsView ownedGames={ownedGames} ownedDlcs={ownedDlcs} />}
 
             {activeTab === 'maps' && <MapsView dex={dex} ownedGames={ownedGames} ownedDlcs={ownedDlcs} gameProgress={gameProgress as Record<string,string[]>} onSelectPokemon={setSelectedPokemon} />}
 

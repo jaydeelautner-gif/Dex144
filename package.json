@@ -37,7 +37,9 @@
     "generate:sprites": "tsx scripts/downloadSprites.ts && node scripts/bundleSprites.mjs",
     "bundle:sprites": "node scripts/bundleSprites.mjs",
     "test:customization": "npm run build && node tests/customization.browser.mjs",
-    "test:trainer-card": "npm run build && node tests/trainerCard.browser.mjs"
+    "test:trainer-card": "npm run build && node tests/trainerCard.browser.mjs",
+    "generate:items": "node scripts/generateItemsData.mjs",
+    "test:items": "tsx tests/items.test.ts && npm run build && node tests/items.browser.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
