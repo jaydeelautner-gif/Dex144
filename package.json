@@ -31,6 +31,8 @@
     "test:sync": "node --experimental-strip-types tests/syncDiagnostics.test.ts || npx tsx tests/syncDiagnostics.test.ts",
     "test:sync-queue": "npm run build && node tests/syncQueue.browser.mjs",
     "test:sprites": "node tests/sprites.browser.mjs",
+    "generate:breeding": "node scripts/generateBreedingData.mjs",
+    "test:breeding": "tsx tests/breeding.test.ts && npm run build && node tests/breeding.browser.mjs",
     "generate:sprites": "tsx scripts/downloadSprites.ts && node scripts/bundleSprites.mjs",
     "bundle:sprites": "node scripts/bundleSprites.mjs",
     "test:customization": "npm run build && node tests/customization.browser.mjs",

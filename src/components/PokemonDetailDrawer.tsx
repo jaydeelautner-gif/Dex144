@@ -1,3 +1,4 @@
+import { PokemonBreedingSection } from './PokemonBreedingSection';
 import React, { useState } from 'react';
 import {
   X,
@@ -488,6 +489,8 @@ export const PokemonDetailDrawer: React.FC<PokemonDetailDrawerProps> = ({
             </div>
           );
         })()}
+
+      <PokemonBreedingSection pokemon={pokemon} dex={dex} ownedGames={ownedGames} onSelectPokemon={onSelectPokemon} />
 
         {/* Accurate Wild Encounter Data (PokéAPI bundle) */}
         <PokemonEncountersSection

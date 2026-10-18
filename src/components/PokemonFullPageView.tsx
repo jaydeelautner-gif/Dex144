@@ -1,3 +1,4 @@
+import { PokemonBreedingSection } from './PokemonBreedingSection';
 import React, { useState, useMemo } from 'react';
 import {
   ArrowLeft,
@@ -628,6 +629,8 @@ export const PokemonFullPageView: React.FC<PokemonFullPageViewProps> = ({
           </div>
         )}
       </div>
+
+      <PokemonBreedingSection pokemon={pokemon} dex={dex} ownedGames={ownedGames} onSelectPokemon={onSelectPokemon} />
 
       {/* Accurate Wild Encounter Data (PokéAPI bundle) */}
       <section className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 shadow-xl">
