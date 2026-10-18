@@ -1,4 +1,4 @@
-import { SPRITE_BLOB, type SpriteSlice } from '../data/spriteFiles.generated';
+import { ITEM_SPRITE_SLICES, SPRITE_BLOB, type SpriteSlice } from '../data/spriteFiles.generated';
 
 /**
  * All sprites ship as one binary file (`/sprites.bin`) with a byte-offset index
@@ -43,4 +43,15 @@ export function clearSpriteUrlCache(): void {
   for (const url of urlCache.values()) if (url) URL.revokeObjectURL(url);
   urlCache.clear();
   archiveRequest = null;
+}
+
+/** Object URL for an item sprite by its PokeAPI identifier, or null when unbundled. */
+export function itemSpriteSlice(slug: string): SpriteSlice | null {
+  return ITEM_SPRITE_SLICES[slug] ?? null;
+}
+export function hasItemSprite(slug: string): boolean {
+  return Boolean(ITEM_SPRITE_SLICES[slug]);
+}
+export function itemSpriteUrl(slug: string): Promise<string | null> {
+  return spriteUrl(ITEM_SPRITE_SLICES[slug]);
 }

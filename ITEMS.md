@@ -11,9 +11,23 @@
 
 `src/data/gameVersionGroups.ts` maps each canonical game to its PokéAPI version group so a game shows the correct machine list. Legends: Arceus and Pokémon GO have no TM/HM machines and are labelled as such.
 
+## Item sprites
+
+Every item has artwork: `scripts/downloadItemSprites.mjs` fetches the PokeAPI item sprite for each
+item's identifier, and `scripts/appendItemSprites.mjs` appends them to the existing
+`public/sprites.bin` and records their byte slices, so **all 1,883 item sprites ship inside the app**
+and load from the local sprite archive with no network request. Regenerate with
+`npm run generate:item-sprites`. Appending rather than rebuilding keeps the Pokémon slices already in
+use valid; the binary grew from 9 MB to 19 MB.
+
 ## Locations
 
-Each item card has a **Locations** disclosure listing the curated per-game pickup spots, filtered to the selected game when one is chosen, with the number of real pickup spots in the summary. Entries whose source text is not an actual pickup (for example Pokémon GO's Candy requirement) are flagged as *not a pickup* instead of being presented as a find spot.
+Clicking an item card expands it: its sprite, full effect text, available generations, Fling power and
+coin cost, then its locations. The list is split into **In games you own** and **All recorded
+locations** so the games you actually own are shown first (an **In games you own** section appears
+when no game filter is set).
+
+Each item card also shows a location count listing the curated per-game pickup spots, filtered to the selected game when one is chosen, with the number of real pickup spots in the summary. Entries whose source text is not an actual pickup (for example Pokémon GO's Candy requirement) are flagged as *not a pickup* instead of being presented as a find spot.
 
 The game filter keeps an item when it has a curated location in that game **or** when the item exists in that game's generation, so a game filter never hides an obtainable item just because we have no curated note for it.
 

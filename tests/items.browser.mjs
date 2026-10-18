@@ -43,9 +43,13 @@ try {
   const items=page.getByTestId('items-page');
   await nav.getByRole('button',{name:'Items',exact:true}).click();
   await items.waitFor();
-  await page.getByLabel('Search items',{exact:true}).fill('Thunder Stone');
-  await items.getByRole('heading',{name:'Thunder Stone',exact:true}).waitFor();
+  await items.getByLabel('Search items',{exact:true}).fill('Thunder Stone');
+  await items.getByRole('button',{name:/Thunder Stone/}).first().waitFor();
+  assert.ok(await items.locator('img[src^="blob:"]').count()>0,'item sprites render from the bundled archive');
+  await items.getByRole('button',{name:/Thunder Stone/}).first().click();
   assert.match(await items.innerText(),/Evolution/);
+  assert.match(await items.innerText(),/Locations|location/, 'clicking an item reveals its locations');
+  await items.getByRole('button',{name:/Thunder Stone/}).first().click();
   await items.getByRole('button',{name:'TMs & HMs',exact:true}).click();
   await page.getByLabel('Machine game',{exact:true}).waitFor();
   const allGames=page.getByRole('button',{name:'All games',exact:true});

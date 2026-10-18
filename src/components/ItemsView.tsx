@@ -5,6 +5,8 @@ import { ALL_CANONICAL_GAME_IDS, GAMES, normalizeToCanonicalGames, type DlcId, t
 import { humanItemName, versionGroupFor, VERSION_GROUP_LABEL } from '../data/gameVersionGroups';
 import { curatedLocationsForItem, POKEMON_ITEMS_DATABASE } from '../data/pokemonItemsData';
 import { DisplayLimitSelect, PageControls, useDisplayLimit } from './DisplayControls';
+import { ItemSprite } from './ItemSprite';
+import { hasItemSprite } from '../utils/spriteArchive';
 
 const CATEGORY_LABELS: Record<string, string> = {
   standardballs: 'Poké Balls', specialballs: 'Special Poké Balls', medicine: 'Medicine', berries: 'Berries',
@@ -50,6 +52,7 @@ export function ItemsView({ownedGames,ownedDlcs}:{ownedGames:GameId[];ownedDlcs:
   const [category,setCategory]=useState('all');
   const [generation,setGeneration]=useState('all');
   const [gameFilter,setGameFilter]=useState('all');
+  const [openItem,setOpenItem]=useState<string|null>(null);
   const [limit,setLimit]=useDisplayLimit('homedex_items_count',30);
   const [page,setPage]=useState(1);
   const owned=normalizeToCanonicalGames(ownedGames);
@@ -108,23 +111,42 @@ export function ItemsView({ownedGames,ownedDlcs}:{ownedGames:GameId[];ownedDlcs:
       </div>
       <PageControls page={current} pages={pages} total={rows.length} onChange={setPage} />
       {rows.length===0?<p role="status" className="text-sm text-slate-400">No items match that search.</p>:
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">{shown.map(([id,item])=><article key={id} className="p-3 rounded-xl border border-slate-800 bg-[#0F1522] flex flex-col gap-1">
-        <div className="flex items-start justify-between gap-2"><h2 className="font-bold text-slate-100 text-sm">{humanItemName(item.name,item.category)}</h2><span className="text-[10px] font-mono text-amber-300 shrink-0">{label(item.category)}</span></div>
-        {item.effect&&<p className="text-xs text-slate-300">{item.effect}</p>}
-        {(() => {
-          const curated=curatedLocationsForItem(item.name);
-          if(!curated) return null;
-          const wanted=[gameFilter,gamesGroup(gameFilter)].filter(Boolean);
-          const entries=curated.locationsByGame.filter(entry=>gameFilter==='all' || wanted.includes(entry.gameId));
-          const isPickup=(entry:{notPickup?:boolean})=>!entry.notPickup;
-          return <details className="text-[11px] text-slate-300">
-            <summary className="cursor-pointer text-sky-200">Locations ({entries.filter(isPickup).length})</summary>
-            <ul className="mt-1 flex flex-col gap-0.5 max-h-40 overflow-auto">{entries.map((entry,index)=><li key={index}><span className="text-slate-400">{entry.gameShortTitle}:</span> {entry.location}{entry.notPickup&&<span className="text-amber-300"> · not a pickup</span>}</li>)}</ul>
-            {entries.filter(isPickup).length===0&&<p className="text-[10px] text-slate-500">No recorded pickup spots for this game.</p>}
-          </details>;
-        })()}
-        <p className="text-[10px] text-slate-500">{item.generations.length?'Available: '+item.generations.map(gen=>GENERATION_LABELS[gen]??`Gen ${gen}`).join(', '):'Availability not recorded'}{item.flingPower?` · Fling power ${item.flingPower}`:''}{item.cost?` · ${item.cost} coins`:''}</p>
-      </article>)}</div>}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">{shown.map(([id,item])=>{
+        const readable=humanItemName(item.name,item.category);
+        const curated=curatedLocationsForItem(item.name);
+        const entries=curated?curated.locationsByGame.filter(entry=>gameFilter==='all'||[gameFilter,gamesGroup(gameFilter)].includes(entry.gameId)):[];
+        const pickups=entries.filter(entry=>!entry.notPickup);
+        const ownedPickups=pickups.filter(entry=>owned.includes(entry.gameId));
+        const expanded=openItem===id;
+        return <article key={id} className="rounded-xl border border-slate-800 bg-[#0F1522]">
+          <button type="button" aria-expanded={expanded} onClick={()=>setOpenItem(expanded?null:id)} className="w-full text-left p-3 flex items-start gap-3 cursor-pointer hover:bg-slate-900/60 rounded-xl">
+            <ItemSprite slug={item.slug} name={readable} size={34} />
+            <span className="min-w-0 flex-1">
+              <span className="flex items-start justify-between gap-2"><span className="font-bold text-slate-100 text-sm">{readable}</span><span className="text-[10px] font-mono text-amber-300 shrink-0">{label(item.category)}</span></span>
+              {item.effect&&!expanded&&<span className="block text-xs text-slate-300 line-clamp-2">{item.effect}</span>}
+              <span className="block text-[10px] text-slate-500 mt-0.5">
+                {pickups.length>0?`${pickups.length} known location${pickups.length===1?'':'s'}`:'No recorded pickup spot'}
+                {hasItemSprite(item.slug)?' · artwork bundled':''}
+              </span>
+            </span>
+          </button>
+          {expanded&&<div className="px-3 pb-3 flex flex-col gap-2 border-t border-slate-800 pt-2">
+            {item.effect&&<p className="text-xs text-slate-300">{item.effect}</p>}
+            <p className="text-[10px] text-slate-500">{item.generations.length?'Available: '+item.generations.map(gen=>GENERATION_LABELS[gen]??`Gen ${gen}`).join(', '):'Availability not recorded'}{item.flingPower?` · Fling power ${item.flingPower}`:''}{item.cost?` · ${item.cost} coins`:''}</p>
+            {curated?<>
+              {gameFilter==='all'&&ownedPickups.length>0&&<div>
+                <h3 className="text-[11px] font-bold text-emerald-300 mb-1">In games you own ({ownedPickups.length})</h3>
+                <ul className="flex flex-col gap-1 max-h-44 overflow-auto">{ownedPickups.map((entry,index)=><li key={index} className="text-[11px] text-slate-300 border-t border-slate-800 pt-1"><span className="text-slate-400">{entry.gameShortTitle}:</span> {entry.location}</li>)}</ul>
+              </div>}
+              <div>
+                <h3 className="text-[11px] font-bold text-sky-200 mb-1">All recorded locations ({pickups.length})</h3>
+                {pickups.length===0?<p className="text-[11px] text-slate-400">No pickup spots recorded for {gameFilter==='all'?'any game':GAMES.find(entry=>entry.id===gameFilter)?.title}.</p>:
+                <ul className="flex flex-col gap-1 max-h-44 overflow-auto">{entries.map((entry,index)=><li key={index} className="text-[11px] text-slate-300 border-t border-slate-800 pt-1"><span className="text-slate-400">{entry.gameShortTitle}:</span> {entry.location}{entry.notPickup&&<span className="text-amber-300"> · not a pickup</span>}</li>)}</ul>}
+              </div>
+            </>:<p className="text-[11px] text-slate-400">Per-area pickup data is not recorded for this item. Its sprite and effect still ship with the app.</p>}
+          </div>}
+        </article>;
+      })}</div>}
     </>:<>
       <div className="flex flex-wrap items-center gap-2">
         <label className="text-xs text-slate-300">Game<select aria-label="Machine game" value={game?.id??''} onChange={event=>setMachineGame(event.target.value as GameId)} className="ml-2 rounded bg-slate-900 p-2 border border-slate-700 text-slate-100">{machineGames.map(entry=><option key={entry.id} value={entry.id}>{entry.title}</option>)}</select></label>
