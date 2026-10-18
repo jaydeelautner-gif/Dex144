@@ -3,6 +3,8 @@ import { ITEMS, ITEM_TYPES, MOVE_MACHINE_GROUPS, TM_HM } from '../src/data/items
 import { CONSTELLATION_NAMES, GAME_VERSION_GROUP, humanItemName, versionGroupFor, VERSION_GROUP_LABEL } from '../src/data/gameVersionGroups';
 import { ALL_CANONICAL_GAME_IDS } from '../src/data/pokemonData';
 import { curatedLocationsForItem } from '../src/data/pokemonItemsData';
+import { ITEM_LOCATIONS } from '../src/data/itemLocations.generated';
+import { SEREBII_GAME_IDS } from '../src/data/gameVersionGroups';
 assert.ok(Object.keys(ITEMS).length>=1500);
 for(const [id,item] of Object.entries(ITEMS)){
   assert.ok(typeof item.name==='string'&&item.name.length>0&&item.name.length<=80,`#${id} name`);
@@ -54,4 +56,19 @@ assert.ok(curatedLocationsForItem('Thunder Stone')===thunderStone);
 assert.equal(curatedLocationsForItem('Definitely Not An Item'),null);
 const readCrystal=curatedLocationsForItem('Dynamax Crystal — Andromeda 458');
 assert.ok(!readCrystal || typeof readCrystal==='object','readable crystal name lookup does not throw');
-console.log(`Items tests passed: ${Object.keys(ITEMS).length} items, ${Object.values(TM_HM).reduce((n,l)=>n+l.length,0)} TM/HM entries, ${MOVE_MACHINE_GROUPS.length} version groups and game mapping.`);
+// Per-game acquisition data.
+assert.ok(Object.keys(ITEM_LOCATIONS).length>1000,`acquisition data covers most items (${Object.keys(ITEM_LOCATIONS).length})`);
+const entries=Object.entries(ITEM_LOCATIONS);
+for(const [slug,byGame] of entries){
+  assert.ok(Object.keys(byGame).length>0,`${slug} has at least one game`);
+  for(const [game,where] of Object.entries(byGame)){
+    assert.ok(where.trim().length>1,`${slug}/${game} has location text`);
+    assert.ok(!/, ,|^,|,$/.test(where),`${slug}/${game} has clean separators`);
+  }
+}
+const stoneLocations=ITEM_LOCATIONS['thunder-stone'];
+assert.ok(stoneLocations?.Black?.includes('Chargestone Cave'),'Thunder Stone lists its Black locations');
+assert.ok(stoneLocations?.Emerald?.includes('Route 124'),'Thunder Stone lists its Emerald trade');
+assert.ok(ITEM_LOCATIONS['master-ball'],'Master Ball has acquisition data');
+assert.ok(Object.keys(SEREBII_GAME_IDS).length>=25,'game label mapping present');
+console.log(`Items tests passed: ${Object.keys(ITEMS).length} items, ${Object.keys(ITEM_LOCATIONS).length} with acquisition data, ${Object.values(TM_HM).reduce((n,l)=>n+l.length,0)} TM/HM entries, ${MOVE_MACHINE_GROUPS.length} version groups and game mapping.`);

@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { Backpack, Search } from 'lucide-react';
 import { ITEMS, ITEM_TYPES, TM_HM } from '../data/items.generated';
 import { ALL_CANONICAL_GAME_IDS, GAMES, normalizeToCanonicalGames, type DlcId, type GameId } from '../data/pokemonData';
-import { humanItemName, versionGroupFor, VERSION_GROUP_LABEL } from '../data/gameVersionGroups';
+import { humanItemName, SEREBII_GAME_IDS, UNTRACKED_ITEM_GAMES, versionGroupFor, VERSION_GROUP_LABEL } from '../data/gameVersionGroups';
+import { ITEM_LOCATIONS } from '../data/itemLocations.generated';
 import { curatedLocationsForItem, POKEMON_ITEMS_DATABASE } from '../data/pokemonItemsData';
 import { DisplayLimitSelect, PageControls, useDisplayLimit } from './DisplayControls';
 import { ItemSprite } from './ItemSprite';
@@ -114,9 +115,15 @@ export function ItemsView({ownedGames,ownedDlcs}:{ownedGames:GameId[];ownedDlcs:
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">{shown.map(([id,item])=>{
         const readable=humanItemName(item.name,item.category);
         const curated=curatedLocationsForItem(item.name);
+        const scraped=ITEM_LOCATIONS[item.slug]??{};
+        // Scraped entries are per Serebii game label; map to canonical ids.
+        const scrapedEntries=Object.entries(scraped)
+          .map(([label,where])=>({label,where,ids:SEREBII_GAME_IDS[label]??[]}))
+          .filter(entry=>gameFilter==='all'||entry.ids.includes(gameFilter));
         const entries=curated?curated.locationsByGame.filter(entry=>gameFilter==='all'||[gameFilter,gamesGroup(gameFilter)].includes(entry.gameId)):[];
         const pickups=entries.filter(entry=>!entry.notPickup);
         const ownedPickups=pickups.filter(entry=>owned.includes(entry.gameId));
+        const ownedScraped=scrapedEntries.filter(entry=>entry.ids.some(id=>owned.includes(id as GameId)));
         const expanded=openItem===id;
         return <article key={id} className="rounded-xl border border-slate-800 bg-[#0F1522]">
           <button type="button" aria-expanded={expanded} onClick={()=>setOpenItem(expanded?null:id)} className="w-full text-left p-3 flex items-start gap-3 cursor-pointer hover:bg-slate-900/60 rounded-xl">
@@ -125,7 +132,7 @@ export function ItemsView({ownedGames,ownedDlcs}:{ownedGames:GameId[];ownedDlcs:
               <span className="flex items-start justify-between gap-2"><span className="font-bold text-slate-100 text-sm">{readable}</span><span className="text-[10px] font-mono text-amber-300 shrink-0">{label(item.category)}</span></span>
               {item.effect&&!expanded&&<span className="block text-xs text-slate-300 line-clamp-2">{item.effect}</span>}
               <span className="block text-[10px] text-slate-500 mt-0.5">
-                {pickups.length>0?`${pickups.length} known location${pickups.length===1?'':'s'}`:'No recorded pickup spot'}
+                {scrapedEntries.length+pickups.length>0?`${scrapedEntries.length+pickups.length} known location${scrapedEntries.length+pickups.length===1?'':'s'}`:'No recorded pickup spot'}
                 {hasItemSprite(item.slug)?' · artwork bundled':''}
               </span>
             </span>
@@ -133,6 +140,18 @@ export function ItemsView({ownedGames,ownedDlcs}:{ownedGames:GameId[];ownedDlcs:
           {expanded&&<div className="px-3 pb-3 flex flex-col gap-2 border-t border-slate-800 pt-2">
             {item.effect&&<p className="text-xs text-slate-300">{item.effect}</p>}
             <p className="text-[10px] text-slate-500">{item.generations.length?'Available: '+item.generations.map(gen=>GENERATION_LABELS[gen]??`Gen ${gen}`).join(', '):'Availability not recorded'}{item.flingPower?` · Fling power ${item.flingPower}`:''}{item.cost?` · ${item.cost} coins`:''}</p>
+            {scrapedEntries.length>0&&<>
+              {gameFilter==='all'&&ownedScraped.length>0&&<div>
+                <h3 className="text-[11px] font-bold text-emerald-300 mb-1">How to get it in games you own ({ownedScraped.length})</h3>
+                <ul className="flex flex-col gap-1 max-h-44 overflow-auto">{ownedScraped.map((entry,index)=><li key={index} className="text-[11px] text-slate-300 border-t border-slate-800 pt-1"><span className="text-slate-400">{entry.label}:</span> {entry.where}</li>)}</ul>
+              </div>}
+              <div>
+                <h3 className="text-[11px] font-bold text-sky-200 mb-1">How to get it ({scrapedEntries.length} game{scrapedEntries.length===1?'':'s'})</h3>
+                <ul className="flex flex-col gap-1 max-h-52 overflow-auto">{scrapedEntries.map((entry,index)=><li key={index} className="text-[11px] text-slate-300 border-t border-slate-800 pt-1">
+                  <span className="text-slate-400">{entry.label}{UNTRACKED_ITEM_GAMES.has(entry.label)?' (not tracked)':''}:</span> {entry.where}
+                </li>)}</ul>
+              </div>
+            </>}
             {curated?<>
               {gameFilter==='all'&&ownedPickups.length>0&&<div>
                 <h3 className="text-[11px] font-bold text-emerald-300 mb-1">In games you own ({ownedPickups.length})</h3>
@@ -143,7 +162,7 @@ export function ItemsView({ownedGames,ownedDlcs}:{ownedGames:GameId[];ownedDlcs:
                 {pickups.length===0?<p className="text-[11px] text-slate-400">No pickup spots recorded for {gameFilter==='all'?'any game':GAMES.find(entry=>entry.id===gameFilter)?.title}.</p>:
                 <ul className="flex flex-col gap-1 max-h-44 overflow-auto">{entries.map((entry,index)=><li key={index} className="text-[11px] text-slate-300 border-t border-slate-800 pt-1"><span className="text-slate-400">{entry.gameShortTitle}:</span> {entry.location}{entry.notPickup&&<span className="text-amber-300"> · not a pickup</span>}</li>)}</ul>}
               </div>
-            </>:<p className="text-[11px] text-slate-400">Per-area pickup data is not recorded for this item. Its sprite and effect still ship with the app.</p>}
+            </>:scrapedEntries.length===0&&<p className="text-[11px] text-slate-400">No per-game acquisition data is recorded for this item. Its sprite and effect still ship with the app.</p>}
           </div>}
         </article>;
       })}</div>}

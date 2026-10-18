@@ -71,3 +71,22 @@ export function humanItemName(name: string, category: string): string {
   if (!constellation) return name;
   return `Dynamax Crystal — ${constellation}${match[2] ? ` ${match[2]}` : ''}`;
 }
+
+/** Serebii item-page game labels, mapped to canonical game ids. */
+export const SEREBII_GAME_IDS: Record<string, string[]> = {
+  Red: ['red'], Blue: ['blue'], Yellow: ['yellow'],
+  Gold: ['gold'], Silver: ['silver'], Crystal: ['crystal'],
+  Ruby: ['ruby'], Sapphire: ['sapphire'], Emerald: ['emerald'],
+  FireRed: ['firered'], LeafGreen: ['leafgreen'], Colosseum: ['colo'], XD: ['xd'],
+  Diamond: ['diamond'], Pearl: ['pearl'], Platinum: ['platinum'],
+  HeartGold: ['heartgold'], SoulSilver: ['soulsilver'],
+  Black: ['black'], White: ['white'], 'Black 2': ['black2'], 'White 2': ['white2'],
+  X: ['x'], Y: ['y'], 'Omega Ruby': ['omegaruby'], 'Alpha Sapphire': ['alphasapphire'],
+  Sun: ['sun'], Moon: ['moon'], 'Ultra Sun': ['ultrasun'], 'Ultra Moon': ['ultramoon'],
+  "Let's Go, Pikachu!": ['lgp'], "Let's Go, Eevee!": ['lge'],
+  Sword: ['sword'], Shield: ['shield'],
+  'Brilliant Diamond': ['bd'], 'Shining Pearl': ['sp'],
+  'Legends: Arceus': ['pla'], 'Scarlet': ['scarlet'], 'Violet': ['violet'],
+};
+/** Games the item data covers but the app does not track (spin-offs). */
+export const UNTRACKED_ITEM_GAMES = new Set(['PokéWalker', 'Pokémon GO', 'Dream World', 'Rumble', 'Shuffle', 'Quest', 'Masters']);
