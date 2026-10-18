@@ -6,7 +6,7 @@ Open **Maps** in the desktop menu or phone navigation. Every one of the app's 40
 
 - **Full screen:** the map expands to the whole viewport; Escape or the toggle returns to the page layout.
 - **Routes and cities are both clickable pins:** cities/landmarks use squares (facilities) or circles, and every recorded route appears as a labelled diamond pin with a unique short name (Route 3, Route 3b…). Both open location details, by pointer/touch or keyboard Tab/Enter/Space.
-- **Colourful schematic terrain:** deterministic biome blobs plus the region silhouette and hub roads, so regions read as distinct landscapes rather than flat outlines.
+- **Original maps traced to the real layouts:** each region is drawn from its real geography — coastlines, sea, mountain ranges, lakes, forests, deserts, snowfields and urban blocks — in the same schematic space as the pins, with feature labels (Mt. Coronet, Viridian Forest, Casteroya Lake, Glimwood Tangle…). This is original SVG artwork, not Nintendo map data.
 - **Local encounter maps:** opening a route, area or city draws a little themed map. Each recorded Pokémon is plotted as a sprite pin inside the zone its method and terrain belong to — Grass & fields, Water, Cave/interior, or Gift/trade & special. A level range sits under each sprite and hovering shows weather/time conditions. Pins are keyboard selectable and open the species detail view.
 - Labeled SVG pins open location details. Pins support pointer/touch and keyboard Tab/Enter/Space.
 - Zoom controls and a scrollable map viewport allow panning without overflowing the page.

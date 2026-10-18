@@ -1,4 +1,5 @@
-import type { RegionMap } from '../data/gameMaps';
+import type { RegionMap, TerrainFeature, TerrainKind } from '../data/gameMaps';
+import { REGION_TERRAIN } from '../data/gameMaps';
 
 // Decorative silhouettes only: pin positions are schematic, not walking tiles.
 const shapes:Record<string,string>={
@@ -17,13 +18,32 @@ const shapes:Record<string,string>={
   kitakami:'M420 30 665 50 740 135 915 125 930 330 850 490 685 610 440 625 230 600 90 470 120 245 295 160Z',
   blueberry:'M150 55 H850 Q940 55 940 145 V520 Q940 610 850 610 H150 Q60 610 60 520 V145 Q60 55 150 55Z',
 };
+const FILL:Record<TerrainKind,{fill:string;stroke:string;opacity:number}>={
+  water:{fill:'#0369a1',stroke:'#38bdf8',opacity:0.55},
+  mountain:{fill:'#57534e',stroke:'#a8a29e',opacity:0.6},
+  forest:{fill:'#166534',stroke:'#4ade80',opacity:0.5},
+  desert:{fill:'#a16207',stroke:'#fbbf24',opacity:0.45},
+  snow:{fill:'#e2e8f0',stroke:'#f8fafc',opacity:0.35},
+  urban:{fill:'#94a3b8',stroke:'#e2e8f0',opacity:0.22},
+};
+function Feature({feature,region}:{feature:TerrainFeature;region:RegionMap}){
+  const style=FILL[feature.kind];
+  const path=feature.points.map(([x,y],i)=>`${i?'L':'M'}${x} ${y}`).join(' ')+(feature.kind==='water'?'Z':'');
+  return <g>
+    <path d={path} fill={style.fill} fillOpacity={style.opacity} stroke={style.stroke} strokeOpacity="0.45" strokeWidth="2" strokeLinejoin="round" />
+    {feature.label && feature.points.length>=3 && (()=>{const [x,y]=feature.points[Math.floor(feature.points.length/2)];return <text x={x} y={y} textAnchor="middle" fill="#e2e8f0" stroke={region.color} strokeWidth="3" paintOrder="stroke" fontSize="11" fontStyle="italic" opacity="0.85">{feature.label}</text>;})()}
+  </g>;
+}
 export function RegionTerrain({region}:{region:RegionMap}){
   const islands=region.id==='alola'?[[220,180,180,145],[650,190,200,140],[820,455,160,155],[260,515,150,120],[475,375,80,55]]:
     region.id==='sevii'?[[175,155,90,110],[420,150,75,70],[700,170,140,75],[225,370,90,110],[485,390,100,75],[760,390,100,100],[475,550,90,65],[850,560,50,40]]:
     region.islands && region.id!=='isle-armor'?[[220,200,180,130],[650,180,180,130],[760,480,180,130],[260,510,180,130]]:null;
-  return <g fill={region.color} fillOpacity="0.2" stroke={region.color} strokeOpacity="0.4" strokeWidth="3">
-    {islands?islands.map(([x,y,rx,ry],i)=><ellipse key={i} cx={x} cy={y} rx={rx} ry={ry} />):<path fillRule="evenodd" d={shapes[region.id]??'M100 80 300 30 700 35 910 100 960 290 900 560 680 615 320 620 90 560 45 310Z'} />}
-    {region.id==='paldea' && <ellipse cx="505" cy="290" rx="90" ry="65" fill="#312e81" fillOpacity="0.6" />}
-    {region.id==='blueberry' && <path d="M500 60 V610 M60 330 H940" fill="none" />}
+  const features=REGION_TERRAIN[region.id]??[];
+  return <g>
+    {islands
+      ? islands.map(([x,y,rx,ry],i)=><ellipse key={`land-${i}`} cx={x} cy={y} rx={rx} ry={ry} fill={region.color} fillOpacity="0.22" stroke={region.color} strokeOpacity="0.45" strokeWidth="3" />)
+      : <path d={shapes[region.id]??'M100 80 300 30 700 35 910 100 960 290 900 560 680 615 320 620 90 560 45 310Z'} fill={region.color} fillOpacity="0.22" stroke={region.color} strokeOpacity="0.45" strokeWidth="3" />}
+    {features.map((feature,i)=><Feature key={i} feature={feature} region={region} />)}
+    {region.id==='blueberry' && <path d="M500 60 V610 M60 330 H940" fill="none" stroke="#38bdf8" strokeOpacity="0.4" strokeWidth="3" strokeDasharray="10 8" />}
   </g>;
 }

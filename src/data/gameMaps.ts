@@ -238,3 +238,135 @@ export function mapRegionsForGame(gameId:GameId,ownedDlcs:readonly DlcId[]=[]):R
   const byGroup:Record<string,string[]>={rb:['kanto'],frlg:['kanto','sevii'],gs:['johto','kanto'],hgss:['johto','kanto'],rse:['hoenn'],oras:['hoenn'],dppt:['sinnoh'],bdsp:['sinnoh'],bw:['unova'],b2w2:['unova'],xy:['kalos'],sm:['alola'],usum:['alola'],lgpe:['kanto'],swsh:['galar','isle-armor','crown-tundra'],pla:['hisui'],sv:['paldea','kitakami','blueberry'],colo:['orre'],xd:['orre'],pogo:['world']};
   return (byGroup[group]??[]).map(id=>REGION_MAPS[id]).filter(region=>!region.dlc||ownedDlcs.includes(region.dlc));
 }
+
+export type TerrainKind='water'|'mountain'|'forest'|'desert'|'snow'|'urban';
+export interface TerrainFeature { kind:TerrainKind; points:[number,number][]; label?:string }
+/**
+ * Original hand-drawn geography traced to each region's real layout: coastlines,
+ * mountain ranges, lakes, forests, deserts and snowfields, in the same
+ * schematic 1000x660 space as the pins. No third-party map artwork is used.
+ */
+export const REGION_TERRAIN:Record<string,TerrainFeature[]>={
+  kanto:[
+    {kind:'water',points:[[0,640],[0,470],[95,470],[150,520],[240,610],[430,610],[570,552],[700,470],[1000,430],[1000,660],[0,660]],label:'Sea'},
+    {kind:'mountain',points:[[60,120],[160,95],[300,140],[380,110],[470,150],[560,120],[675,155],[760,135],[880,175],[960,150]],label:'Northern range'},
+    {kind:'forest',points:[[120,270],[185,250],[230,300],[205,350],[140,340]],label:'Viridian Forest'},
+    {kind:'urban',points:[[190,120],[290,120],[290,210],[190,210]],label:'Pewter'},
+    {kind:'urban',points:[[500,110],[600,110],[600,200],[500,200]],label:'Cerulean'},
+    {kind:'urban',points:[[360,240],[460,240],[460,340],[360,340]],label:'Celadon'},
+    {kind:'urban',points:[[520,270],[620,270],[620,360],[520,360]],label:'Saffron'},
+  ],
+  johto:[
+    {kind:'water',points:[[0,150],[60,220],[110,350],[70,520],[130,620],[420,620],[560,560],[700,600],[880,560],[1000,470],[1000,660],[0,660]],label:'Coast'},
+    {kind:'mountain',points:[[780,120],[860,190],[910,300],[960,420],[900,520]],label:'Mt. Silver range'},
+    {kind:'forest',points:[[200,430],[285,405],[330,470],[280,540],[200,520]],label:'Ilex Forest'},
+    {kind:'urban',points:[[780,480],[900,480],[900,590],[780,590]],label:'New Bark'},
+    {kind:'urban',points:[[200,300],[300,300],[300,390],[200,390]],label:'Goldenrod'},
+    {kind:'urban',points:[[240,80],[340,80],[340,165],[240,165]],label:'Ecruteak'},
+  ],
+  hoenn:[
+    {kind:'water',points:[[0,660],[1000,660],[1000,330],[820,300],[620,360],[430,330],[240,400],[90,470],[0,430]],label:'Sea'},
+    {kind:'mountain',points:[[60,110],[190,80],[300,130],[430,120],[560,165]],label:'Mt. Chimney'},
+    {kind:'forest',points:[[480,90],[620,70],[660,150],[560,190],[470,150]],label:'Route 119 jungle'},
+    {kind:'desert',points:[[330,300],[520,285],[560,400],[400,430],[320,380]],label:'Route 111 desert'},
+    {kind:'urban',points:[[60,150],[180,150],[180,260],[60,260]],label:'Rustboro'},
+    {kind:'urban',points:[[720,200],[860,200],[860,300],[720,300]],label:'Lilycove'},
+  ],
+  sinnoh:[
+    {kind:'mountain',points:[[300,120],[430,60],[560,90],[640,200],[560,300],[600,380],[520,440],[430,400],[380,300],[300,250],[230,180]],label:'Mt. Coronet'},
+    {kind:'water',points:[[60,540],[240,540],[300,600],[120,650],[30,600]],label:'Lake Verity'},
+    {kind:'water',points:[[760,60],[880,60],[930,140],[790,170]],label:'Lake Acuity'},
+    {kind:'water',points:[[700,520],[880,520],[930,600],[700,610]],label:'Lake Valor'},
+    {kind:'snow',points:[[420,20],[700,25],[720,120],[430,130]],label:'Route 216–217 snow'},
+    {kind:'urban',points:[[260,380],[380,380],[380,480],[260,480]],label:'Jubilife'},
+    {kind:'forest',points:[[180,400],[300,390],[320,470],[190,480]],label:'Eterna Forest'},
+  ],
+  unova:[
+    {kind:'water',points:[[0,220],[90,300],[70,470],[160,620],[420,610],[700,560],[1000,500],[1000,120],[760,150],[520,120],[240,150]],label:'River & sea'},
+    {kind:'mountain',points:[[200,260],[300,300],[390,270],[470,320],[600,290],[700,340]],label:'Central range'},
+    {kind:'desert',points:[[400,400],[520,380],[560,460],[440,500],[380,460]],label:'Desert Resort'},
+    {kind:'urban',points:[[540,300],[650,300],[650,390],[540,390]],label:'Castelia'},
+    {kind:'urban',points:[[520,60],[640,60],[640,140],[520,140]],label:'Opelucid'},
+    {kind:'urban',points:[[60,520],[170,520],[170,620],[60,620]],label:'Aspertia'},
+  ],
+  kalos:[
+    {kind:'water',points:[[0,300],[80,420],[220,470],[380,400],[560,380],[720,300],[900,240],[1000,300],[1000,660],[0,660]],label:'Coast'},
+    {kind:'mountain',points:[[260,120],[420,180],[560,250],[700,320],[850,260],[930,300]],label:'Central mountains'},
+    {kind:'snow',points:[[640,520],[820,520],[860,620],[660,630]],label:'Snowbelle south'},
+    {kind:'forest',points:[[560,120],[700,110],[740,190],[600,220]],label:'Route 20 woods'},
+    {kind:'urban',points:[[440,240],[580,240],[580,340],[440,340]],label:'Lumiose'},
+  ],
+  alola:[
+    {kind:'water',points:[[0,0],[1000,0],[1000,660],[0,660]],label:'Ocean'},
+    {kind:'mountain',points:[[120,90],[260,140],[200,230]],label:'Ten Carat Hill'},
+    {kind:'mountain',points:[[540,250],[690,300],[620,360]],label:'Wela Volcano'},
+    {kind:'snow',points:[[620,60],[760,60],[780,140],[640,150]],label:'Mount Lanakila'},
+    {kind:'forest',points:[[740,200],[880,190],[900,300],[750,310]],label:'Lush Jungle'},
+  ],
+  galar:[
+    {kind:'water',points:[[0,330],[120,380],[260,360],[420,400],[560,380],[700,340],[900,320],[1000,360],[1000,660],[0,660]],label:'Coast'},
+    {kind:'mountain',points:[[420,180],[560,150],[700,180],[820,240]],label:'Northern range'},
+    {kind:'forest',points:[[80,80],[220,70],[260,150],[110,180]],label:'Glimwood Tangle'},
+    {kind:'urban',points:[[420,400],[620,400],[620,540],[420,540]],label:'Wild Area'},
+    {kind:'urban',points:[[500,60],[660,60],[660,140],[500,140]],label:'Wyndon'},
+  ],
+  hisui:[
+    {kind:'mountain',points:[[420,120],[520,60],[620,120],[660,200],[560,240],[520,200],[430,220]],label:'Mt. Coronet'},
+    {kind:'water',points:[[120,520],[260,520],[300,600],[120,620]],label:'Lake Verity'},
+    {kind:'water',points:[[660,520],[800,520],[840,600],[660,610]],label:'Lake Valor'},
+    {kind:'snow',points:[[380,20],[640,20],[660,130],[400,140]],label:'Alabaster Icelands'},
+    {kind:'snow',points:[[560,340],[700,330],[740,430],[580,450]],label:'Wayward Snowfield'},
+    {kind:'water',points:[[60,200],[220,200],[260,300],[80,340]],label:'Cobalt Coast waters'},
+    {kind:'urban',points:[[80,400],[240,400],[240,520],[80,520]],label:'Jubilife Village'},
+  ],
+  paldea:[
+    {kind:'water',points:[[0,0],[1000,0],[1000,660],[0,660]],label:'Sea'},
+    {kind:'mountain',points:[[380,220],[520,180],[660,230],[600,340],[430,330]],label:'Great Crater rim'},
+    {kind:'snow',points:[[520,40],[700,40],[720,140],[540,150]],label:'Glaseado Mountain'},
+    {kind:'desert',points:[[640,400],[800,410],[820,520],[650,520]],label:'Asado Desert'},
+    {kind:'forest',points:[[80,420],[220,410],[240,520],[90,530]],label:'Alfornada approach'},
+    {kind:'urban',points:[[430,360],[580,360],[580,460],[430,460]],label:'Mesagoza'},
+  ],
+  orre:[
+    {kind:'desert',points:[[0,40],[1000,40],[1000,660],[0,660]],label:'Orre desert'},
+    {kind:'urban',points:[[120,80],[300,80],[300,220],[120,220]],label:'Mt. Battle'},
+    {kind:'urban',points:[[380,300],[520,300],[520,420],[380,420]],label:'Pyrite Town'},
+    {kind:'urban',points:[[640,420],[820,420],[820,560],[640,560]],label:'Phenac City'},
+    {kind:'forest',points:[[80,250],[230,240],[250,340],[90,350]],label:'Relic Forest'},
+  ],
+  sevii:[
+    {kind:'water',points:[[0,0],[1000,0],[1000,660],[0,660]],label:'Ocean'},
+    {kind:'mountain',points:[[120,40],[220,100],[160,160]],label:'Mt. Ember'},
+    {kind:'forest',points:[[740,60],[900,60],[920,160],[750,170]],label:'Berry Forest'},
+    {kind:'snow',points:[[140,250],[260,250],[280,340],[150,350]],label:'Icefall Cave'},
+  ],
+  'isle-armor':[
+    {kind:'water',points:[[0,0],[1000,0],[1000,660],[0,660]],label:'Sea'},
+    {kind:'forest',points:[[420,170],[620,160],[680,260],[440,280]],label:'Forest of Focus'},
+    {kind:'desert',points:[[720,20],[940,20],[960,130],[740,140]],label:'Potbottom Desert'},
+    {kind:'urban',points:[[360,440],[560,440],[560,560],[360,560]],label:'Fields of Honor'},
+  ],
+  'crown-tundra':[
+    {kind:'snow',points:[[0,0],[1000,0],[1000,660],[0,660]],label:'Tundra'},
+    {kind:'mountain',points:[[320,140],[460,80],[620,150],[560,250],[400,240]],label:'Crown Shrine snows'},
+    {kind:'water',points:[[100,460],[340,460],[380,600],[120,610]],label:'Ballimere Lake'},
+  ],
+  kitakami:[
+    {kind:'mountain',points:[[380,220],[520,160],[660,240],[560,340],[420,320]],label:'Oni Mountain'},
+    {kind:'water',points:[[420,80],[660,80],[700,180],[430,190]],label:'Crystal Pool'},
+    {kind:'forest',points:[[680,80],[930,90],[940,200],[700,210]],label:'Timeless Woods'},
+    {kind:'urban',points:[[400,460],[600,460],[600,570],[400,570]],label:'Mossui Town'},
+  ],
+  blueberry:[
+    {kind:'forest',points:[[120,380],[380,380],[400,520],[140,530]],label:'Savanna Biome'},
+    {kind:'water',points:[[620,380],[900,380],[920,540],[640,550]],label:'Coastal Biome'},
+    {kind:'desert',points:[[100,100],[360,100],[380,240],[120,250]],label:'Canyon Biome'},
+    {kind:'snow',points:[[620,100],[900,100],[920,250],[640,260]],label:'Polar Biome'},
+  ],
+  world:[
+    {kind:'urban',points:[[120,120],[400,120],[400,320],[120,320]],label:'Wild habitats'},
+    {kind:'urban',points:[[600,90],[920,90],[920,290],[600,290]],label:'PokéStops'},
+    {kind:'urban',points:[[180,380],[460,380],[460,560],[180,560]],label:'Gyms & Raids'},
+    {kind:'urban',points:[[640,370],[930,370],[930,560],[640,560]],label:'Research & Eggs'},
+  ],
+};

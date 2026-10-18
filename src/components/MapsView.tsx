@@ -3,7 +3,7 @@ import { Map as MapIcon, Search, ZoomIn, ZoomOut, Maximize2, Minimize2 } from 'l
 import { ALL_CANONICAL_GAME_IDS, GAMES, normalizeToCanonicalGames, type DlcId, type GameId, type PokemonEntry } from '../data/pokemonData';
 import { mapRegionsForGame, REGION_LINKS, type MapPlace } from '../data/gameMaps';
 import { loadEncounterDataset, prettifyAreaName, prettyEncounterCondition, prettyEncounterMethod, type EncounterDataset } from '../data/encountersData';
-import { areaRegion, indexMapEncounters, placeMatchesArea, routePinsFor, terrainBlobs, type MapEncounter, type RoutePin } from '../utils/mapEncounters';
+import { areaRegion, indexMapEncounters, placeMatchesArea, routePinsFor, type MapEncounter, type RoutePin } from '../utils/mapEncounters';
 import { LocationMiniMap } from './LocationMiniMap';
 import { AREA_UNLOCKS } from '../data/areaUnlocks.generated';
 import { GAME_ID_TO_TRACKABLE, MILESTONE_INDEX, milestonesFor } from '../data/milestones';
@@ -46,7 +46,6 @@ export function MapsView({dex,ownedGames,ownedDlcs,gameProgress,onSelectPokemon}
     const unconsumed=areas.filter(area=>!places.some(place=>placeMatchesArea(place,area)));
     return routePinsFor(region.id,unconsumed,REGION_LINKS[region.id]??[],places,[]);
   },[region.id,areas,places]);
-  const blobs=useMemo(()=>terrainBlobs(region.id,region.color),[region.id,region.color]);
   const place=places.find(p=>p.id===placeChoice)??null;
   const activeRoute=routePins.find(pin=>pin.id===placeChoice)??null;
   const subareas=place?areas.filter(area=>placeMatchesArea(place,area)):[];
@@ -101,7 +100,6 @@ export function MapsView({dex,ownedGames,ownedDlcs,gameProgress,onSelectPokemon}
           <svg viewBox="0 0 1000 660" width={1000*zoom} role="group" aria-label={`${region.name} schematic map`} className="block max-w-none">
             <rect width="1000" height="660" fill="#082f49" />
             <g stroke="#164e63" strokeWidth="1" opacity="0.6">{Array.from({length:20},(_,i)=><path key={i} d={`M${i*55} 0V660M0 ${i*55}H1000`} />)}</g>
-            {blobs.map((blob,i)=><ellipse key={i} cx={blob.x} cy={blob.y} rx={blob.rx} ry={blob.ry} fill={blob.fill} opacity={blob.opacity} />)}
             <RegionTerrain region={region} />
             <g fill="none" stroke={region.color} strokeWidth="5" strokeOpacity="0.45" strokeLinejoin="round">{(REGION_LINKS[region.id]??[]).map((link,i)=><polyline key={i} points={link.flatMap(id=>{const pin=places.find(p=>p.id===id);return pin?[`${pin.x},${pin.y}`]:[];}).join(' ')} />)}</g>
 

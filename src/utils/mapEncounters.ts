@@ -85,14 +85,3 @@ export function routePinsFor(regionId:string, areas:readonly string[], links:rea
     return {id:`route-${regionId}-${index}`,name,x,y,area};
   });
 }
-
-/** Colourful biome zones for the schematic map, seeded per region. */
-export function terrainBlobs(regionId:string,colour:string):{x:number;y:number;rx:number;ry:number;fill:string;opacity:number}[]{
-  let seed=0;for(const char of regionId)seed=(seed*31+char.charCodeAt(0))%9973;
-  const random=()=>{seed=(seed*1103515245+12345)%2147483648;return seed/2147483648;};
-  const palette=[colour,'#22c55e','#38bdf8','#facc15','#a5b4fc','#f97316','#e2e8f0'];
-  return Array.from({length:9},(_,i)=>({
-    x:90+random()*820,y:70+random()*520,rx:90+random()*120,ry:60+random()*90,
-    fill:palette[i%palette.length],opacity:0.13+random()*0.12,
-  }));
-}
