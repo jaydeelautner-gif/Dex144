@@ -57,6 +57,9 @@ function pwaPlugin(version: string) {
   };
   return VitePWA({
     registerType: 'prompt', // never reload while the user is registering/editing
+    // The app registers the worker itself (src/main.tsx) so it can pass
+    // updateViaCache: 'none' — required for iOS Safari to see updates.
+    injectRegister: false,
     manifest,
     ...(hasServiceWorkerDeps()
       ? {

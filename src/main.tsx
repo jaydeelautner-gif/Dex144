@@ -9,7 +9,8 @@ import { markOfflineWorkerUpdate, setOfflineWorkerUpdater } from './utils/offlin
 // Manual registration (instead of the PWA plugin's registerSW) so we can pass
 // updateViaCache: 'none' — without it iOS Safari can serve a stale service
 // worker from its HTTP cache and the installed web app never sees updates.
-if ('serviceWorker' in navigator) {
+// Production only: the dev server has no generated worker to register.
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
   navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' }).then((registration) => {
     const checkForUpdate = () => { if (navigator.onLine) registration.update().catch(() => {}); };
     // Poll while online, and re-check whenever the tab regains focus or the
