@@ -92,7 +92,7 @@ export function ItemsView({ownedGames,ownedDlcs}:{ownedGames:GameId[];ownedDlcs:
   const pages=limit==='all'?1:Math.max(1,Math.ceil(rows.length/limit));
   const current=Math.min(page,pages);
   const shown=mode==='items'?(limit==='all'?rows:rows.slice((current-1)*limit,current*limit)):[];
-  const resetFilters=()=>{setQuery('');setPage(1);};
+  const resetFilters=()=>{setQuery('');setPage(1);setOpenItem(null);};
   return <div className="flex flex-col gap-4 min-w-0" data-testid="items-page">
     <header className="p-4 rounded-2xl border border-slate-800 bg-[#0F1522] flex flex-wrap items-center justify-between gap-3">
       <div><h1 className="text-xl font-black text-slate-100 flex items-center gap-2"><Backpack className="text-amber-300" />Items & Machines</h1><p className="text-xs text-slate-400">{Object.keys(ITEMS).length} items and the TM/HM list for each game. Data ships with the app.</p></div>

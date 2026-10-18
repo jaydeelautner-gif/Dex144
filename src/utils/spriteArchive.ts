@@ -53,25 +53,26 @@ export async function spriteUrls(slices: readonly (SpriteSlice | null | undefine
   return Promise.all(slices.map(spriteUrl));
 }
 
-/** Frees every object URL created so far (used when the offline package changes). */
+/**
+ * Frees every object URL created so far. Object URLs pin their blob in memory,
+ * so this is available for cache resets; the archive itself is kept, because
+ * re-reading the big binary is far more expensive than rebuilding a slice.
+ */
 export function clearSpriteUrlCache(): void {
   for (const url of urlCache.values()) if (url) URL.revokeObjectURL(url);
   urlCache.clear();
-  archiveRequest = null;
 }
 
-/** Object URL for an item sprite by its PokeAPI identifier, or null when unbundled. */
 /** Starts the archive download early; safe to call repeatedly. */
 export function prefetchSpriteArchive(): void {
   void loadArchive();
 }
 
-export function itemSpriteSlice(slug: string): SpriteSlice | null {
-  return ITEM_SPRITE_SLICES[slug] ?? null;
-}
+/** True when the archive contains a sprite for this item identifier. */
 export function hasItemSprite(slug: string): boolean {
   return Boolean(ITEM_SPRITE_SLICES[slug]);
 }
+
 export function itemSpriteUrl(slug: string): Promise<string | null> {
   return spriteUrl(ITEM_SPRITE_SLICES[slug]);
 }

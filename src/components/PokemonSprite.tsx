@@ -29,6 +29,8 @@ export const PokemonSprite: React.FC<PokemonSpriteProps> = ({
   useEffect(() => {
     let active = true;
     setErrorStage(0);
+    // Clear first so a species/form change cannot briefly show the old sprite.
+    setUrls([]);
     void spriteUrls(spriteSources(id, shiny, imageUrl)).then((resolved) => {
       if (active) setUrls(resolved);
     });

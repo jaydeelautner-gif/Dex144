@@ -141,7 +141,7 @@ export function MapsView({dex,ownedGames,ownedDlcs,gameProgress,onSelectPokemon}
           {activeArea && <p className="text-xs text-slate-400">{progressLabel(activeArea)}</p>}
           {Number.isFinite(cap) && <p className="text-[11px] text-slate-400">Marked badge progress: catch cap Lv. {cap}. Higher-level rows remain visible.</p>}
           {!loading && records.length===0 && <p role="status" className="text-xs text-slate-400">No encounter records for this location in {game.title}. This does not prove that no Pokémon can be obtained here.</p>}
-          {records.length>0 && <LocationMiniMap area={activeArea??subareas[0]??place?.name??''} encounters={records} names={names} onSelectPokemon={onSelectPokemon} />}
+          {records.length>0 && <LocationMiniMap area={selectedAreas[0]??place?.name??''} encounters={records} names={names} onSelectPokemon={onSelectPokemon} />}
           {records.length>0 && <>
             <input aria-label="Find map Pokémon" value={pokemonSearch} onChange={e=>{setPokemonSearch(e.target.value);setPage(1);}} placeholder="Pokémon name or dex #" className="w-full rounded-lg bg-slate-900 border border-slate-700 p-2 text-xs text-slate-100" />
             <label className="text-xs text-slate-300">Method<select aria-label="Map encounter method" value={method} onChange={e=>{setMethod(e.target.value);setPage(1);}} className="ml-2 rounded bg-slate-900 p-2 border border-slate-700"><option value="all">All methods</option>{methods.map(value=><option key={value} value={value}>{prettyEncounterMethod(value)}</option>)}</select></label>
