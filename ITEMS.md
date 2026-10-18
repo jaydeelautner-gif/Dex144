@@ -15,6 +15,16 @@
 
 Curated evolution and key-item locations from `src/data/pokemonItemsData.ts` are surfaced in map location panels as **Items found here**. The lookup matches a location name without its "City/Town/Village/Island/Park/Mountain/Route" suffix, so Celadon City lists the Celadon Department Store pickups.
 
+## Dynamax Crystal names
+
+The 300 Dynamax Crystals are stored with their official names, which are real star
+designations using the IAU constellation abbreviations (And = Andromeda,
+Sgr = Sagittarius, PsA = Piscis Austrinus). Those are accurate but unreadable, so
+`humanItemName()` expands every one to a plain name such as
+**"Dynamax Crystal — Sagittarius 6879"**, and the Items page searches and sorts by that
+readable form (search "Ursa Major" to find them). Unknown or non-crystal names are
+returned unchanged.
+
 ## Accuracy and scope
 
 Item names, effects, categories, generations, TM/HM tables and move/type data are PokéAPI's. **Per-area pickup tables (which Poké Ball sits in which grass patch) are not part of that dataset.** Exact find spots are therefore only shown where the app already curates them (evolution items and key items) and appear in the map panels; the Items page does not invent locations. Machine numbering follows the version group, so a game's list matches its own generation.

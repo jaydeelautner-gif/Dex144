@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Backpack, Search } from 'lucide-react';
 import { ITEMS, ITEM_TYPES, TM_HM } from '../data/items.generated';
 import { ALL_CANONICAL_GAME_IDS, GAMES, normalizeToCanonicalGames, type DlcId, type GameId } from '../data/pokemonData';
-import { versionGroupFor, VERSION_GROUP_LABEL } from '../data/gameVersionGroups';
+import { humanItemName, versionGroupFor, VERSION_GROUP_LABEL } from '../data/gameVersionGroups';
 import { POKEMON_ITEMS_DATABASE } from '../data/pokemonItemsData';
 import { DisplayLimitSelect, PageControls, useDisplayLimit } from './DisplayControls';
 
@@ -67,8 +67,9 @@ export function ItemsView({ownedGames,ownedDlcs}:{ownedGames:GameId[];ownedDlcs:
       if(category!=='all'&&item.category!==category)return false;
       if(generation!=='all'&&!item.generations.includes(Number(generation)))return false;
       if(!needle)return true;
-      return item.name.toLowerCase().includes(needle)||item.effect.toLowerCase().includes(needle)||item.category.includes(needle);
-    }).sort((a,b)=>a[1].name.localeCompare(b[1].name));
+      const readable=humanItemName(item.name,item.category);
+      return readable.toLowerCase().includes(needle)||item.name.toLowerCase().includes(needle)||item.effect.toLowerCase().includes(needle)||item.category.includes(needle);
+    }).sort((a,b)=>humanItemName(a[1].name,a[1].category).localeCompare(humanItemName(b[1].name,b[1].category)));
   },[query,category,generation]);
   const machineRows=useMemo(()=>{
     const needle=query.trim().toLowerCase();
@@ -97,7 +98,7 @@ export function ItemsView({ownedGames,ownedDlcs}:{ownedGames:GameId[];ownedDlcs:
       <PageControls page={current} pages={pages} total={rows.length} onChange={setPage} />
       {rows.length===0?<p role="status" className="text-sm text-slate-400">No items match that search.</p>:
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">{shown.map(([id,item])=><article key={id} className="p-3 rounded-xl border border-slate-800 bg-[#0F1522] flex flex-col gap-1">
-        <div className="flex items-start justify-between gap-2"><h2 className="font-bold text-slate-100 text-sm">{item.name}</h2><span className="text-[10px] font-mono text-amber-300 shrink-0">{label(item.category)}</span></div>
+        <div className="flex items-start justify-between gap-2"><h2 className="font-bold text-slate-100 text-sm">{humanItemName(item.name,item.category)}</h2><span className="text-[10px] font-mono text-amber-300 shrink-0">{label(item.category)}</span></div>
         {item.effect&&<p className="text-xs text-slate-300">{item.effect}</p>}
         <p className="text-[10px] text-slate-500">{item.generations.length?'Available: '+item.generations.map(gen=>GENERATION_LABELS[gen]??`Gen ${gen}`).join(', '):'Availability not recorded'}{item.flingPower?` · Fling power ${item.flingPower}`:''}{item.cost?` · ${item.cost} coins`:''}</p>
       </article>)}</div>}

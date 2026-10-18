@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { ITEMS, ITEM_TYPES, MOVE_MACHINE_GROUPS, TM_HM } from '../src/data/items.generated';
-import { GAME_VERSION_GROUP, versionGroupFor, VERSION_GROUP_LABEL } from '../src/data/gameVersionGroups';
+import { CONSTELLATION_NAMES, GAME_VERSION_GROUP, humanItemName, versionGroupFor, VERSION_GROUP_LABEL } from '../src/data/gameVersionGroups';
 import { ALL_CANONICAL_GAME_IDS } from '../src/data/pokemonData';
 assert.ok(Object.keys(ITEMS).length>=1500);
 for(const [id,item] of Object.entries(ITEMS)){
@@ -31,4 +31,18 @@ for(const game of ALL_CANONICAL_GAME_IDS){
 assert.equal(versionGroupFor('pla'),null,'Legends: Arceus has no machines');
 assert.equal(versionGroupFor('pogo'),null);
 for(const group of MOVE_MACHINE_GROUPS)assert.ok(VERSION_GROUP_LABEL[group],`${group} has a label`);
+// Dynamax Crystals are named after real stars; every one must expand to a constellation.
+const crystals=Object.values(ITEMS).filter(item=>item.category==='dynamax-crystals');
+assert.equal(crystals.length,300,'expected the full Dynamax Crystal set');
+const unexpanded=[];
+for(const crystal of crystals){
+  const readable=humanItemName(crystal.name,crystal.category);
+  if(readable===crystal.name)unexpanded.push(crystal.name);
+  assert.match(readable,/^Dynamax Crystal — \p{Lu}[\p{L} ]+( \d+)?$/u,crystal.name);
+}
+assert.deepEqual(unexpanded,[],'every crystal got a readable star/constellation name');
+assert.ok(CONSTELLATION_NAMES.UMa==='Ursa Major'&&CONSTELLATION_NAMES.Sgr==='Sagittarius'&&CONSTELLATION_NAMES.PsA==='Piscis Austrinus');
+assert.equal(humanItemName('Potion','medicine'),'Potion','non-crystal names are untouched');
+assert.equal(humanItemName('★Zzz9','dynamax-crystals'),'★Zzz9','unknown constellations are left alone');
+assert.equal(humanItemName('★Sge','dynamax-crystals'),'Dynamax Crystal — Sagitta');
 console.log(`Items tests passed: ${Object.keys(ITEMS).length} items, ${Object.values(TM_HM).reduce((n,l)=>n+l.length,0)} TM/HM entries, ${MOVE_MACHINE_GROUPS.length} version groups and game mapping.`);
