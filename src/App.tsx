@@ -1,3 +1,4 @@
+import { MapsView } from './components/MapsView';
 import { normalizePokemonLanguage } from './data/pokemonLanguages';
 import { DisplayLimitSelect, useDisplayLimit } from './components/DisplayControls';
 import { useHomeDesign, adoptHomeDesign } from './hooks/useHomeDesign';
@@ -139,6 +140,7 @@ type MainWorkspaceTab =
   | 'home'
   | 'register'
   | 'pokedex'
+  | 'maps'
   | 'profile'
   | 'progress'    // ── GAME PROGRESS TRACKING ──
   | 'public_stats'
@@ -2321,6 +2323,7 @@ export function App() {
               { id: 'home', label: 'Home' },
               { id: 'register', label: 'Register' },
               { id: 'pokedex', label: 'Pokédex' },
+              { id: 'maps', label: 'Maps' },
               { id: 'profile', label: displayTrainerName || 'Profile' },
               { id: 'progress', label: 'Progress' },  // ── GAME PROGRESS TRACKING ──
               { id: 'public_stats', label: 'Living Dex' },
@@ -3152,6 +3155,8 @@ export function App() {
               </div>
             )}
 
+            {activeTab === 'maps' && <MapsView dex={dex} ownedGames={ownedGames} ownedDlcs={ownedDlcs} gameProgress={gameProgress as Record<string,string[]>} onSelectPokemon={setSelectedPokemon} />}
+
             {/* ── GAME PROGRESS TRACKING TAB ── */}
             {activeTab === 'progress' && (
               <GameProgressTracker
@@ -3262,7 +3267,7 @@ export function App() {
       {/* Mobile Bottom Navigation Bar (< md) for Phone Users */}
       <nav
         aria-label="Mobile Bottom Navigation"
-        className="md:hidden absolute bottom-0 inset-x-0 z-40 bg-[#0B0F17]/95 backdrop-blur-lg border-t border-slate-800/90 px-1 py-1.5 flex items-center justify-around shadow-2xl pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+        className="md:hidden [&>button]:px-1 [&>button]:min-w-0 absolute bottom-0 inset-x-0 z-40 bg-[#0B0F17]/95 backdrop-blur-lg border-t border-slate-800/90 px-1 py-1.5 flex items-center justify-around shadow-2xl pb-[max(0.5rem,env(safe-area-inset-bottom))]"
       >
         <button
           type="button"
@@ -3326,6 +3331,7 @@ export function App() {
           <span>Profile</span>
         </button>
 
+        <button type="button" onClick={()=>{setFullPagePokemon(null);setActiveTab('maps');}} className={`flex flex-col items-center gap-0.5 px-1 py-1 rounded-lg text-[10px] cursor-pointer ${activeTab==='maps'&&!fullPagePokemon?'text-amber-400 font-bold':'text-slate-400 hover:text-slate-200'}`}><MapPin className="w-4 h-4" /><span>Maps</span></button>
         {/* ── GAME PROGRESS TRACKING MOBILE TAB ── */}
         <button
           type="button"

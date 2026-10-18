@@ -59,6 +59,15 @@ try {
     await page.getByRole('button',{name:'Home',exact:true}).first().click();
     await sidebar.waitFor();
   }
+  await page.getByRole('navigation',{name:'Primary Workspace'}).getByRole('button',{name:'Maps',exact:true}).click();
+  await page.getByTestId('maps-page').waitFor();
+  await page.getByRole('heading',{name:'Town Map',exact:true}).waitFor();
+  await page.setViewportSize({width:320,height:900});
+  await page.getByRole('navigation',{name:'Mobile Bottom Navigation'}).getByRole('button',{name:'Maps',exact:true}).click();
+  assert.equal(await page.getByRole('navigation',{name:'Mobile Bottom Navigation'}).evaluate(el=>el.scrollWidth>el.clientWidth),false,'Maps link fits mobile navigation');
+  await page.getByRole('navigation',{name:'Mobile Bottom Navigation'}).getByRole('button',{name:'Home',exact:true}).click();
+  await page.setViewportSize({width:1360,height:1000});
+  await sidebar.waitFor();
   await page.getByRole('button',{name:'Settings',exact:true}).first().click();
   await page.getByRole('button',{name:/Home Screen.*Choose visible panels/}).click();
   const fieldset=page.locator('fieldset').filter({has:page.locator('legend',{hasText:'Trainer sidebar'})});

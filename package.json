@@ -32,6 +32,7 @@
     "test:sync-queue": "npm run build && node tests/syncQueue.browser.mjs",
     "test:sprites": "node tests/sprites.browser.mjs",
     "generate:breeding": "node scripts/generateBreedingData.mjs",
+    "test:maps": "tsx tests/maps.test.ts && npm run build && node tests/maps.browser.mjs && node tests/homeLayout.browser.mjs",
     "test:breeding": "tsx tests/breeding.test.ts && npm run build && node tests/breeding.browser.mjs",
     "generate:sprites": "tsx scripts/downloadSprites.ts && node scripts/bundleSprites.mjs",
     "bundle:sprites": "node scripts/bundleSprites.mjs",

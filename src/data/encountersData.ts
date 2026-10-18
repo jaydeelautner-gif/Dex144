@@ -45,9 +45,9 @@ let cache: Promise<EncounterDataset | null> | null = null;
 export function loadEncounterDataset(): Promise<EncounterDataset | null> {
   if (!cache) {
     cache = fetch('/data/encounters.json')
-      .then((res) => (res.ok ? res.json() : null))
+      .then((res) => { if (!res.ok) throw new Error('Encounter dataset unavailable.'); return res.json(); })
       .then((raw: unknown) => {
-        if (!raw || typeof raw !== 'object') return null;
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('Invalid encounter dataset.');
         return raw as EncounterDataset;
       })
       .catch(() => {

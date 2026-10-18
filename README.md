@@ -41,4 +41,5 @@ precaches the app shell; Settings → Storage installs the full package for offl
 
 - `firestore.rules` in this repo must be deployed to the Firebase project for signed-in
   features (cloud sync, atomic evolution, profile fields) to be permitted.
-- Guides: `ENCOUNTERS.md`, `OFFLINE.md`, `HOME_CUSTOMIZATION.md`, `POKEPET_EVOLUTION.md`.
+- Guides: `ENCOUNTERS.md`, `OFFLINE.md`, `HOME_CUSTOMIZATION.md`, `POKEPET_EVOLUTION.md`, `BREEDING.md`, `MAPS.md`.
+- `npm run test:maps` checks game/region coverage, interactive maps, encounters, DLC gating and desktop/mobile navigation.
