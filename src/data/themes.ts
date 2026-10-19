@@ -130,12 +130,14 @@ export const CUSTOM_COLOR_FIELDS = [
 
 /** Font families bundled with the app (see public/fonts/site-fonts.css). */
 export const FONT_OPTIONS = [
+  { id: 'pkmn', label: 'PKMN Classic (RBY/GSC)', stack: "'PKMN RBYGSC', 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif" },
   { id: 'default', label: 'HomeDex Default', stack: "'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif" },
   { id: 'bricolage', label: 'Bricolage Grotesque', stack: "'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif" },
   { id: 'jakarta', label: 'Plus Jakarta Sans', stack: "'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif" },
   { id: 'mono', label: 'JetBrains Mono', stack: "'JetBrains Mono', ui-monospace, monospace" },
 ] as const;
 export type FontId = (typeof FONT_OPTIONS)[number]['id'];
+export const DEFAULT_FONT: FontId = 'pkmn';
 
 export interface CustomTheme {
   colors: Record<string, string>;
@@ -159,7 +161,7 @@ export function normalizeCustomTheme(raw: unknown): CustomTheme {
   for (const [key, value] of Object.entries(data.colors ?? {})) {
     if (allowed.has(key) && typeof value === 'string' && HEX.test(value)) colors[key] = value.toLowerCase();
   }
-  const font = FONT_OPTIONS.some((option) => option.id === data.font) ? (data.font as FontId) : 'default';
+  const font = FONT_OPTIONS.some((option) => option.id === data.font) ? (data.font as FontId) : DEFAULT_FONT;
   return { colors, font };
 }
 
@@ -169,12 +171,14 @@ export function loadTheme(): ThemeId {
 
 export function loadCustomTheme(): CustomTheme {
   try { return normalizeCustomTheme(JSON.parse(localStorage.getItem(CUSTOM_THEME_STORAGE_KEY) ?? 'null')); }
-  catch { return { colors: {}, font: 'default' }; }
+  catch { return { colors: {}, font: DEFAULT_FONT }; }
 }
 
 /**
- * Applies the preset plus any custom overrides. Custom colors are set as inline
- * properties so they win over the preset's stylesheet rule.
+ * Applies the preset plus any custom overrides. The chosen preset supplies its
+ * palette; custom colours then layer on top as inline properties for EVERY
+ * preset — so panel/background/accent overrides work on Game Boy, Midnight or
+ * any other theme, not just "Custom". Unset colours keep the preset value.
  */
 export function applyTheme(theme: ThemeId, custom: CustomTheme = loadCustomTheme()): void {
   if (typeof document === 'undefined') return;
@@ -185,8 +189,8 @@ export function applyTheme(theme: ThemeId, custom: CustomTheme = loadCustomTheme
   if (id === 'custom') {
     const preset = THEME_PRESETS[0].vars;
     for (const [key, value] of Object.entries(preset)) root.style.setProperty(key, value);
-    for (const [key, value] of Object.entries(custom.colors)) root.style.setProperty(key, value);
   }
+  for (const [key, value] of Object.entries(custom.colors)) root.style.setProperty(key, value);
   const font = FONT_OPTIONS.find((option) => option.id === custom.font) ?? FONT_OPTIONS[0];
   root.style.setProperty('--app-font', font.stack);
 

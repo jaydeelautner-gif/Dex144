@@ -78,3 +78,11 @@
   font-display: swap;
   src: url(./cbf4f5937e04d9a0.ttf) format('truetype');
 }
+
+@font-face {
+  font-family: 'PKMN RBYGSC';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(./PKMN-RBYGSC.ttf) format('truetype');
+}

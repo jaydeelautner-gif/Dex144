@@ -52,7 +52,7 @@ export function ThemePicker() {
           <div>
             <h3 className="text-base font-bold text-slate-100">Custom colours</h3>
             <p className="text-xs text-slate-400 mt-0.5">
-              Pick any colour to switch to the Custom theme. Unset colours fall back to the HomeDex base.
+              Panels, background, chassis and accents — these layer over whichever theme you picked above. Unset colours keep the preset's value.
             </p>
           </div>
           <button
@@ -89,7 +89,7 @@ export function ThemePicker() {
       <section className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 flex flex-col gap-4">
         <div>
           <h3 className="text-base font-bold text-slate-100">Font</h3>
-          <p className="text-xs text-slate-400 mt-0.5">Bundled fonts, available offline.</p>
+          <p className="text-xs text-slate-400 mt-0.5">Bundled fonts, available offline. PKMN Classic uses the RBY/GSC handheld typeface.</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {FONT_OPTIONS.map((option) => {
