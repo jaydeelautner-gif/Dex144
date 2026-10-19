@@ -130,14 +130,14 @@ export const CUSTOM_COLOR_FIELDS = [
 
 /** Font families bundled with the app (see public/fonts/site-fonts.css). */
 export const FONT_OPTIONS = [
-  { id: 'pkmn', label: 'PKMN Classic (RBY/GSC)', stack: "'PKMN RBYGSC', 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif" },
   { id: 'default', label: 'HomeDex Default', stack: "'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif" },
+  { id: 'pkmn', label: 'PKMN Classic (RBY/GSC)', stack: "'PKMN RBYGSC', 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif" },
   { id: 'bricolage', label: 'Bricolage Grotesque', stack: "'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif" },
   { id: 'jakarta', label: 'Plus Jakarta Sans', stack: "'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif" },
   { id: 'mono', label: 'JetBrains Mono', stack: "'JetBrains Mono', ui-monospace, monospace" },
 ] as const;
 export type FontId = (typeof FONT_OPTIONS)[number]['id'];
-export const DEFAULT_FONT: FontId = 'pkmn';
+export const DEFAULT_FONT: FontId = 'default';
 
 export interface CustomTheme {
   colors: Record<string, string>;
