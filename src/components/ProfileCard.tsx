@@ -78,7 +78,9 @@ export const ProfileCard: React.FC<{
       }).length;
       rows.push({ gameId: game.id, prefix: mapping.prefix, earned, total });
     }
-    return rows;
+    // Badge case order: games with the most earned badges first, then the
+    // most complete cases, keeping the original owned order for ties.
+    return rows.sort((a, b) => b.earned - a.earned || (b.earned / b.total) - (a.earned / a.total));
   }, [owned, gameProgress]);
   const totalBadges = badgeRows.reduce((n, r) => n + r.earned, 0);
   const gameChips = owned.slice(0, 8);
