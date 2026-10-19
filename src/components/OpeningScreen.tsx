@@ -9,7 +9,6 @@ import {
   Wifi,
   WifiOff,
   RefreshCw,
-  KeyRound,
   UserCheck,
   AlertCircle,
   CheckCircle2,
@@ -25,7 +24,6 @@ import {
 import type { PokemonEntry } from '../data/pokemonData';
 import {
   signInWithEmail,
-  signInWithPin,
   signUpWithEmail,
   fetchRandomRegisteredPokepet,
   searchPokepetByPokeId,
@@ -37,7 +35,6 @@ import {
 import {
   getCachedAuthAccounts,
   isFirstLoginOnDevice,
-  hasPinSet,
   type CachedAuthAccount,
 } from '../utils/offlineAuth';
 import { useOnlineStatus } from '../utils/offlineManager';
@@ -76,12 +73,10 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
   const [lookupSuccessMsg, setLookupSuccessMsg] = useState<string | null>(null);
 
   // Right Column: Auth form state
-  const [authMode, setAuthMode] = useState<'password' | 'pin' | 'signup'>(() => getCachedAuthAccounts().some(a => a.hasLoggedInOnThisDevice && hasPinSet(a.uid)) ? 'pin' : 'password');
+  const [authMode, setAuthMode] = useState<'password' | 'signup'>('password');
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [showPassword, setShowPassword] = useState<boolean>(false);
-  const [pin, setPin] = useState<string>('');
-  const [selectedPinAccount, setSelectedPinAccount] = useState<string>('');
   const [cachedAccounts, setCachedAccounts] = useState<CachedAuthAccount[]>([]);
   const [isSubmittingAuth, setIsSubmittingAuth] = useState<boolean>(false);
   const [authErrorMessage, setAuthErrorMessage] = useState<string | null>(null);
@@ -119,17 +114,7 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
   useEffect(() => {
     const accounts = getCachedAuthAccounts();
     setCachedAccounts(accounts);
-    if (accounts.length > 0) {
-      if (!email) setEmail(accounts[0].email);
-      setSelectedPinAccount(accounts[0].email);
-    }
-    // If device is offline and cached accounts exist, default to password or pin if configured
-    if (accounts.length > 0) {
-      const firstWithPin = accounts.find((a) => a.hasLoggedInOnThisDevice && hasPinSet(a.uid));
-      if (firstWithPin) {
-        setSelectedPinAccount(firstWithPin.email);
-      }
-    }
+    if (accounts.length > 0 && !email) setEmail(accounts[0].email);
   }, [isOnline]);
 
   // Load a random registered PokéPet
@@ -235,46 +220,6 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
       onSuccessfulLogin();
     } catch (err: unknown) {
       const msg = (err as Error)?.message || 'Sign in failed. Please check your credentials.';
-      setAuthErrorMessage(msg);
-    } finally {
-      setIsSubmittingAuth(false);
-    }
-  };
-
-  // Quick PIN Submission (for offline quick entry)
-  const handlePinSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthErrorMessage(null);
-    primeGameboyAudio();
-
-    const targetAccountEmail = (selectedPinAccount || email).trim().toLowerCase();
-    if (!targetAccountEmail) {
-      setAuthErrorMessage('Please select or enter the account email.');
-      return;
-    }
-
-    const cleanPin = pin.trim();
-    if (!cleanPin || cleanPin.length < 4) {
-      setAuthErrorMessage('Please enter your 4-8 digit PIN.');
-      return;
-    }
-
-    // STRICT REQUIREMENT: "Do not allow this to be used to login for the first time on a device."
-    if (isFirstLoginOnDevice(targetAccountEmail)) {
-      setAuthErrorMessage(
-        'PIN quick entry cannot be used to log in for the first time on this device. Please sign in with your email and password first to verify your credentials.'
-      );
-      return;
-    }
-
-    setIsSubmittingAuth(true);
-    try {
-      await signInWithPin(targetAccountEmail, cleanPin);
-      // Play authentic Game Boy power-on sound effect upon login & rest of site loaded!
-      playGameboyPowerOnSound();
-      onSuccessfulLogin();
-    } catch (err: unknown) {
-      const msg = (err as Error)?.message || 'PIN verification failed.';
       setAuthErrorMessage(msg);
     } finally {
       setIsSubmittingAuth(false);
@@ -746,7 +691,7 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
 
             {/* Mode Selector */}
             <div className="flex gap-1 [&>button]:flex-1 p-1 rounded-xl bg-slate-900 border border-slate-800 text-xs font-bold">
-              {(isOnline || !cachedAccounts.some(a => a.hasLoggedInOnThisDevice)) && <button
+              <button
                 type="button"
                 onClick={() => {
                   setAuthMode('password');
@@ -759,21 +704,6 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
                 }`}
               >
                 Password Login
-              </button>}
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthMode('pin');
-                  setAuthErrorMessage(null);
-                }}
-                className={`py-2 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                  authMode === 'pin'
-                    ? 'bg-purple-600 text-white shadow-md font-extrabold'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <KeyRound className="w-3.5 h-3.5" />
-                <span>Quick PIN</span>
               </button>
               {hasUnlockedSignup && (
                 <button
@@ -802,16 +732,13 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
                 </span>
                 <div className="flex flex-wrap gap-1.5">
                   {cachedAccounts.map((acc) => {
-                    const isSelected =
-                      (authMode === 'password' ? email : selectedPinAccount).toLowerCase() ===
-                      acc.email.toLowerCase();
+                    const isSelected = email.toLowerCase() === acc.email.toLowerCase();
                     return (
                       <button
                         key={acc.email}
                         type="button"
                         onClick={() => {
                           setEmail(acc.email);
-                          setSelectedPinAccount(acc.email);
                           setAuthErrorMessage(null);
                         }}
                         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono transition-all cursor-pointer ${
@@ -834,8 +761,8 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
               </div>
             )}
 
-            {/* PASSWORD LOGIN FORM */}
-            {authMode === 'password' && (isOnline || !cachedAccounts.some(a => a.hasLoggedInOnThisDevice)) && (
+            {/* PASSWORD LOGIN FORM (also unlocks offline via cached credentials) */}
+            {authMode === 'password' && (
               <form onSubmit={handlePasswordSubmit} className="flex flex-col gap-3.5">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
@@ -904,94 +831,8 @@ export const OpeningScreen: React.FC<OpeningScreenProps> = ({
             )}
 
             {authMode === 'password' && !isOnline && cachedAccounts.some(a => a.hasLoggedInOnThisDevice) && (
-              <p className="text-sm text-amber-200">Connect to the internet to use your password, or choose Quick PIN if you have configured a PIN on this device.</p>
+              <p className="text-sm text-amber-200">Offline: your credentials are verified against this device's cached vault and your PokéPets stay available; connect to the internet to sync your changes.</p>
             )}
-            {/* QUICK PIN LOGIN FORM (OFFLINE QUICK ENTRY) */}
-            {authMode === 'pin' && (
-              <form onSubmit={handlePinSubmit} className="flex flex-col gap-3.5">
-                <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-200 text-xs leading-relaxed">
-                  <strong className="text-purple-300 font-bold block mb-1">
-                    Quick-Entry PIN
-                  </strong>
-                  Enter your configured PIN to quickly unlock this device without re-entering your full password.
-                  <span className="block mt-2 text-amber-200">
-                    To upload offline changes to the cloud, connect to the internet and use Password Login. PIN unlocks this device locally; your pending changes remain saved until you can sync.
-                  </span>
-                  <span className="block mt-1 text-[11px] text-purple-300/80">
-                    * For device security, PIN quick entry cannot be used to log in for the first time on a new device.
-                  </span>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                    <Mail className="w-3.5 h-3.5 text-purple-400" />
-                    <span>Trainer Account</span>
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={selectedPinAccount || email}
-                    onChange={(e) => setSelectedPinAccount(e.target.value)}
-                    placeholder="trainer@pokemon.com"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700/80 focus:border-purple-400 text-slate-100 text-sm font-mono placeholder:text-slate-600 focus:outline-none"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                    <KeyRound className="w-3.5 h-3.5 text-purple-400" />
-                    <span>Enter 4-8 Digit PIN</span>
-                  </label>
-                  <input
-                    type="password"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    maxLength={8}
-                    required
-                    value={pin}
-                    onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-                    placeholder="••••"
-                    className="w-full px-3.5 py-3 rounded-xl bg-slate-900 border border-slate-700/80 focus:border-purple-400 text-slate-100 text-center font-mono text-xl tracking-widest focus:outline-none placeholder:text-slate-600 placeholder:tracking-normal placeholder:text-sm"
-                  />
-                </div>
-
-                <div role="group" aria-label="PIN touch keypad" className="grid grid-cols-3 gap-2">
-                  {['1','2','3','4','5','6','7','8','9','Clear','0','⌫'].map(key => (
-                    <button key={key} type="button" disabled={isSubmittingAuth}
-                      aria-label={key === '⌫' ? 'Delete last PIN digit' : key === 'Clear' ? 'Clear PIN' : `PIN digit ${key}`}
-                      onClick={() => setPin(value => key === 'Clear' ? '' : key === '⌫' ? value.slice(0, -1) : (value + key).slice(0, 8))}
-                      className="min-h-12 rounded-xl bg-slate-800 border border-slate-600 text-white text-lg font-bold active:bg-purple-700 disabled:opacity-50">
-                      {key}
-                    </button>
-                  ))}
-                </div>
-                {authErrorMessage && (
-                  <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-300 text-xs flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
-                    <span className="leading-relaxed">{authErrorMessage}</span>
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={isSubmittingAuth || pin.length < 4}
-                  className="w-full mt-1 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-500 hover:from-purple-500 hover:to-indigo-400 text-white font-black text-sm tracking-wide shadow-lg shadow-purple-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSubmittingAuth ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>Verifying PIN...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Unlock with PIN</span>
-                      <ChevronRight className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
-              </form>
-            )}
-
             {/* SIGN UP FORM (Only accessible when unlocked via invite code) */}
             {authMode === 'signup' && (
               <form onSubmit={handleSignUpSubmit} className="flex flex-col gap-3.5">

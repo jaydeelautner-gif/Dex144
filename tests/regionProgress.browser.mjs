@@ -26,8 +26,8 @@ await context.route('**/*', (r) => new URL(r.request().url()).origin === base ? 
 const pet = (id) => ({ pokeId: `ID${String(id).padStart(10, '0')}`, pokemonId: id, nickname: '', level: 5, gender: 'male', variantId: `${id}:base`, variantName: 'Standard', isShiny: false, gameId: 'red', isHomeGift: false, isTraded: false, storedInHome: true, isInLivingBox: true, createdAt: 1 + id, updatedAt: 1 + id });
 await context.addInitScript(async (inventory) => {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('salt:1234'));
-  const pinHash = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
-  localStorage.setItem('homedex_cached_auth_vault_v1', JSON.stringify([{ uid: 'region-test', email: 'region@example.test', displayName: 'Region Tester', salt: 'salt', passwordHash: 'unused', pinSalt: 'salt', pinHash, hasLoggedInOnThisDevice: true, lastLoginAt: Date.now() }]));
+  const passHash = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+  localStorage.setItem('homedex_cached_auth_vault_v1', JSON.stringify([{ uid: 'region-test', email: 'region@example.test', displayName: 'Region Tester', salt: 'salt', passwordHash: passHash, hasLoggedInOnThisDevice: true, lastLoginAt: Date.now() }]));
   localStorage.setItem('homedex_v4_inventory', JSON.stringify(inventory));
 }, [1, 2, 3, 152, 906].map(pet));
 const page = await context.newPage();
@@ -40,9 +40,9 @@ try {
   await page.goto(base);
   await page.getByRole('button', { name: /Open Dex/i }).click();
   await page.getByRole('button', { name: /Skip Intro/i }).click();
-  await page.getByRole('group', { name: 'PIN touch keypad' }).waitFor();
-  for (const d of ['1','2','3','4']) await page.getByRole('button', { name: 'PIN digit ' + d, exact: true }).click();
-  await page.getByRole('button', { name: 'Unlock with PIN' }).click();
+  await page.locator('input[type=email]').fill('region@example.test');
+  await page.locator('input[type=password]').fill('1234');
+  await page.getByRole('button', { name: /Sign In/i }).first().click();
 
   const regions = page.getByRole('region', { name: 'Caught by region' });
   await regions.waitFor();

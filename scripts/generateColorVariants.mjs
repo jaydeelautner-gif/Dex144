@@ -106,7 +106,13 @@ const notes = Object.fromEntries(Object.entries(COSMETIC).map(([base, meta]) => 
 // render a placeholder, so it is better omitted than shown blank.
 const { COLOR_SPRITE_FILES, SPRITE_FILES } = await (async () => {
   const src = (await import('node:fs')).readFileSync(new URL('../src/data/spriteFiles.generated.ts', import.meta.url), 'utf8');
-  const read = (name) => JSON.parse(src.match(new RegExp(`export const ${name}[^=]*= (\\{[\\s\\S]*?\\});\\n`))[1]);
+  // Tolerate a fresh pipeline where bundleSprites.mjs has not run yet: missing
+  // maps mean "nothing bundled to compare against yet", not a crash. The prune
+  // below is skipped and the downloader fetches every form.
+  const read = (name) => {
+    const m = src.match(new RegExp(`export const ${name}[^=]*= (\\{[\\s\\S]*?\\});\\n`));
+    try { return m ? JSON.parse(m[1]) : {}; } catch { return {}; }
+  };
   return { COLOR_SPRITE_FILES: read('COLOR_SPRITE_FILES'), SPRITE_FILES: read('SPRITE_FILES') };
 })();
 let dropped = 0;

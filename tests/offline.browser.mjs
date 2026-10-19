@@ -34,8 +34,8 @@ const harness=(await build({entryPoints:[new URL('offlineHarness.ts',import.meta
 const browser=await chromium.launch(); const context=await browser.newContext();
 await context.addInitScript(async()=>{
   const d=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('salt:1234'));
-  const pinHash=Array.from(new Uint8Array(d),b=>b.toString(16).padStart(2,'0')).join('');
-  localStorage.setItem('homedex_cached_auth_vault_v1',JSON.stringify([{uid:'offline-test',email:'offline@example.test',displayName:'Offline Tester',salt:'salt',passwordHash:'unused',pinSalt:'salt',pinHash,hasLoggedInOnThisDevice:true,lastLoginAt:Date.now()}]));
+  const passHash=Array.from(new Uint8Array(d),b=>b.toString(16).padStart(2,'0')).join('');
+  localStorage.setItem('homedex_cached_auth_vault_v1',JSON.stringify([{uid:'offline-test',email:'offline@example.test',displayName:'Offline Tester',salt:'salt',passwordHash: passHash,hasLoggedInOnThisDevice:true,lastLoginAt:Date.now()}]));
 });
 // Counts only artwork/sprite hosts: those must never be contacted now that
 // every sprite is bundled. Cloud/auth traffic is out of scope here.
@@ -74,11 +74,9 @@ try {
   // The app opens with the closed Pokédex cover; open it before checking content.
   const openDex=async()=>{const b=page.getByRole('button',{name:/Open Dex/i});if(await b.count()){await b.click();const skip=page.getByRole('button',{name:/Skip Intro/i});if(await skip.count())await skip.click();}};
   await openDex();
-  const keypad=page.getByRole('group',{name:'PIN touch keypad'});
-  if(await keypad.count()){
-    for(const d of ['1','2','3','4'])await page.getByRole('button',{name:'PIN digit '+d,exact:true}).click();
-    await page.getByRole('button',{name:'Unlock with PIN'}).click();
-  }
+  await page.locator('input[type=email]').fill('offline@example.test');
+  await page.locator('input[type=password]').fill('1234');
+  await page.getByRole('button', { name: /Sign In/i }).first().click();
   await page.getByRole('heading',{name:'Welcome, Trainer',exact:true}).waitFor();
   const data=await page.evaluate(async()=>({count:Object.keys(await(await fetch('/data/encounters.json')).json()).length,css:(await fetch('/fonts/site-fonts.css')).status}));
   assert.ok(data.count>=800);assert.equal(data.css,200);

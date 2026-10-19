@@ -2,6 +2,7 @@ import {
   SPRITE_FILES,
   FORM_SPRITE_FILES,
   FORM_ID_SPRITE_FILES,
+  FORM_ID_BASE_SPRITE_FILES,
   COLOR_SPRITE_FILES,
   FEMALE_SPRITE_FILES,
   type SpriteSlice,
@@ -29,7 +30,9 @@ export function spriteSources(id: number, shiny = false, imageUrl?: string): Spr
   // first; the numeric form map does not contain them. A base form has no
   // separate artwork, so it falls through to the species sprite below.
   const form = COLOR_SPRITE_FILES[id] ?? FORM_ID_SPRITE_FILES[id];
-  const base = SPRITE_FILES[id];
+  // Species ids 1-1025 resolve to their own sprite; numeric PokeAPI form ids
+  // (10001+) fall back to their base species sprite when no form art exists.
+  const base = SPRITE_FILES[id] ?? FORM_ID_BASE_SPRITE_FILES[id];
   const ordered = shiny
     ? [form?.shiny, base?.shiny, form?.normal, base?.normal]
     : [form?.normal, base?.normal, form?.shiny, base?.shiny];

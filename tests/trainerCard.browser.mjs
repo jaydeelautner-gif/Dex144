@@ -29,17 +29,17 @@ page.on('pageerror', (e) => errors.push(e.message));
 try {
   await context.addInitScript(async () => {
     const digest = await crypto.subtle.digest('SHA-256',new TextEncoder().encode('salt:1234'));
-    const pinHash = Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
-    localStorage.setItem('homedex_cached_auth_vault_v1', JSON.stringify([{uid:'home-layout-test',email:'home@example.test',displayName:'Home Tester',salt:'salt',passwordHash:'unused',pinSalt:'salt',pinHash,hasLoggedInOnThisDevice:true,lastLoginAt:Date.now()}]));
+    const passHash = Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
+    localStorage.setItem('homedex_cached_auth_vault_v1', JSON.stringify([{uid:'home-layout-test',email:'home@example.test',displayName:'Home Tester',salt:'salt',passwordHash: passHash,hasLoggedInOnThisDevice:true,lastLoginAt:Date.now()}]));
 
     localStorage.setItem('homedex_home_panels_v1', JSON.stringify({catchHub:false}));
   });
   await page.goto(base);
   await page.getByRole('button',{name:/Open Dex/i}).click();
   await page.getByRole('button',{name:/Skip Intro/i}).click();
-  await page.getByRole('group',{name:'PIN touch keypad'}).waitFor();
-  for(const digit of ['1','2','3','4']) await page.getByRole('button',{name:`PIN digit ${digit}`,exact:true}).click();
-  await page.getByRole('button',{name:'Unlock with PIN'}).click();
+  await page.locator('input[type=email]').fill('home@example.test');
+  await page.locator('input[type=password]').fill('1234');
+  await page.getByRole('button', { name: /Sign In/i }).first().click();
   const sidebar = page.getByRole('complementary',{name:'Your trainer and profile shortcuts'});
   await sidebar.waitFor();
 
@@ -106,23 +106,6 @@ try {
   assert.notEqual(await page.evaluate(()=>localStorage.getItem('homedex_v4_is_public')),'true','visibility is staged');
   await page.getByRole('button',{name:'Save settings',exact:true}).first().click();
   assert.equal(await page.evaluate(()=>localStorage.getItem('homedex_v4_is_public')),'true','profile visibility applied');
-  await page.getByRole('navigation',{name:'Settings sections'}).getByRole('button',{name:/^Storage & Sync/}).click();
-  const oldHash=await page.evaluate(()=>JSON.parse(localStorage.getItem('homedex_cached_auth_vault_v1'))[0].pinHash);
-  await page.getByLabel('Quick-entry PIN',{exact:true}).fill('5678');
-  await page.getByLabel('Confirm quick-entry PIN',{exact:true}).fill('0000');
-  await page.getByRole('button',{name:'Save settings',exact:true}).first().click();
-  await page.getByText(/PIN was not saved/).waitFor();
-  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('homedex_cached_auth_vault_v1'))[0].pinHash),oldHash,'invalid PIN is not applied');
-  await page.getByLabel('Confirm quick-entry PIN',{exact:true}).fill('5678');
-  await page.getByRole('navigation',{name:'Settings sections'}).getByRole('button',{name:/^Tracker/}).click();
-  await page.getByRole('button',{name:'Save settings',exact:true}).first().click();
-  await page.getByText(/Settings saved on this device/).waitFor();
-  const pinCorrect=await page.evaluate(async()=>{
-    const account=JSON.parse(localStorage.getItem('homedex_cached_auth_vault_v1'))[0];
-    const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(account.pinSalt+':5678'));
-    return Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('')===account.pinHash;
-  });
-  assert.ok(pinCorrect,'global Save also saves the staged PIN from another Settings section');
   // ── Trainer card + avatar customisation ──
   await page.getByRole('button',{name:'Home Tester'}).first().click();
   await page.getByRole('button',{name:'Avatar Builder',exact:true}).click();

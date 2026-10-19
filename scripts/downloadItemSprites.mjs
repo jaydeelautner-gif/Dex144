@@ -1,6 +1,6 @@
 // Downloads PokeAPI item sprites for every item in the generated table into
 // .sprite-cache/items. Sprites are named by the item's PokeAPI identifier
-// ("poke-ball", "tm-normal"). scripts/appendItemSprites.mjs then appends them
+// ("poke-ball", "tm-normal"). scripts/bundleSprites.mjs then packs them
 // to public/sprites.bin, so item artwork ships inside the app like Pokémon art.
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 const root = new URL('../', import.meta.url);
