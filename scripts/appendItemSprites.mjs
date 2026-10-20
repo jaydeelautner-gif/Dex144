@@ -15,6 +15,22 @@ const spriteFiles = readMap('SPRITE_FILES');
 const formId = readMap('FORM_ID_SPRITE_FILES');
 const formFiles = readMap('FORM_SPRITE_FILES');
 const female = readMap('FEMALE_SPRITE_FILES');
+// Preserve maps this script does not own so a re-emit never drops them
+// (dropping COLOR_SPRITE_FILES blanked colour variants once before).
+const readOptional = (name) => { try { return readMap(name); } catch { return null; } };
+const color = readOptional('COLOR_SPRITE_FILES');
+const existingItems = readOptional('ITEM_SPRITE_SLICES');
+// form id -> base species sprite pair, derived from the download snapshot
+// (spritePaths.json) so GO-era pseudo-forms without art render their base
+// species instead of a placeholder. SPRITE_FILES entries are already slices.
+let formIdBase = {};
+try {
+  const snapshot = JSON.parse(readFileSync(join(root, '.sprite-cache/spritePaths.json'), 'utf8'));
+  for (const [formId, dexId] of Object.entries(snapshot.formBase ?? {})) {
+    const slice = spriteFiles[Number(dexId)];
+    if (slice) formIdBase[Number(formId)] = slice;
+  }
+} catch { /* snapshot missing: leave the fallback map unset */ }
 
 // Highest end offset already used, so appended item slices never overlap.
 let end = 0;
@@ -32,13 +48,21 @@ const chunks = [];
 const slices = {};
 let offset = existing;
 for (const name of readdirSync(itemDir).filter((file) => file.endsWith('.png')).sort()) {
+  if (existingItems && existingItems[name.replace(/\.png$/, '')]) continue;
   const bytes = readFileSync(join(itemDir, name));
   chunks.push(bytes);
   slices[name.replace(/\.png$/, '')] = { o: offset, l: bytes.length };
   offset += bytes.length;
 }
-if (!chunks.length) throw Error('No item sprites to append.');
-writeFileSync(binPath, Buffer.concat([readFileSync(binPath), ...chunks]));
+if (!chunks.length) {
+  // Incremental no-op: every item is already bundled. Still re-emit the index
+  // so maps dropped by an earlier run (form→base fallback, colour forms) are
+  // repaired without touching the archive.
+  console.log(`No new item sprites to append (${Object.keys(existingItems ?? {}).length} already bundled).`);
+  offset = existing;
+} else {
+  writeFileSync(binPath, Buffer.concat([readFileSync(binPath), ...chunks]));
+}
 writeFileSync(
   generatedPath,
   [
@@ -50,7 +74,9 @@ writeFileSync(
     `export const FORM_ID_SPRITE_FILES: Record<number, { normal?: SpriteSlice; shiny?: SpriteSlice }> = ${JSON.stringify(formId)};`,
     `export const FORM_SPRITE_FILES: Record<string, SpriteSlice> = ${JSON.stringify(formFiles)};`,
     `export const FEMALE_SPRITE_FILES: Record<number, SpriteSlice> = ${JSON.stringify(female)};`,
-    `export const ITEM_SPRITE_SLICES: Record<string, SpriteSlice> = ${JSON.stringify(slices)};`,
+    `export const ITEM_SPRITE_SLICES: Record<string, SpriteSlice> = ${JSON.stringify({ ...(existingItems ?? {}), ...slices })};`,
+    ...(color ? [`export const COLOR_SPRITE_FILES: Record<number, { normal?: SpriteSlice; shiny?: SpriteSlice }> = ${JSON.stringify(color)};`] : []),
+    `export const FORM_ID_BASE_SPRITE_FILES: Record<number, { normal: SpriteSlice; shiny: SpriteSlice }> = ${JSON.stringify(formIdBase)};`,
     '',
   ].join('\n'),
 );

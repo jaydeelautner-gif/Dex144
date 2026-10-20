@@ -40,7 +40,7 @@
     "test:trainer-card": "npm run build && node tests/trainerCard.browser.mjs",
     "generate:items": "node scripts/generateItemsData.mjs",
     "test:items": "tsx tests/items.test.ts && npm run build && node tests/items.browser.mjs",
-    "generate:item-sprites": "node scripts/downloadItemSprites.mjs && node scripts/appendItemSprites.mjs",
+    "generate:item-sprites": "node scripts/downloadItemSprites.mjs",
     "test:region-progress": "npm run build && node tests/regionProgress.browser.mjs",
     "generate:item-locations": "python3 scripts/fetch_item_locations.py",
     "generate:color-variants": "node scripts/generateColorVariants.mjs && node scripts/downloadColorSprites.mjs",
@@ -73,6 +73,7 @@
     "typescript": "^7.0.2",
     "workbox-cacheable-response": "^7.4.1",
     "workbox-core": "^7.4.1",
+    "workbox-expiration": "^7.4.1",
     "workbox-precaching": "^7.4.1",
     "workbox-routing": "^7.4.1",
     "workbox-strategies": "^7.4.1"

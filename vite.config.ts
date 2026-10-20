@@ -36,7 +36,7 @@ function offlineVersion() {
 // production dependencies only, that build would fail, so fall back to the
 // generated service worker instead of breaking startup.
 function hasServiceWorkerDeps() {
-  return ['workbox-core', 'workbox-precaching', 'workbox-routing', 'workbox-strategies', 'workbox-cacheable-response']
+  return ['workbox-core', 'workbox-precaching', 'workbox-routing', 'workbox-strategies', 'workbox-cacheable-response', 'workbox-expiration']
     .every((pkg) => existsSync(path.join('node_modules', pkg, 'package.json')));
 }
 
@@ -57,6 +57,9 @@ function pwaPlugin(version: string) {
   };
   return VitePWA({
     registerType: 'prompt', // never reload while the user is registering/editing
+    // The app registers the worker itself (src/main.tsx) so it can pass
+    // updateViaCache: 'none' — required for iOS Safari to see updates.
+    injectRegister: false,
     manifest,
     ...(hasServiceWorkerDeps()
       ? {
@@ -64,7 +67,12 @@ function pwaPlugin(version: string) {
           srcDir: 'src',
           filename: 'sw.ts',
           injectManifest: {
-            globPatterns: ['**/*.{js,css,html,svg,ico,png,bin,woff,woff2,ttf}'],
+            // No .bin: the sprite archive is versioned per build and served
+            // device-first by the dedicated /sprites.bin route in sw.ts. The
+            // precache route matches with ignoreSearch, so a precached archive
+            // would pair the pinned package's old JS with the new archive bytes
+            // and blank every sprite until the package was re-downloaded.
+            globPatterns: ['**/*.{js,css,html,svg,ico,png,woff,woff2,ttf}'],
             globIgnores: ['offline-manifest.json', 'data/**'],
             maximumFileSizeToCacheInBytes: 32 * 1024 * 1024,
           },
@@ -72,7 +80,7 @@ function pwaPlugin(version: string) {
       : {
           strategies: 'generateSW' as const,
           workbox: {
-            globPatterns: ['**/*.{js,css,html,svg,ico,png,bin,woff,woff2,ttf}'],
+            globPatterns: ['**/*.{js,css,html,svg,ico,png,woff,woff2,ttf}'],
             globIgnores: ['offline-manifest.json', 'data/**'],
             maximumFileSizeToCacheInBytes: 32 * 1024 * 1024,
             runtimeCaching: [

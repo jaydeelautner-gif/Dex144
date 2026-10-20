@@ -35,9 +35,9 @@ interface LivingBoxesViewProps {
   boxSelectedVariantsMap: Map<number, string>;
   boxSelectedGamesMap: Map<number, GameId>;
   onSelectBoxVariant: (pokemonId: number, variantId: string) => void;
-  onSelectPokemon: (pokemon: PokemonEntry, variantId?: string) => void;
+  onSelectPokemon: (pokemon: PokemonEntry) => void;
   inventory?: PokemonInstance[];
-  onNavigateToRegister?: (pokemonId?: number, variantId?: string) => void;
+  onNavigateToRegister?: (pokemonId?: number) => void;
 }
 
 export const LivingBoxesView: React.FC<LivingBoxesViewProps> = ({
@@ -249,7 +249,7 @@ export const LivingBoxesView: React.FC<LivingBoxesViewProps> = ({
               <div
                 key={p.id}
                 data-testid="box-slot"
-                onClick={() => onSelectPokemon(p, activeVariant.variantId)}
+                onClick={() => onSelectPokemon(p)}
                 className={`group relative rounded-xl border p-3 flex flex-col justify-between transition-all cursor-pointer select-none ${
                   isBoxed
                     ? 'bg-sky-950/20 border-sky-500/40 hover:border-sky-400'
@@ -412,7 +412,7 @@ export const LivingBoxesView: React.FC<LivingBoxesViewProps> = ({
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onSelectPokemon(p, activeVariant.variantId);
+                    onSelectPokemon(p);
                   }}
                   title={`Open ${p.name} Pokémon Page`}
                   className="absolute top-8 right-2 opacity-0 group-hover:opacity-100 p-1 rounded bg-slate-900/90 border border-slate-700 text-slate-300 hover:text-white transition-opacity cursor-pointer"

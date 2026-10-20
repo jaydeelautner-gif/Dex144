@@ -47,17 +47,15 @@ import { PokemonEncountersSection } from './PokemonEncountersSection';
 
 interface PokemonFullPageViewProps {
   pokemon: PokemonEntry;
-  initialVariantId?: string;
   dex: PokemonEntry[];
-  onSelectPokemon: (pokemon: PokemonEntry, variantId?: string) => void;
+  onSelectPokemon: (pokemon: PokemonEntry) => void;
   onCloseFullPage: () => void;
-  onSwitchToSidebar: (variantId?: string) => void;
+  onSwitchToSidebar: () => void;
   isCaught: boolean;
   isShiny: boolean;
   isLiving: boolean;
   caughtVariantsSet: Set<string>;
   selectedBoxVariantId?: string;
-  onSelectBoxVariant?: (pokemonId: number, variantId: string) => void;
   selectedBoxGameId?: GameId;
   ownedGames: GameId[];
   ownedDlcs: DlcId[];
@@ -66,7 +64,7 @@ interface PokemonFullPageViewProps {
   inventory?: PokemonInstance[];
   onDeleteInstance?: (pokeId: string) => void;
   onOpenTrainerCardForPokeId?: (instance: PokemonInstance) => void;
-  onNavigateToRegister?: (pokemonId?: number, variantId?: string) => void;
+  onNavigateToRegister?: (pokemonId?: number) => void;
   /** Completed milestones per trackable group + tracked games, for the reachability filter. */
   gameProgress?: Record<string, string[]>;
   /** Per game: starter lines locked to trade because another starter was chosen. */
@@ -76,7 +74,6 @@ interface PokemonFullPageViewProps {
 
 export const PokemonFullPageView: React.FC<PokemonFullPageViewProps> = ({
   pokemon,
-  initialVariantId,
   dex,
   onSelectPokemon,
   onCloseFullPage,
@@ -86,7 +83,6 @@ export const PokemonFullPageView: React.FC<PokemonFullPageViewProps> = ({
   isLiving,
   caughtVariantsSet,
   selectedBoxVariantId,
-  onSelectBoxVariant,
   selectedBoxGameId,
   ownedGames,
   ownedDlcs,
@@ -101,15 +97,9 @@ export const PokemonFullPageView: React.FC<PokemonFullPageViewProps> = ({
   trackedGames,
 }) => {
   const [previewShiny, setPreviewShiny] = useState(false);
-  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(initialVariantId ?? null);
   const [revealedFullPagePokeIds, setRevealedFullPagePokeIds] = useState<Set<string>>(() => new Set());
   const [consentModalInstance, setConsentModalInstance] = useState<PokemonInstance | null>(null);
   const [hasPositiveConsent, setHasPositiveConsent] = useState(false);
-
-  React.useEffect(() => {
-    setSelectedVariantId(initialVariantId ?? null);
-    setPreviewShiny(false);
-  }, [pokemon?.id, initialVariantId]);
 
   const prevPokemon = pokemon.id > 1 ? dex[pokemon.id - 2] : dex[dex.length - 1];
   const nextPokemon = pokemon.id < dex.length ? dex[pokemon.id] : dex[0];
@@ -119,9 +109,8 @@ export const PokemonFullPageView: React.FC<PokemonFullPageViewProps> = ({
   }, [inventory, pokemon.id]);
 
   const variations = getVariationsForPokemon(pokemon);
-  const currentVariantId = selectedVariantId ?? selectedBoxVariantId ?? variations[0]?.variantId;
   const activeBoxVariant =
-    variations.find((v) => v.variantId === currentVariantId) || variations[0];
+    variations.find((v) => v.variantId === selectedBoxVariantId) || variations[0];
 
   // User requirement: If a user has not marked a game as owned, hide it from the user on the Pokemon's page.
   const userOwnedEncounterGames = useMemo(() => {
@@ -149,7 +138,7 @@ export const PokemonFullPageView: React.FC<PokemonFullPageViewProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => onSwitchToSidebar(activeBoxVariant.variantId)}
+            onClick={onSwitchToSidebar}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-medium text-slate-300 hover:text-slate-100 transition-colors cursor-pointer"
             title="Switch to Side Bar View"
           >
@@ -192,16 +181,7 @@ export const PokemonFullPageView: React.FC<PokemonFullPageViewProps> = ({
               name={activeBoxVariant.formName}
               shiny={previewShiny || isShiny}
               size="xl"
-              imageUrl={activeBoxVariant.imageUrl}
             />
-            {activeBoxVariant.variantId !== variations[0]?.variantId && (
-              <span
-                className="text-xs font-semibold text-amber-300 mt-2 px-3 py-1 rounded-lg bg-slate-900 border border-slate-700 text-center max-w-[240px] truncate"
-                title={activeBoxVariant.formName}
-              >
-                {activeBoxVariant.formName}
-              </span>
-            )}
             <div className="flex items-center gap-1 mt-3 p-1 bg-slate-900 border border-slate-800 rounded-lg">
               <button
                 type="button"
@@ -262,11 +242,11 @@ export const PokemonFullPageView: React.FC<PokemonFullPageViewProps> = ({
               {onNavigateToRegister && (
                 <button
                   type="button"
-                  onClick={() => onNavigateToRegister(pokemon.id, activeBoxVariant.variantId)}
+                  onClick={() => onNavigateToRegister(pokemon.id)}
                   className="ml-auto inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs transition-colors cursor-pointer shadow-lg"
                 >
                   <Plus className="w-4 h-4 stroke-[3]" />
-                  <span>Register {activeBoxVariant.variantId !== variations[0]?.variantId ? activeBoxVariant.formName : 'Pokepet'}</span>
+                  <span>Register Pokepet</span>
                 </button>
               )}
             </div>
@@ -330,124 +310,6 @@ export const PokemonFullPageView: React.FC<PokemonFullPageViewProps> = ({
         </div>
       </div>
 
-      {/* FORMS & REGIONAL VARIANTS SECTION */}
-      {variations.length > 1 && (
-        <section className="bg-[#0F1522] border border-slate-800/80 rounded-2xl p-6 flex flex-col gap-4 shadow-xl">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
-            <div>
-              <span className="text-xs font-mono font-bold text-amber-400 uppercase tracking-wider">
-                SPECIES VARIATIONS & FORMS ({variations.length})
-              </span>
-              <h2 className="text-xl font-bold text-slate-100 mt-0.5">
-                Regional Forms, Megas, Gigantamax & Cosmetic Variants
-              </h2>
-              <p className="text-xs text-slate-400">
-                Tap any form to preview its sprite, check in-game availability, and set it as your Living Dex box variant.
-              </p>
-            </div>
-            {activeBoxVariant && (
-              <span className="text-xs font-mono text-amber-300 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-xl self-start sm:self-auto">
-                Selected: <strong>{activeBoxVariant.formName}</strong>
-              </span>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {variations.map((v) => {
-              const isCurrentActive = v.variantId === activeBoxVariant.variantId;
-              const isCaughtVariant =
-                caughtVariantsSet.has(v.variantId) ||
-                pokemonInstances.some((p) => p.variantId === v.variantId) ||
-                (v.regionTag === 'Original' && isCaught);
-
-              return (
-                <div
-                  key={v.variantId}
-                  onClick={() => setSelectedVariantId(v.variantId)}
-                  className={`p-4 rounded-xl border flex flex-col justify-between gap-3 transition-all cursor-pointer ${
-                    isCurrentActive
-                      ? 'bg-amber-500/10 border-amber-400 ring-2 ring-amber-400/20'
-                      : 'bg-[#0B0F17] border-slate-800 hover:border-slate-700 hover:bg-slate-900/60'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                      {v.regionTag}
-                    </span>
-                    {isCaughtVariant ? (
-                      <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
-                        <Check className="w-3 h-3" /> Caught
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-mono text-slate-500">
-                        Uncaught
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col items-center my-1">
-                    <div className="w-20 h-20 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-center shadow-inner">
-                      <PokemonSprite
-                        id={v.spriteId}
-                        name={v.formName}
-                        shiny={previewShiny || isShiny}
-                        size="md"
-                        imageUrl={v.imageUrl}
-                      />
-                    </div>
-                    <span className="text-sm font-bold text-slate-100 text-center mt-2.5 line-clamp-1" title={v.formName}>
-                      {v.formName}
-                    </span>
-                    <span className="text-[11px] font-mono text-amber-300 font-semibold mt-0.5">
-                      {v.types.join(' / ')}
-                    </span>
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-800 flex flex-col gap-2">
-                    {onSelectBoxVariant && isCurrentActive && selectedBoxVariantId !== v.variantId && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectBoxVariant(pokemon.id, v.variantId);
-                        }}
-                        className="w-full text-xs font-bold text-sky-950 bg-sky-400 hover:bg-sky-300 py-1.5 rounded-lg transition-colors cursor-pointer text-center"
-                      >
-                        Set as Living Box Variant
-                      </button>
-                    )}
-                    {selectedBoxVariantId === v.variantId && (
-                      <span className="text-[11px] font-mono text-sky-400 font-semibold text-center py-1">
-                        ★ Living Box Variant
-                      </span>
-                    )}
-
-                    {v.findInGames.length > 0 && (
-                      <div className="text-[11px] text-slate-400 flex flex-col gap-1">
-                        <div className="flex flex-wrap items-center gap-1">
-                          <span className="text-slate-500 text-[10px]">Games:</span>
-                          {v.findInGames.slice(0, 3).map((src) => (
-                            <span key={src.gameId} className="px-1.5 py-0.2 rounded bg-slate-800 font-mono text-[10px] text-slate-300">
-                              {src.gameShortTitle}
-                            </span>
-                          ))}
-                          {v.findInGames.length > 3 && (
-                            <span className="text-slate-500 text-[10px]">+{v.findInGames.length - 3}</span>
-                          )}
-                        </div>
-                        <p className="line-clamp-2 italic text-slate-400 text-[10px] leading-tight">
-                          {v.findInGames[0].method}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
       {/* USER'S LOGGED POKEPET INVENTORY FOR THIS POKÉMON */}
       <section className="bg-[#0F1522] border border-amber-500/40 rounded-2xl p-6 flex flex-col gap-4 shadow-xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-3">
@@ -468,7 +330,7 @@ export const PokemonFullPageView: React.FC<PokemonFullPageViewProps> = ({
           {onNavigateToRegister && (
             <button
               type="button"
-              onClick={() => onNavigateToRegister(pokemon.id, activeBoxVariant.variantId)}
+              onClick={() => onNavigateToRegister(pokemon.id)}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs transition-colors cursor-pointer shrink-0 shadow-lg"
             >
               <Plus className="w-4 h-4" />
@@ -485,7 +347,7 @@ export const PokemonFullPageView: React.FC<PokemonFullPageViewProps> = ({
             {onNavigateToRegister && (
               <button
                 type="button"
-                onClick={() => onNavigateToRegister(pokemon.id, activeBoxVariant.variantId)}
+                onClick={() => onNavigateToRegister(pokemon.id)}
                 className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs transition-colors cursor-pointer shadow-lg"
               >
                 + Register First {pokemon.name} Pokepet

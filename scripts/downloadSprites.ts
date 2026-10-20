@@ -155,19 +155,94 @@ await pool(species, async (mon) => {
 });
 
 // Alternate-form sprites (Alolan/Galarian/Mega/Hisui…) use PokeAPI ids >1025.
-const formIds = Array.from({ length: 300 }, (_, i) => 10001 + i);
+// Art source priority per form: 1) Showdown's dex folder, whose illustrations
+// match the species art style and are small (PokeAPI's gen-7 pixel sprites
+// read as tiny unrecognizable blobs next to the dex art), 2) PokeAPI pixel,
+// 3) HOME, 4) official artwork. PokeAPI form ids reach ~10750 (Gen 9).
+const formIds = Array.from({ length: 850 }, (_, i) => 10001 + i);
 const formIdMap: Record<number, { normal?: string; shiny?: string }> = {};
+// Form identifier ("raticate-alola") maps 1:1 to Showdown's dex filenames.
+const formsIdentifierCsv = await (await fetch('https://raw.githubusercontent.com/PokeAPI/pokeapi/master/data/v2/csv/pokemon_forms.csv')).text();
+const formIdentifier: Record<number, string> = {};
+const formPokemonId: Record<number, number> = {};
+{
+  const lines = formsIdentifierCsv.trim().split(/\r?\n/);
+  const header = lines.shift()!.split(',');
+  const at = (name: string) => header.indexOf(name);
+  for (const line of lines) {
+    const cells = line.split(',');
+    const formId = Number(cells[at('id')]);
+    if (formId > 10000) {
+      formIdentifier[formId] = cells[at('identifier')];
+      formPokemonId[formId] = Number(cells[at('pokemon_id')]);
+    }
+  }
+}
 await pool(formIds, async (id) => {
-  for (const [folder, key] of [['', 'normal'], ['shiny/', 'shiny']] as const) {
-    const bytes = await fetchBytes(`${POKEAPI}/${folder}${id}.png`);
-    if (!bytes) continue;
-    const rel = `pokeapi/${folder}${id}.png`;
-    await saveLocal(rel, bytes);
-    (formIdMap[id] ??= {})[key] = `/sprites/${rel}`;
+  const identifier = formIdentifier[id];
+  for (const [shiny, key] of [[false, 'normal'], [true, 'shiny']] as const) {
+    const sdFolder = shiny ? 'dex-shiny' : 'dex';
+    const listing = shiny ? shinyNames : dexNames;
+    if (identifier && listing.has(`${identifier}.png`)) {
+      const bytes = await fetchBytes(`${SHOWDOWN}/${sdFolder}/${identifier}.png`);
+      if (bytes) {
+        const rel = `showdown/${sdFolder}/${identifier}.png`;
+        await saveLocal(rel, bytes);
+        (formIdMap[id] ??= {})[key] = `/sprites/${rel}`;
+        continue;
+      }
+    }
+    // Fallbacks: PokeAPI pixel art by FORM id, then by the form's POKEMON id
+    // (gen 8 game sprites are keyed by the form's pokemon entry, e.g. G-Max
+    // Venusaur lives at /pokemon/10195.png), then HOME and official artwork.
+    const pokeId = formPokemonId[id];
+    const candidates = shiny
+      ? [`shiny/${id}.png`, ...(pokeId ? [`shiny/${pokeId}.png`] : []), `other/home/shiny/${id}.png`, `other/official-artwork/shiny/${id}.png`]
+      : [`${id}.png`, ...(pokeId ? [`${pokeId}.png`] : []), `other/home/${id}.png`, `other/official-artwork/${id}.png`];
+    for (const rel of candidates) {
+      const bytes = await fetchBytes(`${POKEAPI}/${rel}`);
+      if (!bytes) continue;
+      const relPath = `pokeapi/${rel}`;
+      await saveLocal(relPath, bytes);
+      (formIdMap[id] ??= {})[key] = `/sprites/${relPath}`;
+      break;
+    }
   }
 });
 
-// Prune cache files from previous runs that this run did not reference.
+// form id -> base species id. PokeAPI chains form -> pokemon -> species, and
+// a form's pokemon_id is usually NOT the national dex id (e.g. Basculin
+// White-Striped: form 10416 -> pokemon 10247 -> species 550), so resolve
+// through pokemon.csv before using it as a dex number.
+const formsCsv = await (await fetch('https://raw.githubusercontent.com/PokeAPI/pokeapi/master/data/v2/csv/pokemon_forms.csv')).text();
+const pokemonCsv = await (await fetch('https://raw.githubusercontent.com/PokeAPI/pokeapi/master/data/v2/csv/pokemon.csv')).text();
+const formBase: Record<number, number> = {};
+{
+  const speciesOfPokemon = new Map<number, number>();
+  {
+    const lines = pokemonCsv.trim().split(/\r?\n/);
+    const header = lines.shift()!.split(',');
+    const at = (name: string) => header.indexOf(name);
+    for (const line of lines) {
+      const cells = line.split(',');
+      speciesOfPokemon.set(Number(cells[at('id')]), Number(cells[at('species_id')]));
+    }
+  }
+  const lines = formsCsv.trim().split(/\r?\n/);
+  const header = lines.shift()!.split(',');
+  const at = (name: string) => header.indexOf(name);
+  for (const line of lines) {
+    const cells = line.split(',');
+    const formId = Number(cells[at('id')]);
+    if (formId <= 10000) continue;
+    const dexId = speciesOfPokemon.get(Number(cells[at('pokemon_id')]));
+    if (dexId && dexId >= 1 && dexId <= 1025) formBase[formId] = dexId;
+  }
+}
+
+// Prune stale files from THIS script's own cache subtrees only. The colours
+// (.sprite-cache/colors) and items (.sprite-cache/items) subtrees belong to
+// their own download scripts and must survive a species/form re-download.
 let pruned = 0;
 const walk = (dir: string): string[] => {
   const out: string[] = [];
@@ -179,9 +254,13 @@ const walk = (dir: string): string[] => {
   return out;
 };
 if (existsSync(outRoot)) {
-  for (const file of walk(outRoot)) {
-    const rel = file.slice(outRoot.length + 1);
-    if (!written.has(rel)) { rmSync(file); pruned++; }
+  for (const subdir of ['showdown', 'pokeapi']) {
+    const dir = join(outRoot, subdir);
+    if (!existsSync(dir)) continue;
+    for (const file of walk(dir)) {
+      const rel = file.slice(outRoot.length + 1);
+      if (!written.has(rel)) { rmSync(file); pruned++; }
+    }
   }
 }
 
@@ -203,6 +282,16 @@ writeFileSync(
     `export const FEMALE_SPRITE_FILES: Record<number, string> = ${JSON.stringify(sortIds(femaleMap))};`,
     '',
   ].join('\n'),
+);
+
+// Snapshot the path maps for scripts/bundleSprites.mjs, which is the single
+// authoritative pass that converts paths (species, forms, female, colour, item)
+// into byte slices of public/sprites.bin. Writing an intermediate snapshot
+// keeps the bundle idempotent: it never depends on the generated file already
+// being in slice form.
+writeFileSync(
+  join(outRoot, 'spritePaths.json'),
+  JSON.stringify({ spriteFiles, formIdMap, formMap, femaleMap, formBase }, null, 0),
 );
 
 console.log(
