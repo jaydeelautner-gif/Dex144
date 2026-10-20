@@ -70,17 +70,10 @@ async function sha256(bytes: ArrayBuffer): Promise<string> {
   const hash = await crypto.subtle.digest('SHA-256',bytes);
   return [...new Uint8Array(hash)].map(n=>n.toString(16).padStart(2,'0')).join('');
 }
-/** Reads a source once and returns its bytes only when they verify, else null. */
-async function verifiedBytes(source: Response | undefined | null, file: OfflineFile): Promise<ArrayBuffer | null> {
-  if (!source || !source.ok) return null;
-  try {
-    const bytes = await source.arrayBuffer();
-    return bytes.byteLength===file.bytes && await sha256(bytes)===file.sha256 ? bytes : null;
-  } catch { return null; }
-}
-/** Mobile links move slowly: scale the deadline with the payload (min 60s, max 10min). */
-function deadlineFor(bytes: number): number {
-  return Math.min(600000, Math.max(60000, Math.ceil(bytes/100000)*1000));
+async function verifyFile(response: Response, file: OfflineFile): Promise<boolean> {
+  if (!response.ok) return false;
+  const bytes = await response.clone().arrayBuffer();
+  return bytes.byteLength===file.bytes && await sha256(bytes)===file.sha256;
 }
 async function fetchWithDeadline(input: RequestInfo | URL, init: RequestInit, parent?: AbortSignal, ms=90000): Promise<Response> {
   const controller=new AbortController();
@@ -147,32 +140,27 @@ async function performDownload(
    */
   const ensureFile = async (file: OfflineFile): Promise<void> => {
     const absolute = url(file.url);
-    /** Store one verified buffer; a Response wrapping bytes adds no extra copy. */
-    const save = async (bytes: ArrayBuffer): Promise<void> => {
-      await stage.put(absolute, new Response(bytes));
-    };
-    // 1. the package being built (resume)
-    if (await verifiedBytes(await stage.match(absolute), file)) return;
-    // 2. the previous package (patch reuse)
-    const previousBytes = await verifiedBytes(old ? await old.match(absolute) : undefined, file);
-    if (previousBytes) { await save(previousBytes); return; }
-    // 3. any existing cache — notably the service worker precache and the
-    //    device-first sprite archive, so thousands of sprites never need a
-    //    network round-trip on mobile.
-    const reusedBytes = await verifiedBytes(await caches.match(absolute, { ignoreSearch: true }), file);
-    if (reusedBytes) { await save(reusedBytes); return; }
-    // 4. the network, retried with backoff.
+    const staged = await stage.match(absolute);
+    if (staged && (await verifyFile(staged, file))) return;
+    const previousCopy = old ? await old.match(absolute) : undefined;
+    if (previousCopy && (await verifyFile(previousCopy, file))) {
+      await stage.put(absolute, previousCopy.clone());
+      return;
+    }
+    const reused = await caches.match(absolute, { ignoreSearch: true });
+    if (reused && (await verifyFile(reused, file))) {
+      await stage.put(absolute, reused.clone());
+      return;
+    }
     const fetchUrl = new URL(file.url, origin());
     fetchUrl.searchParams.set('offline-download', manifest.version);
-    const deadline = deadlineFor(file.bytes);
     let lastError: unknown;
     for (let attempt = 1; attempt <= NETWORK_ATTEMPTS; attempt++) {
       checkAbort();
       try {
-        const response = await fetchWithDeadline(fetchUrl, { cache: 'no-store' }, signal, deadline);
-        const bytes = await response.arrayBuffer();
-        if (bytes.byteLength===file.bytes && await sha256(bytes)===file.sha256) {
-          await save(bytes);
+        const response = await fetchWithDeadline(fetchUrl, { cache: 'no-store' }, signal, 60000);
+        if (await verifyFile(response, file)) {
+          await stage.put(absolute, response.clone());
           return;
         }
         lastError = Error(`Offline file verification failed: ${file.url}`);
@@ -234,7 +222,7 @@ async function performDownload(
   }
 }
 export async function clearOfflinePackage(): Promise<void> {
-  if(typeof caches!=='undefined') for(const name of await caches.keys()) if(name.startsWith(PACKAGE_PREFIX) || name===SPRITE_CACHE_NAME || name===ACTIVE_CACHE || name==='homedex-viewed-images-v2' || name==='dex-data-v1' || name==='homedex-archive-v1' || name.startsWith('homedex-site-')) await caches.delete(name);
+  if(typeof caches!=='undefined') for(const name of await caches.keys()) if(name.startsWith(PACKAGE_PREFIX) || name===SPRITE_CACHE_NAME || name===ACTIVE_CACHE || name==='homedex-viewed-images-v2' || name==='dex-data-v1' || name.startsWith('homedex-site-')) await caches.delete(name);
   localStorage.removeItem(OFFLINE_DATA_KEY); localStorage.removeItem(OFFLINE_PACKAGE_METADATA_KEY);
   window.dispatchEvent(new Event(PACKAGE_EVENT));
 }

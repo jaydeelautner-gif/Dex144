@@ -11,6 +11,8 @@ export interface CachedAuthAccount {
   displayName: string;
   salt: string;
   passwordHash: string;
+  pinHash?: string;
+  pinSalt?: string;
   hasLoggedInOnThisDevice?: boolean;
   lastLoginAt: number;
 }
@@ -110,6 +112,99 @@ export function removeCachedAuthAccount(email: string): void {
 export function isFirstLoginOnDevice(email: string): boolean {
   const account = getCachedAccountByEmail(email);
   return !account || !account.hasLoggedInOnThisDevice;
+}
+
+/**
+ * Sets a 4-to-6 digit quick-entry PIN for an offline account on this device.
+ */
+export async function setAccountPin(uid: string, pin: string): Promise<boolean> {
+  const cleanPin = pin.trim();
+  if (cleanPin.length < 4 || cleanPin.length > 8 || !/^\d+$/.test(cleanPin)) {
+    throw new Error('PIN must be 4 to 8 digits.');
+  }
+
+  const account = getCachedAccountByUid(uid);
+  if (!account) {
+    throw new Error('No local account found to associate with this PIN. Please sign in first.');
+  }
+
+  const pinSalt = generateSalt();
+  const pinHash = await hashPasswordWithSalt(cleanPin, pinSalt);
+
+  account.pinHash = pinHash;
+  account.pinSalt = pinSalt;
+  account.hasLoggedInOnThisDevice = true;
+  saveCachedAuthAccount(account);
+  return true;
+}
+
+/**
+ * Removes the configured PIN from an account on this device.
+ */
+export function removeAccountPin(uid: string): void {
+  const account = getCachedAccountByUid(uid);
+  if (!account) return;
+  delete account.pinHash;
+  delete account.pinSalt;
+  saveCachedAuthAccount(account);
+}
+
+/**
+ * Returns whether a given account has a PIN set on this device.
+ */
+export function hasPinSet(uid: string): boolean {
+  const account = getCachedAccountByUid(uid);
+  return Boolean(account && account.pinHash && account.pinSalt);
+}
+
+/**
+ * Verifies a quick-entry PIN for an account on this device.
+ * Enforces: "Do not allow this to be used to login for the first time on a device."
+ */
+export async function verifyAccountPin(
+  emailOrUid: string,
+  pin: string
+): Promise<{ success: boolean; account?: CachedAuthAccount; error?: string }> {
+  const clean = emailOrUid.trim().toLowerCase();
+  const account = clean.includes('@')
+    ? getCachedAccountByEmail(clean)
+    : getCachedAccountByUid(emailOrUid);
+
+  if (!account) {
+    return {
+      success: false,
+      error: 'No cached account found on this device. You cannot use PIN entry for your first login on a new device — please enter your email and password.',
+    };
+  }
+
+  if (!account.hasLoggedInOnThisDevice) {
+    return {
+      success: false,
+      error: 'PIN login cannot be used for first-time login on this device. Please sign in with your email and password.',
+    };
+  }
+
+  if (!account.pinHash || !account.pinSalt) {
+    return {
+      success: false,
+      error: 'No quick-entry PIN has been set for this account. Sign in with your password and configure a PIN in Settings.',
+    };
+  }
+
+  const computedHash = await hashPasswordWithSalt(pin.trim(), account.pinSalt);
+  if (computedHash !== account.pinHash) {
+    return {
+      success: false,
+      error: 'Incorrect PIN. Please try again or use your password.',
+    };
+  }
+
+  account.lastLoginAt = Date.now();
+  saveCachedAuthAccount(account);
+  return {
+    success: true,
+    account,
+  };
 }
 
 /**

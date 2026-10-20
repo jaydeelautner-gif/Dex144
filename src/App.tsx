@@ -384,6 +384,7 @@ export function App() {
     setActiveTab('profile');
   };
   const [registerTargetPokemonId, setRegisterTargetPokemonId] = useState<number | undefined>(undefined);
+  const [registerTargetVariantId, setRegisterTargetVariantId] = useState<string | undefined>(undefined);
   const [selectedGame, setSelectedGame] = useState<GameId | 'all'>('all');
   const [selectedGen, setSelectedGen] = useState<number | 'all'>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -395,7 +396,10 @@ export function App() {
   const {design:homeDesign,rank:homeRank} = useHomeDesign();
   const [activeBox, setActiveBox] = useState<number>(1);
   const [selectedPokemon, setSelectedPokemon] = useState<PokemonEntry | null>(null);
+  const [selectedDrawerVariantId, setSelectedDrawerVariantId] = useState<string | undefined>(undefined);
   const [fullPagePokemon, setFullPagePokemon] = useState<PokemonEntry | null>(null);
+  const [fullPageVariantId, setFullPageVariantId] = useState<string | undefined>(undefined);
+  const [cardVariantOverrides, setCardVariantOverrides] = useState<Record<number, string>>({});
 
   // Active Specimen Trainer Card Modal
   const [activeTrainerCardInstance, setActiveTrainerCardInstance] = useState<PokemonInstance | null>(null);
@@ -2431,19 +2435,29 @@ export function App() {
         {fullPagePokemon ? (
           <PokemonFullPageView
             pokemon={fullPagePokemon}
+            initialVariantId={fullPageVariantId}
             dex={dex}
-            onSelectPokemon={(p) => setFullPagePokemon(p)}
-            onCloseFullPage={() => setFullPagePokemon(null)}
-            onSwitchToSidebar={() => {
+            onSelectPokemon={(p, vId) => {
+              setFullPagePokemon(p);
+              setFullPageVariantId(vId);
+            }}
+            onCloseFullPage={() => {
+              setFullPagePokemon(null);
+              setFullPageVariantId(undefined);
+            }}
+            onSwitchToSidebar={(vId) => {
               const target = fullPagePokemon;
               setFullPagePokemon(null);
+              setFullPageVariantId(undefined);
               setSelectedPokemon(target);
+              setSelectedDrawerVariantId(vId);
             }}
             isCaught={caughtSet.has(fullPagePokemon.id) && inventory.some((inv) => inv.pokemonId === fullPagePokemon.id)}
             isShiny={shinySet.has(fullPagePokemon.id) && inventory.some((inv) => inv.pokemonId === fullPagePokemon.id)}
             isLiving={livingSet.has(fullPagePokemon.id) && inventory.some((inv) => inv.pokemonId === fullPagePokemon.id)}
             caughtVariantsSet={caughtVariantsSet}
             selectedBoxVariantId={boxSelectedVariantsMap.get(fullPagePokemon.id)}
+            onSelectBoxVariant={handleSelectBoxVariant}
             selectedBoxGameId={boxSelectedGamesMap.get(fullPagePokemon.id)}
             ownedGames={ownedGames}
             ownedDlcs={ownedDlcs}
@@ -2453,15 +2467,18 @@ export function App() {
             gameCatches={gameCatches}
             onJumpToBox={(boxNum) => {
               setFullPagePokemon(null);
+              setFullPageVariantId(undefined);
               setActiveBox(boxNum);
               navigateToProfile('boxes');
             }}
             inventory={inventory}
             onDeleteInstance={handleDeleteInstance}
             onOpenTrainerCardForPokeId={(inst) => setActiveTrainerCardInstance(inst)}
-            onNavigateToRegister={(pId) => {
+            onNavigateToRegister={(pId, vId) => {
               setFullPagePokemon(null);
+              setFullPageVariantId(undefined);
               setRegisterTargetPokemonId(pId);
+              setRegisterTargetVariantId(vId);
               setActiveTab('register');
             }}
           />
@@ -2676,8 +2693,12 @@ export function App() {
                   ownedGames={ownedGames}
                   inventory={inventory}
                   initialPokemonId={registerTargetPokemonId}
+                  initialVariantId={registerTargetVariantId}
                   onSaveNewInstance={handleSaveNewInstance}
-                  onOpenPokemonPage={(p) => setFullPagePokemon(p)}
+                  onOpenPokemonPage={(p, vId) => {
+                    setFullPagePokemon(p);
+                    setFullPageVariantId(vId);
+                  }}
                   onNavigateToInventory={() => navigateToProfile('inventory')}
                 />
               ) : (
@@ -2900,15 +2921,21 @@ export function App() {
                       const specimenCount = inventory.filter((inv) => inv.pokemonId === p.id).length;
                       const ownedSummary = getOwnedGamesAvailabilitySummary(p);
                       const variations = getVariationsForPokemon(p);
-                      const savedVariantId = boxSelectedVariantsMap.get(p.id);
+                      const savedVariantId = cardVariantOverrides[p.id] || boxSelectedVariantsMap.get(p.id);
+                      const defaultRegionalVariant = statusFilter === 'regional_variants'
+                        ? variations.find((v) => v.regionTag !== 'Original') || variations[1] || variations[0]
+                        : variations[0];
                       const displayVariant =
-                        variations.find((v) => v.variantId === savedVariantId) || variations[0];
+                        variations.find((v) => v.variantId === savedVariantId) || defaultRegionalVariant;
                       const isLockedByProgress = lockedByProgressSet.has(p.id);
 
                       return (
                         <div
                           key={p.id}
-                          onClick={() => setSelectedPokemon(p)}
+                          onClick={() => {
+                            setSelectedPokemon(p);
+                            setSelectedDrawerVariantId(displayVariant.variantId);
+                          }}
                           title={ownedSummary.tooltip}
                           className={`group rounded-2xl border p-3.5 flex flex-col justify-between transition-all cursor-pointer select-none shadow-md ${
                             isCaught
@@ -2939,6 +2966,7 @@ export function App() {
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setFullPagePokemon(p);
+                                  setFullPageVariantId(displayVariant.variantId);
                                 }}
                                 aria-label={`Open ${p.name} page`}
                                 className="p-1 rounded bg-slate-900 text-slate-400 hover:text-amber-300 transition-colors cursor-pointer"
@@ -2958,7 +2986,33 @@ export function App() {
                               name={displayVariant.formName}
                               shiny={isShiny}
                               size="md"
+                              imageUrl={displayVariant.imageUrl}
                             />
+                            {variations.length > 1 && (
+                              <div
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const currentIdx = variations.findIndex((v) => v.variantId === displayVariant.variantId);
+                                  const nextIdx = (currentIdx + 1) % variations.length;
+                                  setCardVariantOverrides((prev) => ({ ...prev, [p.id]: variations[nextIdx].variantId }));
+                                }}
+                                className="mt-1 flex items-center justify-center gap-1 max-w-full cursor-pointer hover:scale-105 transition-transform"
+                                title={`${displayVariant.formName} (Click to switch form)`}
+                              >
+                                <span
+                                  className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-slate-900/90 border border-amber-500/50 text-amber-300 truncate max-w-[130px] flex items-center gap-1 shadow-sm hover:border-amber-400 hover:text-amber-200"
+                                >
+                                  <span>
+                                    {displayVariant.regionTag !== 'Original'
+                                      ? displayVariant.regionTag
+                                      : displayVariant.formName !== p.name
+                                      ? displayVariant.formName
+                                      : `${variations.length} Forms`}
+                                  </span>
+                                  <span className="text-amber-400 font-bold text-[10px]">↻</span>
+                                </span>
+                              </div>
+                            )}
                           </div>
 
                           <div className="flex flex-col gap-1">
@@ -3009,10 +3063,20 @@ export function App() {
                             const specimenCount = inventory.filter((inv) => inv.pokemonId === p.id).length;
                             const ownedSummary = getOwnedGamesAvailabilitySummary(p);
                             const isLockedByProgress = lockedByProgressSet.has(p.id);
+                            const variations = getVariationsForPokemon(p);
+                            const savedVariantId = cardVariantOverrides[p.id] || boxSelectedVariantsMap.get(p.id);
+                            const defaultRegionalVariant = statusFilter === 'regional_variants'
+                              ? variations.find((v) => v.regionTag !== 'Original') || variations[1] || variations[0]
+                              : variations[0];
+                            const displayVariant =
+                              variations.find((v) => v.variantId === savedVariantId) || defaultRegionalVariant;
                             return (
                               <tr
                                 key={p.id}
-                                onClick={() => setSelectedPokemon(p)}
+                                onClick={() => {
+                                  setSelectedPokemon(p);
+                                  setSelectedDrawerVariantId(displayVariant.variantId);
+                                }}
                                 className={`transition-colors cursor-pointer ${
                                   isCaught ? 'bg-emerald-950/10 hover:bg-emerald-950/20' : 'hover:bg-slate-900/60'
                                 }`}
@@ -3022,11 +3086,23 @@ export function App() {
                                 </td>
                                 <td className="py-2.5 px-4">
                                   <div className="flex items-center gap-3">
-                                    <PokemonSprite id={p.id} name={p.name} size="sm" />
+                                    <PokemonSprite
+                                      id={displayVariant.spriteId}
+                                      name={displayVariant.formName}
+                                      size="sm"
+                                      imageUrl={displayVariant.imageUrl}
+                                    />
                                     <div>
-                                      <div className="font-semibold text-slate-100">{p.name}</div>
+                                      <div className="font-semibold text-slate-100 flex items-center gap-1.5">
+                                        <span>{p.name}</span>
+                                        {displayVariant.regionTag !== 'Original' && (
+                                          <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 font-normal">
+                                            {displayVariant.regionTag}
+                                          </span>
+                                        )}
+                                      </div>
                                       <div className="text-xs text-slate-400 font-mono-tabular">
-                                        {p.types.join(' / ')} • Gen {p.generation}
+                                        {displayVariant.types.join(' / ')} • Gen {p.generation}
                                       </div>
                                     </div>
                                   </div>
@@ -3129,10 +3205,14 @@ export function App() {
                     boxSelectedVariantsMap={boxSelectedVariantsMap}
                     boxSelectedGamesMap={boxSelectedGamesMap}
                     onSelectBoxVariant={handleSelectBoxVariant}
-                    onSelectPokemon={(p) => setSelectedPokemon(p)}
+                    onSelectPokemon={(p, vId) => {
+                      setSelectedPokemon(p);
+                      setSelectedDrawerVariantId(vId);
+                    }}
                     inventory={inventory}
-                    onNavigateToRegister={(pId) => {
+                    onNavigateToRegister={(pId, vId) => {
                       setRegisterTargetPokemonId(pId);
+                      setRegisterTargetVariantId(vId);
                       setActiveTab('register');
                     }}
                   />
@@ -3146,7 +3226,10 @@ export function App() {
                     onUpdateInstance={handleUpdateInstance}
                     onRequestEvolve={(pet) => setEvolvingPokeId(pet.pokeId)}
                     onDeleteInstance={handleDeleteInstance}
-                    onOpenPokemonPage={(p) => setFullPagePokemon(p)}
+                    onOpenPokemonPage={(p, vId) => {
+                      setFullPagePokemon(p);
+                      setFullPageVariantId(vId);
+                    }}
                     onOpenTrainerCardForPokeId={(inst) => setActiveTrainerCardInstance(inst)}
                     onNavigateToRegister={() => setActiveTab('register')}
                     onNavigateToSettings={() => setActiveTab('settings')}
@@ -3417,17 +3500,28 @@ export function App() {
       {/* Slide-Over Drawer */}
       <PokemonDetailDrawer
         pokemon={selectedPokemon}
+        initialVariantId={selectedDrawerVariantId}
         dex={dex}
-        onSelectPokemon={(p) => setSelectedPokemon(p)}
-        onOpenFullPage={(p) => {
-          setSelectedPokemon(null);
-          setFullPagePokemon(p);
+        onSelectPokemon={(p, vId) => {
+          setSelectedPokemon(p);
+          setSelectedDrawerVariantId(vId);
         }}
-        onClose={() => setSelectedPokemon(null)}
+        onOpenFullPage={(p, vId) => {
+          setSelectedPokemon(null);
+          setSelectedDrawerVariantId(undefined);
+          setFullPagePokemon(p);
+          setFullPageVariantId(vId);
+        }}
+        onClose={() => {
+          setSelectedPokemon(null);
+          setSelectedDrawerVariantId(undefined);
+        }}
         isCaught={selectedPokemon ? caughtSet.has(selectedPokemon.id) && inventory.some((inv) => inv.pokemonId === selectedPokemon.id) : false}
         isShiny={selectedPokemon ? shinySet.has(selectedPokemon.id) && inventory.some((inv) => inv.pokemonId === selectedPokemon.id) : false}
         isLiving={selectedPokemon ? livingSet.has(selectedPokemon.id) && inventory.some((inv) => inv.pokemonId === selectedPokemon.id) : false}
         caughtVariantsSet={caughtVariantsSet}
+        selectedBoxVariantId={selectedPokemon ? boxSelectedVariantsMap.get(selectedPokemon.id) : undefined}
+        onSelectBoxVariant={handleSelectBoxVariant}
         selectedBoxGameId={selectedPokemon ? boxSelectedGamesMap.get(selectedPokemon.id) : undefined}
         ownedGames={ownedGames}
         gameProgress={gameProgress}
@@ -3436,9 +3530,11 @@ export function App() {
         ownedDlcs={ownedDlcs}
         gameCatches={gameCatches}
         inventory={inventory}
-        onNavigateToRegister={(pId) => {
+        onNavigateToRegister={(pId, vId) => {
           setSelectedPokemon(null);
+          setSelectedDrawerVariantId(undefined);
           setRegisterTargetPokemonId(pId);
+          setRegisterTargetVariantId(vId);
           setActiveTab('register');
         }}
         onOpenTrainerCardForPokeId={(inst) => setActiveTrainerCardInstance(inst)}

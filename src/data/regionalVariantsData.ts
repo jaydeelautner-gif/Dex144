@@ -668,7 +668,11 @@ export const REGIONAL_FORM_SPECS: Record<number, ExtraVariantSpec[]> = {
 };
 
 export function hasRegionalVariations(pokemonId: number): boolean {
-  return Boolean(REGIONAL_FORM_SPECS[pokemonId]);
+  return Boolean(
+    REGIONAL_FORM_SPECS[pokemonId] ||
+    (COLOR_VARIANTS[pokemonId] && COLOR_VARIANTS[pokemonId].length > 0) ||
+    getPokemonGenderInfo(pokemonId).hasVisualDifference
+  );
 }
 
 export function getVariationsForPokemon(pokemon: PokemonEntry): RegionalVariation[] {
@@ -689,16 +693,25 @@ export function getVariationsForPokemon(pokemon: PokemonEntry): RegionalVariatio
 
   const isUnown = pokemon.id === 201;
   const genderInfo = getPokemonGenderInfo(pokemon.id);
-  const isBothGenders = genderInfo.genderRatio === 'both';
+  const hasGenderDifference = genderInfo.hasVisualDifference;
+  const extraSpecs = REGIONAL_FORM_SPECS[pokemon.id];
+  const hasMultipleForms = Boolean(
+    isUnown ||
+    hasGenderDifference ||
+    (extraSpecs && extraSpecs.length > 0) ||
+    (COLOR_VARIANTS[pokemon.id] && COLOR_VARIANTS[pokemon.id].length > 0)
+  );
 
   const baseVariation: RegionalVariation = {
     variantId: `${pokemon.id}:base`,
     pokemonId: pokemon.id,
     formName: isUnown
       ? 'Unown [A]'
-      : isBothGenders
+      : hasGenderDifference
       ? `${pokemon.name} (Male)`
-      : `${pokemon.name} (${pokemon.region} Original Form)`,
+      : hasMultipleForms
+      ? `${pokemon.name} (${pokemon.region} Form)`
+      : pokemon.name,
     regionTag: isUnown ? 'Unown Form' : 'Original',
     types: pokemon.types,
     spriteId: pokemon.id,
@@ -708,7 +721,6 @@ export function getVariationsForPokemon(pokemon: PokemonEntry): RegionalVariatio
     findInGames: baseGames,
   };
 
-  const extraSpecs = REGIONAL_FORM_SPECS[pokemon.id];
   const regionalVariants: RegionalVariation[] = (extraSpecs || []).map((spec) => {
     return {
       variantId: `${pokemon.id}:${spec.suffix}`,
@@ -723,20 +735,21 @@ export function getVariationsForPokemon(pokemon: PokemonEntry): RegionalVariatio
   });
 
   // Cosmetic colour/coat variations (wing patterns, flower colours, trims…).
-  const colorVariants = COLOR_VARIANTS[pokemon.id] ?? [];
-  const hasSpeciesFormVariant = colorVariants.some((variant) => variant.base);
-  const colorVariantList: RegionalVariation[] = colorVariants.map((variant) => ({
-    variantId: `${pokemon.id}:${variant.suffix}`,
-    pokemonId: pokemon.id,
-    formName: `${pokemon.name} — ${variant.name}`,
-    regionTag: 'Original',
-    types: pokemon.types,
-    spriteId: variant.spriteId,
-    findInGames: baseGames,
-  }));
+  // Unown's 28 forms are already uniquely specified in REGIONAL_FORM_SPECS to avoid duplicates.
+  const colorVariantList: RegionalVariation[] = (COLOR_VARIANTS[pokemon.id] ?? [])
+    .filter(() => pokemon.id !== 201)
+    .map((variant) => ({
+      variantId: `${pokemon.id}:${variant.suffix}`,
+      pokemonId: pokemon.id,
+      formName: `${pokemon.name} — ${variant.name}`,
+      regionTag: 'Colour Variant',
+      types: pokemon.types,
+      spriteId: variant.spriteId,
+      findInGames: baseGames,
+    }));
 
   const femaleVariantList: RegionalVariation[] = [];
-  if (isBothGenders) {
+  if (hasGenderDifference) {
     femaleVariantList.push({
       variantId: `${pokemon.id}:female`,
       pokemonId: pokemon.id,
@@ -749,10 +762,7 @@ export function getVariationsForPokemon(pokemon: PokemonEntry): RegionalVariatio
     });
   }
 
-  // A species whose own form is a named variant (Shellos West Sea) would
-  // otherwise be listed twice, once as the plain species and once as the form.
-  const baseList = hasSpeciesFormVariant ? [] : [baseVariation];
-  return [...baseList, ...femaleVariantList, ...colorVariantList, ...regionalVariants];
+  return [baseVariation, ...femaleVariantList, ...colorVariantList, ...regionalVariants];
 }
 
 export function getVariantsForPokemonInGame(

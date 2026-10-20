@@ -14,11 +14,11 @@
 ## Item sprites
 
 Every item has artwork: `scripts/downloadItemSprites.mjs` fetches the PokeAPI item sprite for each
-item's identifier, and `scripts/bundleSprites.mjs` packs them into
+item's identifier, and `scripts/appendItemSprites.mjs` appends them to the existing
 `public/sprites.bin` and records their byte slices, so **all 1,883 item sprites ship inside the app**
 and load from the local sprite archive with no network request. Regenerate with
-`npm run generate:item-sprites` followed by `npm run bundle:sprites` (the single authoritative
-bundling pass that emits every sprite map — species, forms, female, colour and items).
+`npm run generate:item-sprites`. Appending rather than rebuilding keeps the Pokémon slices already in
+use valid; the binary grew from 9 MB to 19 MB.
 
 Because the archive is larger than a normal precache limit, it is **precached by the service worker**
 (the `.bin` extension is included in the PWA `globPatterns` and the size limit raised) **and** listed in

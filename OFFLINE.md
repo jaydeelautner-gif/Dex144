@@ -13,30 +13,15 @@ of thousands, which hosts with a file-count limit (e.g. Google AI Studio) reject
 **2. The service worker precache (automatic).** On install the service worker caches the
 app shell (HTML/JS/CSS), icons and self-hosted fonts, so those reopen without any user action.
 
-**2b. Device-first sprite archive.** The sprite archive URL is versioned by build
-(`/sprites.bin?<version>`), so identical URLs are byte-identical. The service worker serves
-`/sprites.bin` with a device-first policy: an active offline package wins, otherwise a
-cache-first copy (`homedex-archive-v1`) from the first online fetch — never a per-session
-re-download on mobile data. After one online session, sprites render from the device even
-before the full offline package is downloaded; a new build version is fetched once and the
-oldest cached copy is evicted (max 2 entries, 60 days).
-
 **3. The offline data package (Settings → Storage).** This explicit, verified download adds
 the files the precache cannot hold: the large encounter bundle (`/data/encounters.json`,
-~6.6 MB), the sprite archive (`/sprites.bin`, ~24 MB) and a few non-precached types
+~6.6 MB), the sprite archive (`/sprites.bin`, ~9 MB) and a few non-precached types
 (`.json`, `.webmanifest`, `.txt`). It is deliberately small (a handful of files), because
 re-downloading every precached file into a second cache duplicated storage and made the
 download slow and flaky on phones and iPads.
 
 The split is defined in `scripts/buildOfflineManifest.mjs` and must stay in step with the
 PWA `globPatterns`/`globIgnores`/`maximumFileSizeToCacheInBytes` in `vite.config.ts`.
-
-App updates never require deleting and re-adding the web app. The service worker registers
-with `updateViaCache: 'none'` and re-checks the deployment on a 5-minute online poll plus
-whenever the tab regains focus or the connection returns; a waiting worker surfaces as an
-in-app "Update downloaded — reload" notice. The offline package update reuses every
-byte-identical file from the previous package and precache, so a new deployment downloads
-only the changed files.
 
 Downloads are stored in CacheStorage under `homedex-package-<version>` with a pointer in
 `homedex-offline-control-v2` that only becomes the active package once every required file

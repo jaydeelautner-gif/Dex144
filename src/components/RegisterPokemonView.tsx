@@ -46,8 +46,9 @@ interface RegisterPokemonViewProps {
   ownedGames: GameId[];
   inventory: PokemonInstance[];
   initialPokemonId?: number;
+  initialVariantId?: string;
   onSaveNewInstance: (instance: PokemonInstance) => void;
-  onOpenPokemonPage: (pokemon: PokemonEntry) => void;
+  onOpenPokemonPage: (pokemon: PokemonEntry, variantId?: string) => void;
   onNavigateToInventory?: () => void;
 }
 
@@ -82,6 +83,7 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
   ownedGames,
   inventory,
   initialPokemonId,
+  initialVariantId,
   onSaveNewInstance,
   onOpenPokemonPage,
   onNavigateToInventory,
@@ -96,20 +98,39 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
     return dex[0] || null;
   });
 
+  const [selectedVariantId, setSelectedVariantId] = useState<string>(() => {
+    if (initialVariantId) return initialVariantId;
+    if (initialPokemonId) {
+      const initMon = dex.find((p) => p.id === initialPokemonId);
+      if (initMon) {
+        const vars = getVariationsForPokemon(initMon);
+        return vars[0]?.variantId || `${initMon.id}:base`;
+      }
+    }
+    return '1:base';
+  });
+
   useEffect(() => {
     if (initialPokemonId) {
       const initMon = dex.find((p) => p.id === initialPokemonId);
       if (initMon) {
         setSelectedPokemon(initMon);
+        if (initialVariantId) {
+          setSelectedVariantId(initialVariantId);
+        } else {
+          const vars = getVariationsForPokemon(initMon);
+          setSelectedVariantId(vars[0]?.variantId || `${initMon.id}:base`);
+        }
       }
+    } else if (initialVariantId) {
+      setSelectedVariantId(initialVariantId);
     }
-  }, [initialPokemonId, dex]);
+  }, [initialPokemonId, initialVariantId, dex]);
 
   const [level, setLevel] = useState<number | ''>(50);
   const [targetGame, setTargetGame] = useState<GameId | ''>(() => {
     return ownedGames.length > 0 ? ownedGames[0] : 'sv';
   });
-  const [selectedVariantId, setSelectedVariantId] = useState<string>('1:base');
   const [gender, setGender] = useState<PokemonGender>('male');
   const [nickname, setNickname] = useState('');
   const [isShiny, setIsShiny] = useState(false);
@@ -681,7 +702,7 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => onOpenPokemonPage(selectedPokemon)}
+                  onClick={() => onOpenPokemonPage(selectedPokemon, selectedVariantId)}
                   className="ml-auto text-xs text-sky-400 hover:text-sky-300 transition-colors flex items-center gap-1 cursor-pointer py-2"
                 >
                   <span>View Details</span>
@@ -1024,8 +1045,9 @@ export const RegisterPokemonView: React.FC<RegisterPokemonViewProps> = ({
                   type="button"
                   onClick={() => {
                     const mon = selectedPokemon;
+                    const vId = registeredSuccess?.variantId;
                     setRegisteredSuccess(null);
-                    onOpenPokemonPage(mon);
+                    onOpenPokemonPage(mon, vId);
                   }}
                   className="flex-1 py-3 sm:py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-extrabold cursor-pointer transition-colors shadow-lg shadow-amber-500/20"
                 >

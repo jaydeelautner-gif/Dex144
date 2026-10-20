@@ -48,7 +48,7 @@ interface InventoryViewProps {
   onUpdateInstance: (instance: PokemonInstance) => void;
   onRequestEvolve: (instance: PokemonInstance) => void;
   onDeleteInstance: (pokeId: string) => void;
-  onOpenPokemonPage: (pokemon: PokemonEntry) => void;
+  onOpenPokemonPage: (pokemon: PokemonEntry, variantId?: string) => void;
   onOpenTrainerCardForPokeId: (instance: PokemonInstance) => void;
   onNavigateToRegister: () => void;
   onNavigateToSettings?: () => void;
@@ -630,7 +630,11 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 ) : (
                   /* Standard Display Mode */
                   <div className="flex items-center gap-3.5">
-                    <div className="w-16 h-16 shrink-0 bg-slate-900/90 rounded-xl flex items-center justify-center border border-slate-800">
+                    <div
+                      className="w-16 h-16 shrink-0 bg-slate-900/90 rounded-xl flex items-center justify-center border border-slate-800 hover:border-amber-400/60 cursor-pointer transition-colors"
+                      title={mon ? `View ${item.variantName || mon.name} Page` : undefined}
+                      onClick={() => mon && onOpenPokemonPage(mon, item.variantId)}
+                    >
                       <PokemonSprite
                         id={activeVariant?.spriteId || item.pokemonId}
                         name={item.variantName}
@@ -641,7 +645,10 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                     </div>
                     <div className="min-w-0 flex-1 flex flex-col gap-0.5">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-base font-extrabold text-slate-100 truncate">
+                        <span
+                          className="text-base font-extrabold text-slate-100 truncate hover:text-amber-300 cursor-pointer transition-colors"
+                          onClick={() => mon && onOpenPokemonPage(mon, item.variantId)}
+                        >
                           {item.nickname || mon?.name || `Pokemon #${item.pokemonId}`}
                         </span>
                         {item.nickname && (

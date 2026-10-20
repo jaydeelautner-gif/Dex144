@@ -30,10 +30,10 @@ page.on('pageerror', (e) => errors.push(e.message));
 await context.addInitScript(async () => {
   const salt = 'sync-salt';
   const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(salt + ':1234'));
-  const passHash = Array.from(new Uint8Array(d), (b) => b.toString(16).padStart(2, '0')).join('');
+  const pinHash = Array.from(new Uint8Array(d), (b) => b.toString(16).padStart(2, '0')).join('');
   localStorage.setItem('homedex_cached_auth_vault_v1', JSON.stringify([{
     uid: 'sync-test-trainer', email: 'sync@example.test', displayName: 'Sync Tester',
-    salt, passwordHash: passHash, hasLoggedInOnThisDevice: true, lastLoginAt: Date.now(),
+    salt, passwordHash: 'unused', pinSalt: salt, pinHash, hasLoggedInOnThisDevice: true, lastLoginAt: Date.now(),
   }]));
   localStorage.setItem('homedex_offline_sync_queue', JSON.stringify([
     { id: 'sync_1', type: 'REGISTER_POKEPET', timestamp: Date.now() - 3600000,
@@ -46,9 +46,9 @@ await page.goto(base);
 try {
   await page.getByRole('button', { name: /Open Dex/i }).click();
   await page.getByRole('button', { name: /Skip Intro/i }).click();
-  await page.locator('input[type=email]').fill('sync@example.test');
-  await page.locator('input[type=password]').fill('1234');
-  await page.getByRole('button', { name: /Sign In/i }).first().click();
+  await page.getByRole('group', { name: 'PIN touch keypad' }).waitFor();
+  for (const d of ['1','2','3','4']) await page.getByRole('button', { name: 'PIN digit ' + d, exact: true }).click();
+  await page.getByRole('button', { name: 'Unlock with PIN' }).click();
   await page.getByRole('button', { name: 'Settings' }).first().click();
   await page.getByRole('button', { name: /Storage & Sync/i }).first().click();
 

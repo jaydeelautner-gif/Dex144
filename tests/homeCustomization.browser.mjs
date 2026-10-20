@@ -34,8 +34,8 @@ try {
     const inventory=Array.from({length:35},(_,i)=>({pokeId:'ID'+String(i).padStart(10,'0'),pokemonId:i+1,nickname:'',level:10+i,gender:'male',variantId:`${i+1}:base`,variantName:'Standard',isShiny:false,gameId:'red',isHomeGift:false,isTraded:false,storedInHome:true,isInLivingBox:true,createdAt:1000+i,updatedAt:1000+i}));
     localStorage.setItem('homedex_v4_inventory',JSON.stringify(inventory));
     const digest = await crypto.subtle.digest('SHA-256',new TextEncoder().encode('salt:1234'));
-    const passHash = Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
-    localStorage.setItem('homedex_cached_auth_vault_v1', JSON.stringify([{uid:'home-layout-test',email:'home@example.test',displayName:'Home Tester',salt:'salt',passwordHash: passHash,hasLoggedInOnThisDevice:true,lastLoginAt:Date.now()}]));
+    const pinHash = Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
+    localStorage.setItem('homedex_cached_auth_vault_v1', JSON.stringify([{uid:'home-layout-test',email:'home@example.test',displayName:'Home Tester',salt:'salt',passwordHash:'unused',pinSalt:'salt',pinHash,hasLoggedInOnThisDevice:true,lastLoginAt:Date.now()}]));
 
     localStorage.setItem('homedex_home_panels_v1', JSON.stringify({catchHub:false}));
 
@@ -43,9 +43,9 @@ try {
   await page.goto(base);
   await page.getByRole('button',{name:/Open Dex/i}).click();
   await page.getByRole('button',{name:/Skip Intro/i}).click();
-  await page.locator('input[type=email]').fill('home@example.test');
-  await page.locator('input[type=password]').fill('1234');
-  await page.getByRole('button', { name: /Sign In/i }).first().click();
+  await page.getByRole('group',{name:'PIN touch keypad'}).waitFor();
+  for(const digit of ['1','2','3','4']) await page.getByRole('button',{name:`PIN digit ${digit}`,exact:true}).click();
+  await page.getByRole('button',{name:'Unlock with PIN'}).click();
   const sidebar = page.getByRole('complementary',{name:'Your trainer and profile shortcuts'});
   await sidebar.waitFor();
 

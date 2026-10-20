@@ -43,21 +43,25 @@ try {
   await context.addInitScript(async () => {
     const salt = 'test-salt';
     const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(salt + ':1234'));
-    const passHash = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
+    const pinHash = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
     localStorage.setItem('homedex_cached_auth_vault_v1', JSON.stringify([{
       uid: 'shell-test-trainer', email: 'trainer@example.test', displayName: 'Test Trainer',
-      salt, passwordHash: passHash,
+      salt, passwordHash: 'unused', pinSalt: salt, pinHash,
       hasLoggedInOnThisDevice: true, lastLoginAt: Date.now()
     }]));
   });
   await page.goto(base);
   await page.getByRole('button', { name: /Open Dex/i }).click();
   await page.getByRole('button', { name: /Skip Intro/ }).click();
-  // The retired PIN keypad must be gone; cached credentials unlock via the password form.
-  assert.equal(await page.getByRole('group', { name: 'PIN touch keypad' }).count(), 0);
-  await page.locator('input[type=email]').fill('trainer@example.test');
-  await page.locator('input[type=password]').fill('1234');
-  await page.getByRole('button', { name: /Sign In/i }).first().click();
+  await page.getByRole('group', { name: 'PIN touch keypad' }).waitFor();
+  for (const digit of ['1','2','3','4']) await page.getByRole('button', { name: 'PIN digit ' + digit, exact: true }).click();
+  assert.equal(await page.locator('input[type=password]').inputValue(), '1234');
+  await page.getByRole('button', { name: 'Delete last PIN digit' }).click();
+  assert.equal(await page.locator('input[type=password]').inputValue(), '123');
+  await page.getByRole('button', { name: 'Clear PIN' }).click();
+  assert.equal(await page.locator('input[type=password]').inputValue(), '');
+  for (const digit of ['1','2','3','4']) await page.getByRole('button', { name: 'PIN digit ' + digit, exact: true }).click();
+  await page.getByRole('button', { name: 'Unlock with PIN' }).click();
   await page.getByRole('button', { name: /Log Out|Sign Out/i }).waitFor({ timeout: 15000 });
   await page.getByRole('button', { name: /Log Out|Sign Out/i }).click();
   await page.getByRole('button', { name: /Open Dex/i }).waitFor({ timeout: 10000 });
@@ -82,9 +86,10 @@ try {
   await page.goto(base);
   await page.getByRole('button', { name: /Open Dex/i }).click();
   await page.getByRole('button', { name: /Skip Intro/ }).click();
-  await page.locator('input[type=email]').fill('trainer@example.test');
-  await page.locator('input[type=password]').fill('1234');
-  await page.getByRole('button', { name: /Sign In/i }).first().click();
+  await page.getByRole('group', { name: 'PIN touch keypad' }).waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Password Login', exact: true }).count(), 0);
+  for (const digit of ['1','2','3','4']) await page.getByRole('button', { name: 'PIN digit ' + digit, exact: true }).click();
+  await page.getByRole('button', { name: 'Unlock with PIN' }).click();
   await page.getByRole('button', { name: /Log Out|Sign Out/i }).waitFor();
   assert.equal(await page.getByLabel('Pokédex hardware').count(), 1);
   // Trainer & Badges tab: avatar builder + badge sprites render.
@@ -111,9 +116,9 @@ try {
   await page.getByRole('button', { name: /Open Dex/i }).waitFor();
   await page.getByRole('button', { name: /Open Dex/i }).click();
   await page.getByRole('button', { name: /Skip Intro/i }).click();
-  await page.locator('input[type=email]').fill('trainer@example.test');
-  await page.locator('input[type=password]').fill('1234');
-  await page.getByRole('button', { name: /Sign In/i }).first().click();
+  await page.getByRole('group', { name: 'PIN touch keypad' }).waitFor();
+  for (const digit of ['1','2','3','4']) await page.getByRole('button', { name: 'PIN digit ' + digit, exact: true }).click();
+  await page.getByRole('button', { name: 'Unlock with PIN' }).click();
   await page.getByRole('button', { name: /Log Out|Sign Out/i }).waitFor();
   await page.getByRole('button', { name: 'Test Trainer' }).first().click();
   const card = page.locator('[aria-label="Trainer card"]');
@@ -139,18 +144,18 @@ try {
   await page.screenshot({ path: '/tmp/avatar-custom.png' });
   const saved = await page.evaluate(() => localStorage.getItem('homedex_avatar_v1'));
   console.log('AVATAR-SAVED:', saved);
-  await page.locator('svg[aria-label="Trainer portrait"]').first().screenshot({ path: '/tmp/avatar-custom.svg.png' });
+  await page.locator('svg[aria-label="Trainer avatar"]').first().screenshot({ path: '/tmp/avatar-custom.svg.png' });
   await page.waitForTimeout(1000);
   const badgeImgs = await page.locator('img[src*="/badges/"]').count();
   const lit = await page.locator('img[src*="/badges/"]:not(.grayscale)').count();
-  const svg = await page.locator('svg[aria-label="Trainer portrait"]').count();
+  const svg = await page.locator('svg[aria-label="Trainer avatar"]').count();
   console.log('BADGES total:', badgeImgs, 'lit:', lit, 'avatar-svg:', svg);
 
   await page.screenshot({ path: '/tmp/trainer-tab2.png', fullPage: false });
-  assert.ok(badgeImgs >= 8 && lit >= 3, 'badge case slots render with earned badges lit');
+  assert.ok(badgeImgs >= 30, 'badge sprites render per owned game in profile');
   assert.ok(svg >= 1, 'avatar preview renders (card + builder)');
   assert.deepEqual(errors, []);
-  console.log('PASS: closed-first, responsive login frame, password login and logout-to-closed');
+  console.log('PASS: closed-first, responsive login frame, PIN default/keypad/login and logout-to-closed');
 } finally {
   await context.close(); await browser.close();
   await new Promise(r => server.close(r));

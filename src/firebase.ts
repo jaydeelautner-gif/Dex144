@@ -25,6 +25,10 @@ import {
   saveLocallyCachedProfile,
   getLocallyCachedProfile,
   getCachedAccountByUid,
+  setAccountPin,
+  removeAccountPin,
+  hasPinSet,
+  verifyAccountPin,
   isFirstLoginOnDevice,
   type CachedAuthAccount,
 } from './utils/offlineAuth';
@@ -713,7 +717,28 @@ export async function signInWithEmail(email: string, pass: string): Promise<User
   }
 }
 
+/**
+ * Sign in using quick-entry PIN on an offline-ready device.
+ * Enforces: Cannot be used for the first time on a device.
+ */
+export async function signInWithPin(emailOrUid: string, pin: string): Promise<User> {
+  const verifyResult = await verifyAccountPin(emailOrUid, pin);
+  if (!verifyResult.success || !verifyResult.account) {
+    throw new Error(verifyResult.error || 'PIN authentication failed.');
+  }
+
+  const offlineUser = createOfflineUser(verifyResult.account);
+  currentSessionUser = offlineUser;
+  setActiveOfflineUid(offlineUser.uid);
+  authListeners.forEach((cb) => cb(offlineUser));
+  return offlineUser;
+}
+
 export {
+  setAccountPin,
+  removeAccountPin,
+  hasPinSet,
+  verifyAccountPin,
   isFirstLoginOnDevice,
 };
 

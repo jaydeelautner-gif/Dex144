@@ -1,11 +1,11 @@
 import {
-  COLOR_SPRITE_FILES,
-  FEMALE_SPRITE_FILES,
-  FORM_ID_SPRITE_FILES,
-  FORM_SPRITE_FILES,
   ITEM_SPRITE_SLICES,
   SPRITE_BLOB,
   SPRITE_FILES,
+  FORM_ID_SPRITE_FILES,
+  COLOR_SPRITE_FILES,
+  FORM_SPRITE_FILES,
+  FEMALE_SPRITE_FILES,
   type SpriteSlice,
 } from '../data/spriteFiles.generated';
 
@@ -15,64 +15,25 @@ import {
  * keeps the repository to a single sprite asset (hosts with a file-count limit
  * reject thousands of loose files) while still working offline.
  */
+let archiveRequest: Promise<ArrayBuffer | null> | null = null;
 
-/** Every index map the app can have; later ones may be absent in older bundles. */
-const SLICE_MAPS: Record<string, unknown>[] = [
-  SPRITE_FILES as unknown as Record<string, SpriteSlice>,
-  ITEM_SPRITE_SLICES,
-  COLOR_SPRITE_FILES,
-  FEMALE_SPRITE_FILES,
-  FORM_ID_SPRITE_FILES,
-  FORM_SPRITE_FILES,
-];
-
-/** Flattens a map's values into slices (maps may be flat or nested one level). */
-function* eachSlice(map: Record<string, unknown>): Generator<SpriteSlice> {
-  for (const value of Object.values(map)) {
-    if (value && typeof value === 'object' && 'o' in value) yield value as SpriteSlice;
-    else if (value && typeof value === 'object') for (const slice of Object.values(value)) if (slice && typeof slice === 'object' && 'o' in slice) yield slice as SpriteSlice;
-  }
-}
-
-/** The size every slice needs the archive to be, and how many there are. */
+/**
+ * Highest indexed byte in the bundle. A served archive shorter than this is a
+ * stale or truncated deployment, so it is retried instead of trusted.
+ */
 const REQUIRED_ARCHIVE_BYTES = (() => {
   let max = 0;
-  for (const map of SLICE_MAPS) for (const slice of eachSlice(map)) max = Math.max(max, slice.o + slice.l);
+  const consider = (slice: SpriteSlice | null | undefined) => {
+    if (slice && slice.o + slice.l > max) max = slice.o + slice.l;
+  };
+  for (const entry of Object.values(ITEM_SPRITE_SLICES)) consider(entry);
+  for (const entry of Object.values(SPRITE_FILES)) { consider(entry.normal); consider(entry.shiny); }
+  for (const entry of Object.values(FORM_ID_SPRITE_FILES)) { consider(entry.normal); consider(entry.shiny); }
+  for (const entry of Object.values(COLOR_SPRITE_FILES)) { consider(entry.normal); consider(entry.shiny); }
+  for (const entry of Object.values(FORM_SPRITE_FILES)) consider(entry);
+  for (const entry of Object.values(FEMALE_SPRITE_FILES)) consider(entry);
   return max;
 })();
-
-const ARCHIVE_VERSION = (() => {
-  let sliceCount = 0;
-  let sliceSum = 0;
-  for (const map of SLICE_MAPS) for (const slice of eachSlice(map)) { sliceCount += 1; sliceSum = (sliceSum + slice.o + slice.l) >>> 0; }
-  return `v${REQUIRED_ARCHIVE_BYTES}-${sliceCount}-${sliceSum}`;
-})();
-
-/** The earliest slice in the archive — it must start with the PNG signature. */
-const FIRST_SLICE = (() => {
-  let first: SpriteSlice | null = null;
-  for (const map of SLICE_MAPS) for (const slice of eachSlice(map)) if (!first || slice.o < first.o) first = slice;
-  return first;
-})();
-
-// The build version rides along so the service worker can tell whether a
-// device-pinned offline package belongs to the running build. Old package
-// bytes + new slice offsets would render wrong/no sprites, so a mismatched
-// package must never satisfy an archive request.
-declare const __OFFLINE_BUILD_VERSION__: string;
-const RUNNING_BUILD_VERSION: string = typeof __OFFLINE_BUILD_VERSION__ === 'undefined'
-  ? 'development'
-  : __OFFLINE_BUILD_VERSION__;
-const ARCHIVE_URL = `${SPRITE_BLOB}?${ARCHIVE_VERSION}&b=${encodeURIComponent(RUNNING_BUILD_VERSION)}`;
-
-/** The archive is a plain concatenation of PNGs, so it must start with the PNG signature. */
-function startsWithPngSignature(buffer: ArrayBuffer): boolean {
-  if (!FIRST_SLICE) return false;
-  const head = new Uint8Array(buffer, FIRST_SLICE.o, 4);
-  return head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4e && head[3] === 0x47;
-}
-
-let archiveRequest: Promise<ArrayBuffer | null> | null = null;
 
 function loadArchive(): Promise<ArrayBuffer | null> {
   if (!archiveRequest) {
@@ -81,19 +42,13 @@ function loadArchive(): Promise<ArrayBuffer | null> {
       // failure must not blank out every sprite for the whole session.
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          const response = await fetch(ARCHIVE_URL, { cache: attempt === 1 ? 'force-cache' : 'reload' });
+          const response = await fetch(SPRITE_BLOB, { cache: attempt === 1 ? 'force-cache' : 'reload' });
           if (response.ok) {
             const buffer = await response.arrayBuffer();
-            // Every indexed slice must fit in the archive. A short response is
-            // a truncated or stale deploy (the layout changed under the same
-            // URL before, which silently corrupted sprites), so both cases are
-            // retried rather than trusted.
-            const fits = buffer.byteLength >= REQUIRED_ARCHIVE_BYTES && startsWithPngSignature(buffer);
-            if (fits) return buffer;
-            console.warn(
-              `Sprite archive is ${buffer.byteLength} bytes, expected at least ${REQUIRED_ARCHIVE_BYTES} ` +
-                '(with PNG data). Retrying with a fresh download.',
-            );
+            // A partial or truncated deploy would silently blank out the later
+            // sprites (their slices fall past the end), so validate the size.
+            if (buffer.byteLength >= REQUIRED_ARCHIVE_BYTES) return buffer;
+            console.warn(`Sprite archive is ${buffer.byteLength} bytes but ${REQUIRED_ARCHIVE_BYTES} are indexed. Retrying with a fresh download.`);
           }
         } catch { /* retry */ }
         await new Promise((resolve) => setTimeout(resolve, 250 * attempt));
@@ -148,7 +103,6 @@ export function hasItemSprite(slug: string): boolean {
   return Boolean(ITEM_SPRITE_SLICES[slug]);
 }
 
-/** Object URL for an item sprite by its PokeAPI identifier, or null when unbundled. */
 export function itemSpriteUrl(slug: string): Promise<string | null> {
   return spriteUrl(ITEM_SPRITE_SLICES[slug]);
 }

@@ -40,6 +40,9 @@ import {
   removeCachedAuthAccount,
   requestPersistentStorage,
   checkStorageEstimate,
+  setAccountPin,
+  removeAccountPin,
+  hasPinSet,
   type CachedAuthAccount,
 } from '../utils/offlineAuth';
 import { usePWAInstall } from '../utils/usePWAInstall';
@@ -90,7 +93,62 @@ export const OfflineSettingsCard: React.FC<OfflineSettingsCardProps> = ({
   const abortControllerRef = useRef<AbortController | null>(null);
   useEffect(() => () => { abortControllerRef.current?.abort(); }, []);
 
+  // PIN state
+  const [pinInput, setPinInput] = useState('');
+  const [confirmPinInput, setConfirmPinInput] = useState('');
+  const [pinStatusMsg, setPinStatusMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [hasPin, setHasPin] = useState(false);
+
+  useEffect(() => {
+    if (user?.uid) {
+      setHasPin(hasPinSet(user.uid));
+    }
+  }, [user?.uid, cachedAccounts]);
+
+  const handleSavePin = async (e?: React.FormEvent):Promise<boolean> => {
+    e?.preventDefault();
+    setPinStatusMsg(null);
+    if (!user?.uid) {
+      setPinStatusMsg({ text: 'You must be signed in to configure a quick-entry PIN.', type: 'error' });
+      return false;
+    }
+    const cleanPin = pinInput.trim();
+    if (cleanPin.length < 4 || cleanPin.length > 8 || !/^\d+$/.test(cleanPin)) {
+      setPinStatusMsg({ text: 'PIN must be between 4 and 8 digits (numeric only).', type: 'error' });
+      return false;
+    }
+    if (cleanPin !== confirmPinInput.trim()) {
+      setPinStatusMsg({ text: 'PINs do not match. Please re-enter to confirm.', type: 'error' });
+      return false;
+    }
+    try {
+      await setAccountPin(user.uid, cleanPin);
+      setHasPin(true);
+      setPinInput('');
+      setConfirmPinInput('');
+      setPinStatusMsg({ text: 'Offline quick-entry PIN saved successfully on this device!', type: 'success' });
+      refreshStatus();
+      return true;
+    } catch (err: unknown) {
+      setPinStatusMsg({ text: (err as Error)?.message || 'Failed to save PIN.', type: 'error' });
+      return false;
+    }
+  };
+
+  useEffect(()=>{
+    onAdditionalDraftChange?.({dirty:Boolean(pinInput || confirmPinInput),save:()=>handleSavePin(),discard:()=>{setPinInput('');setConfirmPinInput('');setPinStatusMsg(null);}});
+  },[pinInput,confirmPinInput,user?.uid,onAdditionalDraftChange]);
   useEffect(()=>()=>onAdditionalDraftChange?.(null),[onAdditionalDraftChange]);
+
+  const handleRemovePin = () => {
+    if (!user?.uid) return;
+    removeAccountPin(user.uid);
+    setHasPin(false);
+    setPinInput('');
+    setConfirmPinInput('');
+    setPinStatusMsg({ text: 'Quick-entry PIN removed from this device.', type: 'success' });
+    refreshStatus();
+  };
 
   // Actions the server has actively rejected, versus ones simply still waiting.
   const failedQueue = React.useMemo(
@@ -367,7 +425,7 @@ export const OfflineSettingsCard: React.FC<OfflineSettingsCardProps> = ({
       {syncQueue.length > 0 && (!user || auth.currentUser?.uid !== user.uid) && (
         <div role="status" className="p-3 rounded-xl border border-amber-500/40 bg-amber-950/30 text-amber-200 text-xs leading-relaxed">
           <strong className="block mb-1">Password login is needed to upload offline changes</strong>
-          Offline sign-in verifies your credentials against this device's cached vault. To upload pending changes, connect to the internet and sign in with your account password. Your offline changes stay saved on this device while waiting to sync. Do not clear device storage.
+          Quick PIN unlocks this device locally. To upload pending changes, connect to the internet and sign in with your account password. Your offline changes stay saved on this device while waiting to sync. Do not clear device storage.
         </div>
       )}
 
@@ -770,6 +828,115 @@ export const OfflineSettingsCard: React.FC<OfflineSettingsCardProps> = ({
         </div>
       </div>
 
+      {/* Card 3: Offline Quick-Entry PIN */}
+      <div className="p-5 rounded-xl bg-[#0B0F17] border border-slate-800 flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-purple-400 shrink-0">
+              <Lock className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-100">
+                  Offline Quick-Entry PIN
+                </h3>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase ${
+                    hasPin
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                      : 'bg-slate-800 text-slate-400 border border-slate-700'
+                  }`}
+                >
+                  {hasPin ? 'PIN Active' : 'Not Configured'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed max-w-2xl">
+                Allow quick numerical entry to unlock your Living Dex when this device is in an offline state.
+                For device security, PIN quick entry cannot be used to log in for the first time on a new device.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {user ? (
+          <form onSubmit={handleSavePin} className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
+            <div className="flex-1 flex flex-col gap-1.5">
+              <label className="text-[11px] font-mono font-bold text-slate-300">
+                {hasPin ? 'UPDATE 4-8 DIGIT PIN' : 'NEW 4-8 DIGIT PIN'}
+              </label>
+              <input
+                type="password"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={8}
+                aria-label="Quick-entry PIN"
+                value={pinInput}
+                onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
+                placeholder="••••"
+                className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700/80 focus:border-purple-400 text-slate-100 font-mono tracking-widest text-center text-sm focus:outline-none placeholder:tracking-normal placeholder:text-slate-600"
+              />
+            </div>
+
+            <div className="flex-1 flex flex-col gap-1.5">
+              <label className="text-[11px] font-mono font-bold text-slate-300">
+                CONFIRM PIN
+              </label>
+              <input
+                type="password"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={8}
+                aria-label="Confirm quick-entry PIN"
+                value={confirmPinInput}
+                onChange={(e) => setConfirmPinInput(e.target.value.replace(/\D/g, ''))}
+                placeholder="••••"
+                className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700/80 focus:border-purple-400 text-slate-100 font-mono tracking-widest text-center text-sm focus:outline-none placeholder:tracking-normal placeholder:text-slate-600"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="submit"
+                disabled={!pinInput || !confirmPinInput}
+                className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs transition cursor-pointer shadow-md"
+              >
+                {hasPin ? 'Update PIN' : 'Save PIN'}
+              </button>
+
+              {hasPin && (
+                <button
+                  type="button"
+                  onClick={handleRemovePin}
+                  className="px-3 py-2.5 rounded-xl bg-slate-900 hover:bg-rose-950/60 border border-slate-700 text-slate-400 hover:text-rose-300 text-xs font-semibold transition cursor-pointer"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          </form>
+        ) : (
+          <div className="p-3.5 rounded-xl bg-slate-900/60 border border-dashed border-slate-800 text-center text-xs text-slate-400">
+            Sign in to configure a quick-entry PIN for this device.
+          </div>
+        )}
+
+        {pinStatusMsg && (
+          <div
+            className={`p-3 rounded-xl border text-xs flex items-center gap-2 ${
+              pinStatusMsg.type === 'success'
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                : 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+            }`}
+          >
+            {pinStatusMsg.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+            )}
+            <span>{pinStatusMsg.text}</span>
+          </div>
+        )}
+      </div>
     </section>
   );
 };

@@ -41,20 +41,13 @@ The registration form's layout and scale are unchanged.
 
 Species with colour or coat variations expose every form in the variant picker:
 
-- **Shellos/Gastrodon** West Sea and East Sea, **Vivillon** (19 wing patterns — determined by the
-  real-world region the Scatterbug was collected in), **Flabébé/Floette/Florges** flower colours,
-  **Alcremie** (62 creams and sweets, chosen when Milcery evolves), **Furfrou** trims,
-  **Deerling/Sawsbuck** seasons, **Burmy/Wormadam** cloaks, **Unown** letters, **Cherrim** Overcast and
-  Sunshine Form, **Xerneas** Neutral and Active Mode, **Basculin** stripes, **Pumpkaboo/Gourgeist** sizes,
-  **Minior** cores, **Arceus/Silvally** type forms and **Genesect** drives.
-
-Two details the generator handles explicitly: some species' *own* form is a named variant
-(Shellos West Sea, Vivillon Meadow, Flabébé Red), which shares the species sprite instead of having its
-own, and those species do not also list a redundant plain entry. Forms PokeAPI has no artwork for are
-omitted rather than shown as a blank placeholder.
+- **Vivillon** (19 wing patterns — determined by the real-world region the Scatterbug was collected in),
+  **Scatterbug/Spewpa** patterns, **Flabébé/Floette/Florges** flower colours, **Alcremie** (62 creams and
+  sweets, chosen when Milcery evolves), **Furfrou** trims, **Deerling/Sawsbuck** seasons,
+  **Burmy/Wormadam** cloaks, **Unown** letters, **Arceus/Silvally** type forms and **Genesect** drives.
 
 `scripts/generateColorVariants.mjs` builds the list from PokéAPI's canonical form tables
-(210 forms across 27 species), and `scripts/downloadColorSprites.mjs` fetches each sprite — PokeAPI
+(178 forms across 15 species), and `scripts/downloadColorSprites.mjs` fetches each sprite — PokeAPI
 publishes them as `<dexId>-<formSlug>.png` rather than under a numeric form id — appending them to
 `public/sprites.bin` so the Pokémon and item slices already in use stay valid. Regenerate with
 `npm run generate:color-variants`; verify with `npm run test:color-variants`, which checks every form

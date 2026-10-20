@@ -155,60 +155,19 @@ await pool(species, async (mon) => {
 });
 
 // Alternate-form sprites (Alolan/Galarian/Mega/Hisui…) use PokeAPI ids >1025.
-// PokeAPI form ids reach ~10750 (Gen 9), and Gen 6+ forms generally lack game
-// pixel sprites — fall back to HOME then official artwork so every real form
-// gets art instead of a placeholder.
-const formIds = Array.from({ length: 850 }, (_, i) => 10001 + i);
+const formIds = Array.from({ length: 300 }, (_, i) => 10001 + i);
 const formIdMap: Record<number, { normal?: string; shiny?: string }> = {};
 await pool(formIds, async (id) => {
-  for (const [folders, key] of [['', 'normal'], ['shiny/', 'shiny']] as const) {
-    let saved = false;
-    for (const folder of folders === '' ? ['', 'other/home/', 'other/official-artwork/'] : ['shiny/', 'other/home/shiny/', 'other/official-artwork/shiny/']) {
-      const bytes = await fetchBytes(`${POKEAPI}/${folder}${id}.png`);
-      if (!bytes) continue;
-      const rel = `pokeapi/${folder}${id}.png`;
-      await saveLocal(rel, bytes);
-      (formIdMap[id] ??= {})[key] = `/sprites/${rel}`;
-      saved = true;
-      break;
-    }
-    if (!saved) continue;
+  for (const [folder, key] of [['', 'normal'], ['shiny/', 'shiny']] as const) {
+    const bytes = await fetchBytes(`${POKEAPI}/${folder}${id}.png`);
+    if (!bytes) continue;
+    const rel = `pokeapi/${folder}${id}.png`;
+    await saveLocal(rel, bytes);
+    (formIdMap[id] ??= {})[key] = `/sprites/${rel}`;
   }
 });
 
-// form id -> base species id. PokeAPI chains form -> pokemon -> species, and
-// a form's pokemon_id is usually NOT the national dex id (e.g. Basculin
-// White-Striped: form 10416 -> pokemon 10247 -> species 550), so resolve
-// through pokemon.csv before using it as a dex number.
-const formsCsv = await (await fetch('https://raw.githubusercontent.com/PokeAPI/pokeapi/master/data/v2/csv/pokemon_forms.csv')).text();
-const pokemonCsv = await (await fetch('https://raw.githubusercontent.com/PokeAPI/pokeapi/master/data/v2/csv/pokemon.csv')).text();
-const formBase: Record<number, number> = {};
-{
-  const speciesOfPokemon = new Map<number, number>();
-  {
-    const lines = pokemonCsv.trim().split(/\r?\n/);
-    const header = lines.shift()!.split(',');
-    const at = (name: string) => header.indexOf(name);
-    for (const line of lines) {
-      const cells = line.split(',');
-      speciesOfPokemon.set(Number(cells[at('id')]), Number(cells[at('species_id')]));
-    }
-  }
-  const lines = formsCsv.trim().split(/\r?\n/);
-  const header = lines.shift()!.split(',');
-  const at = (name: string) => header.indexOf(name);
-  for (const line of lines) {
-    const cells = line.split(',');
-    const formId = Number(cells[at('id')]);
-    if (formId <= 10000) continue;
-    const dexId = speciesOfPokemon.get(Number(cells[at('pokemon_id')]));
-    if (dexId && dexId >= 1 && dexId <= 1025) formBase[formId] = dexId;
-  }
-}
-
-// Prune stale files from THIS script's own cache subtrees only. The colours
-// (.sprite-cache/colors) and items (.sprite-cache/items) subtrees belong to
-// their own download scripts and must survive a species/form re-download.
+// Prune cache files from previous runs that this run did not reference.
 let pruned = 0;
 const walk = (dir: string): string[] => {
   const out: string[] = [];
@@ -220,13 +179,9 @@ const walk = (dir: string): string[] => {
   return out;
 };
 if (existsSync(outRoot)) {
-  for (const subdir of ['showdown', 'pokeapi']) {
-    const dir = join(outRoot, subdir);
-    if (!existsSync(dir)) continue;
-    for (const file of walk(dir)) {
-      const rel = file.slice(outRoot.length + 1);
-      if (!written.has(rel)) { rmSync(file); pruned++; }
-    }
+  for (const file of walk(outRoot)) {
+    const rel = file.slice(outRoot.length + 1);
+    if (!written.has(rel)) { rmSync(file); pruned++; }
   }
 }
 
@@ -248,16 +203,6 @@ writeFileSync(
     `export const FEMALE_SPRITE_FILES: Record<number, string> = ${JSON.stringify(sortIds(femaleMap))};`,
     '',
   ].join('\n'),
-);
-
-// Snapshot the path maps for scripts/bundleSprites.mjs, which is the single
-// authoritative pass that converts paths (species, forms, female, colour, item)
-// into byte slices of public/sprites.bin. Writing an intermediate snapshot
-// keeps the bundle idempotent: it never depends on the generated file already
-// being in slice form.
-writeFileSync(
-  join(outRoot, 'spritePaths.json'),
-  JSON.stringify({ spriteFiles, formIdMap, formMap, femaleMap, formBase }, null, 0),
 );
 
 console.log(

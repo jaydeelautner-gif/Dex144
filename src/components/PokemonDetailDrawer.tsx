@@ -42,20 +42,23 @@ import { PokemonEncountersSection } from './PokemonEncountersSection';
 
 interface PokemonDetailDrawerProps {
   pokemon: PokemonEntry | null;
+  initialVariantId?: string;
   dex: PokemonEntry[];
-  onSelectPokemon: (pokemon: PokemonEntry) => void;
-  onOpenFullPage: (pokemon: PokemonEntry) => void;
+  onSelectPokemon: (pokemon: PokemonEntry, variantId?: string) => void;
+  onOpenFullPage: (pokemon: PokemonEntry, variantId?: string) => void;
   onClose: () => void;
   isCaught: boolean;
   isShiny: boolean;
   isLiving: boolean;
   caughtVariantsSet: Set<string>;
+  selectedBoxVariantId?: string;
+  onSelectBoxVariant?: (pokemonId: number, variantId: string) => void;
   selectedBoxGameId?: GameId;
   ownedGames: GameId[];
   ownedDlcs: DlcId[];
   gameCatches: GameCatchesMap;
   inventory?: PokemonInstance[];
-  onNavigateToRegister?: (pokemonId?: number) => void;
+  onNavigateToRegister?: (pokemonId?: number, variantId?: string) => void;
   /** Completed milestones per trackable group + tracked games, for the reachability filter. */
   gameProgress?: Record<string, string[]>;
   /** Per game: starter lines locked to trade because another starter was chosen. */
@@ -66,6 +69,7 @@ interface PokemonDetailDrawerProps {
 
 export const PokemonDetailDrawer: React.FC<PokemonDetailDrawerProps> = ({
   pokemon,
+  initialVariantId,
   dex,
   onSelectPokemon,
   onOpenFullPage,
@@ -74,6 +78,8 @@ export const PokemonDetailDrawer: React.FC<PokemonDetailDrawerProps> = ({
   isShiny,
   isLiving,
   caughtVariantsSet,
+  selectedBoxVariantId,
+  onSelectBoxVariant,
   selectedBoxGameId,
   ownedGames,
   ownedDlcs,
@@ -86,13 +92,22 @@ export const PokemonDetailDrawer: React.FC<PokemonDetailDrawerProps> = ({
   trackedGames,
 }) => {
   const [previewShiny, setPreviewShiny] = useState(false);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(initialVariantId ?? null);
   const [revealedDrawerPokeIds, setRevealedDrawerPokeIds] = useState<Set<string>>(() => new Set());
+
+  React.useEffect(() => {
+    setSelectedVariantId(initialVariantId ?? null);
+    setPreviewShiny(false);
+  }, [pokemon?.id, initialVariantId]);
+
   if (!pokemon) return null;
 
   const prevPokemon = pokemon.id > 1 ? dex[pokemon.id - 2] : dex[dex.length - 1];
   const nextPokemon = pokemon.id < dex.length ? dex[pokemon.id] : dex[0];
 
   const variations = getVariationsForPokemon(pokemon);
+  const currentVariantId = selectedVariantId ?? selectedBoxVariantId ?? variations[0]?.variantId;
+  const activeVariant = variations.find((v) => v.variantId === currentVariantId) || variations[0];
   const pokepets = inventory.filter((inv) => inv.pokemonId === pokemon.id);
 
   // User Requirement: If a user has not marked a game as owned, hide it from the user on the Pokemon’s page.
@@ -127,7 +142,7 @@ export const PokemonDetailDrawer: React.FC<PokemonDetailDrawerProps> = ({
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => onOpenFullPage(pokemon)}
+                onClick={() => onOpenFullPage(pokemon, activeVariant?.variantId)}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-400/15 hover:bg-amber-400/25 border border-amber-400/40 text-xs font-semibold text-amber-300 transition-colors cursor-pointer"
                 title="Open Full-Screen Pokémon Page"
               >
@@ -169,11 +184,20 @@ export const PokemonDetailDrawer: React.FC<PokemonDetailDrawerProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center bg-[#0B0F17] border border-slate-800/80 rounded-2xl p-5">
           <div className="flex flex-col items-center">
             <PokemonSprite
-              id={pokemon.id}
-              name={pokemon.name}
+              id={activeVariant ? activeVariant.spriteId : pokemon.id}
+              name={activeVariant ? activeVariant.formName : pokemon.name}
               shiny={previewShiny || isShiny}
               size="xl"
+              imageUrl={activeVariant?.imageUrl}
             />
+            {activeVariant && activeVariant.variantId !== variations[0]?.variantId && (
+              <span
+                className="text-xs font-semibold text-amber-300 mt-2 px-2.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-center max-w-[200px] truncate"
+                title={activeVariant.formName}
+              >
+                {activeVariant.formName}
+              </span>
+            )}
             <div className="flex items-center gap-1 mt-3 p-1 bg-slate-900 border border-slate-800 rounded-lg">
               <button
                 type="button"
@@ -230,15 +254,126 @@ export const PokemonDetailDrawer: React.FC<PokemonDetailDrawerProps> = ({
             {onNavigateToRegister && (
               <button
                 type="button"
-                onClick={() => onNavigateToRegister(pokemon.id)}
+                onClick={() => onNavigateToRegister(pokemon.id, activeVariant?.variantId)}
                 className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs transition-colors cursor-pointer shadow-lg shadow-amber-500/20"
               >
                 <Plus className="w-4 h-4 stroke-[3]" />
-                <span>Register {pokemon.name} Pokepet</span>
+                <span>Register {activeVariant && activeVariant.variantId !== variations[0]?.variantId ? activeVariant.formName : pokemon.name} Pokepet</span>
               </button>
             )}
           </div>
         </div>
+
+        {/* FORMS & REGIONAL VARIANTS SECTION */}
+        {variations.length > 1 && (
+          <section className="bg-[#0B0F17] border border-slate-800 rounded-2xl p-5 flex flex-col gap-3 shadow-lg">
+            <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-mono font-bold border border-amber-500/40">
+                  FORMS & REGIONAL VARIANTS ({variations.length})
+                </span>
+              </div>
+              <span className="text-xs text-slate-400">
+                Tap any form to preview
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {variations.map((v) => {
+                const isCurrentActive = v.variantId === activeVariant.variantId;
+                const isCaughtVariant =
+                  caughtVariantsSet.has(v.variantId) ||
+                  pokepets.some((p) => p.variantId === v.variantId) ||
+                  (v.regionTag === 'Original' && isCaught);
+
+                return (
+                  <div
+                    key={v.variantId}
+                    onClick={() => setSelectedVariantId(v.variantId)}
+                    className={`p-3 rounded-xl border flex flex-col justify-between gap-2.5 transition-all cursor-pointer ${
+                      isCurrentActive
+                        ? 'bg-amber-500/10 border-amber-400 ring-1 ring-amber-400/40'
+                        : 'bg-slate-900/70 border-slate-800 hover:border-slate-700 hover:bg-slate-900'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">
+                        {v.regionTag}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        {isCaughtVariant ? (
+                          <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.2 rounded flex items-center gap-0.5">
+                            <Check className="w-3 h-3" /> Caught
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-mono text-slate-500">
+                            Uncaught
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="w-14 h-14 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center shrink-0">
+                        <PokemonSprite
+                          id={v.spriteId}
+                          name={v.formName}
+                          shiny={previewShiny || isShiny}
+                          size="sm"
+                          imageUrl={v.imageUrl}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                        <div className="text-xs font-bold text-slate-100 truncate" title={v.formName}>
+                          {v.formName}
+                        </div>
+                        <div className="text-[11px] font-mono text-amber-300">
+                          {v.types.join(' / ')}
+                        </div>
+                        {onSelectBoxVariant && isCurrentActive && selectedBoxVariantId !== v.variantId && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSelectBoxVariant(pokemon.id, v.variantId);
+                            }}
+                            className="mt-1 text-[10px] font-bold text-sky-300 hover:text-sky-200 bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/40 px-2 py-0.5 rounded cursor-pointer w-fit"
+                          >
+                            Set as Box Variant
+                          </button>
+                        )}
+                        {selectedBoxVariantId === v.variantId && (
+                          <span className="text-[10px] font-mono text-sky-400 font-semibold mt-0.5">
+                            ★ Active Box Variant
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {v.findInGames.length > 0 && (
+                      <div className="pt-1.5 border-t border-slate-800/80 text-[10px] text-slate-400 flex flex-col gap-0.5">
+                        <div className="flex flex-wrap items-center gap-1">
+                          <span className="text-slate-500">Available in:</span>
+                          {v.findInGames.slice(0, 4).map((src) => (
+                            <span key={src.gameId} className="px-1 py-0.2 rounded bg-slate-800 font-mono text-slate-300">
+                              {src.gameShortTitle}
+                            </span>
+                          ))}
+                          {v.findInGames.length > 4 && (
+                            <span className="text-slate-500">+{v.findInGames.length - 4} more</span>
+                          )}
+                        </div>
+                        <p className="line-clamp-2 italic text-slate-400 text-[10px]">
+                          {v.findInGames[0].method}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* POKEPET INVENTORY CARDS FOR THIS POKÉMON */}
         <div className="bg-[#0F1522] border border-amber-500/40 rounded-2xl p-5 flex flex-col gap-3 shadow-xl">
@@ -251,7 +386,7 @@ export const PokemonDetailDrawer: React.FC<PokemonDetailDrawerProps> = ({
             {onNavigateToRegister && (
               <button
                 type="button"
-                onClick={() => onNavigateToRegister(pokemon.id)}
+                onClick={() => onNavigateToRegister(pokemon.id, activeVariant?.variantId)}
                 className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[11px] cursor-pointer"
               >
                 <Plus className="w-3 h-3" />
@@ -268,7 +403,7 @@ export const PokemonDetailDrawer: React.FC<PokemonDetailDrawerProps> = ({
               {onNavigateToRegister && (
                 <button
                   type="button"
-                  onClick={() => onNavigateToRegister(pokemon.id)}
+                  onClick={() => onNavigateToRegister(pokemon.id, activeVariant?.variantId)}
                   className="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold text-xs cursor-pointer"
                 >
                   Register First Pokepet →

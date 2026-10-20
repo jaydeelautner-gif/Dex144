@@ -2,18 +2,10 @@ import {
   SPRITE_FILES,
   FORM_SPRITE_FILES,
   FORM_ID_SPRITE_FILES,
-  FORM_ID_BASE_SPRITE_FILES,
   COLOR_SPRITE_FILES,
   FEMALE_SPRITE_FILES,
   type SpriteSlice,
 } from '../data/spriteFiles.generated';
-
-/** `/sprites/pokeapi/female/{id}.png` → species id for the female map. */
-function femaleSliceFor(imageUrl: string): SpriteSlice | null {
-  const match = imageUrl.match(/\/sprites\/pokeapi\/female\/(\d+)\.png$/);
-  if (!match) return null;
-  return FEMALE_SPRITE_FILES[Number(match[1])] ?? null;
-}
 
 /**
  * Sprite candidates for a species, in order of preference. Every candidate is a
@@ -23,16 +15,23 @@ function femaleSliceFor(imageUrl: string): SpriteSlice | null {
 export function spriteSources(id: number, shiny = false, imageUrl?: string): SpriteSlice[] {
   const out: SpriteSlice[] = [];
   if (imageUrl) {
-    const mapped = FORM_SPRITE_FILES[imageUrl] ?? femaleSliceFor(imageUrl);
+    const cleanUrl = imageUrl.replace(/^https?:\/\/[^/]+/, '');
+    const mapped = FORM_SPRITE_FILES[imageUrl] ?? FORM_SPRITE_FILES[cleanUrl];
     if (mapped) out.push(mapped);
+    if (imageUrl.includes('/female/') || imageUrl.endsWith('-female.png')) {
+      const match = imageUrl.match(/\/(\d+)(?:-female)?\.png$/);
+      const femaleId = match ? Number(match[1]) : id;
+      if (FEMALE_SPRITE_FILES[femaleId]) {
+        out.push(FEMALE_SPRITE_FILES[femaleId]);
+      } else if (FEMALE_SPRITE_FILES[id]) {
+        out.push(FEMALE_SPRITE_FILES[id]);
+      }
+    }
   }
   // Cosmetic colour/coat forms are keyed by their own sprite id, so look there
-  // first; the numeric form map does not contain them. A base form has no
-  // separate artwork, so it falls through to the species sprite below.
+  // first; the numeric form map does not contain them.
   const form = COLOR_SPRITE_FILES[id] ?? FORM_ID_SPRITE_FILES[id];
-  // Species ids 1-1025 resolve to their own sprite; numeric PokeAPI form ids
-  // (10001+) fall back to their base species sprite when no form art exists.
-  const base = SPRITE_FILES[id] ?? FORM_ID_BASE_SPRITE_FILES[id];
+  const base = SPRITE_FILES[id];
   const ordered = shiny
     ? [form?.shiny, base?.shiny, form?.normal, base?.normal]
     : [form?.normal, base?.normal, form?.shiny, base?.shiny];
